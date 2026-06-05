@@ -1,0 +1,20 @@
+name: redeploy landing
+
+# The landing page (pxdogbo/rapid-landing) builds its command grid from this
+# repo's SKILL.md. Whenever SKILL.md changes on main, poke the Vercel deploy
+# hook so the site rebuilds with the fresh command list.
+
+on:
+  push:
+    branches: [main]
+    paths: [SKILL.md]
+  workflow_dispatch:
+
+jobs:
+  redeploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Vercel deploy hook
+        run: curl -fsS -X POST "$DEPLOY_HOOK" > /dev/null && echo "landing redeploy triggered"
+        env:
+          DEPLOY_HOOK: ${{ secrets.VERCEL_DEPLOY_HOOK }}
