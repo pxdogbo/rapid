@@ -8,20 +8,20 @@ implements, and ships them in batched PRs — without ever losing its place.
 
 ```
 you:    /rapid the avatar in the sidebar feels too small
-agent:  Started rapid/amber-fox at ~/worktrees/Maistro/amber-fox.
+agent:  Started rapid/amber-kart at ~/worktrees/Maistro/amber-kart.
         Picking up note 1: avatar size — looking now.
 
 you:    also the title bar text wraps weird at 1280px
 agent:  Noted (queued as note 2). Finishing avatar size first.
 
 you:    review
-agent:  rapid/amber-fox — review
+agent:  rapid/amber-kart — review
         done, unshipped: #1 avatar sizing (say `push`)
         in progress:     #2 title bar wrap
 
 you:    push
 agent:  PR open → https://github.com/you/repo/pull/123
-        (2 notes shipped on rapid/amber-fox-batch-1)
+        (2 notes shipped on rapid/amber-kart-batch-1)
 ```
 
 ## What it does
@@ -120,11 +120,11 @@ via the GitHub UI when you're ready.
 ~/.rapid/
 ├── config.json             # one-time setup: paths, last update check
 ├── sessions/
-│   ├── amber-fox.md        # live session doc (queue + push history)
+│   ├── amber-kart.md        # live session doc (queue + push history)
 │   └── archive/            # ended sessions
 ~/worktrees/
 └── <repo>/
-    └── amber-fox/          # the session's isolated working dir
+    └── amber-kart/          # the session's isolated working dir
 ```
 
 Both roots are configurable in `config.json`. Multiple chats (or machines)

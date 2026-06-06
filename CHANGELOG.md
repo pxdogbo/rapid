@@ -44,6 +44,9 @@
 - **Removed the `active` pointer file.** It was a soft
   "most-recently-started" hint nothing depended on; each chat already
   tracks its own slug.
+- **Vehicle slugs.** Session names are now `<adjective>-<vehicle>`
+  (`amber-kart`, `swift-glider`, `neon-moped`) instead of animals — things
+  that travel, for a queue that ships.
 - **Bare-word safety.** `wash`/`clear` with no session no longer silently
   starts one — every bare word without a session is just a normal message
   (exceptions: `burn` is repo-wide, `/rapid update` is about the skill).

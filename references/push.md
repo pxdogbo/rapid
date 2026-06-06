@@ -45,7 +45,7 @@ Behavior:
    `Nothing new to push.` and stop.
 5. **Create the combined branch.** Pick a name like
    `rapid/<slug>-batch-<N>` (where `<N>` is the count of prior `## Pushes`
-   sections + 1, e.g. `rapid/amber-fox-batch-1`). The branch name MUST
+   sections + 1, e.g. `rapid/amber-kart-batch-1`). The branch name MUST
    be new — never reuse a previous batch's branch. Run:
    ```
    git fetch origin main
