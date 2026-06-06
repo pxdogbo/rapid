@@ -1,7 +1,7 @@
 # `wash`, `scrap`, `burn` — cleaning up
 
 Read this file when the user texts one of the bare words `wash` /
-`clean` / `wipe` / `clear`, `scrap`, or `burn`. Three escalating levels:
+`clean`, `scrap`, or `burn`. Three escalating levels:
 
 | Verb | Scope | What survives |
 |---|---|---|
@@ -11,9 +11,9 @@ Read this file when the user texts one of the bare words `wash` /
 
 ---
 
-## Bare `wash` / `clean` / `wipe` / `clear`
+## Bare `wash` / `clean`
 
-All four words are aliases for the same action. When the user texts just
+The two words are aliases for the same action. When the user texts just
 one of them (no slash, no other content) while **this chat has a
 session**, they want to **empty the session file in place** so the slug,
 worktree, branch, and `## Pushes` history all survive for reuse on the
@@ -52,8 +52,8 @@ Behavior:
 
    Wait for the user's response. Do NOT proceed silently.
 
-   - If the user replies `wash force` (or `clean force` / `wipe force` /
-     `clear force` / a clear "yes wipe it" variant): proceed to step 3.
+   - If the user replies `wash force` (or `clean force` / a clear "yes
+     wipe it" variant): proceed to step 3.
    - If the user replies anything else (e.g. "push first" or "keep the
      parked ones"): handle that request first and re-prompt before
      emptying.

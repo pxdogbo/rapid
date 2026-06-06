@@ -8,7 +8,7 @@ description: >
   starts a brand-new one (fresh doc + sibling git worktree on a `rapid/<slug>`
   branch). Drive-by notes and bare-word triggers (review/recap, push (→ always
   commits the queue and opens a PR, never a bare git push), carpool,
-  wash/clean/wipe/clear, park, unpark, drop, test/testdrive, scrap, burn,
+  wash/clean, park, unpark, drop, test/testdrive, scrap, burn,
   link, reverse/undo) operate on the session this chat started, not on
   whatever doc happens to be marked active globally. Use whenever the user
   types /rapid, /rapid <note>, /rapid review, /rapid done, /rapid off,
@@ -32,7 +32,7 @@ this one — **read the reference file when its trigger fires**, not before:
 | File | Covers |
 |---|---|
 | `references/push.md` | `push`, `carpool` |
-| `references/cleanup.md` | `wash`/`clean`/`wipe`/`clear`, `scrap`, `burn` |
+| `references/cleanup.md` | `wash`/`clean`, `scrap`, `burn` |
 | `references/notes.md` | `park`, `unpark`, `drop`, `link` |
 | `references/reverse.md` | `reverse <N>` / `undo <N>` |
 | `references/test.md` | `test` / `testdrive` |
@@ -104,7 +104,7 @@ skipped and the session is doc-only.
 | `drop <N>` (bare word, mid-session) | Mark note N dropped (`[-]`) — "never," not "later." Bookkeeping only; use `reverse` to also discard work. See `references/notes.md`. |
 | `link` / `link <N>` (bare word, mid-session) | Print the URL(s) of recent PRs opened from **this chat's** session, newest first. See `references/notes.md`. |
 | `reverse <N>` / `undo <N>` (bare word, mid-session) | **Undo the work done on note N** — discard uncommitted changes, reset committed branches, or close pushed PRs (with confirmation). See `references/reverse.md`. |
-| `wash` / `clean` / `wipe` / `clear` (bare word, mid-session) | **Empty** this chat's session file in place so it can be reused — keeps slug, worktree, branch, and `## Pushes` history. Confirms first if anything risky is in flight. See `references/cleanup.md`. |
+| `wash` / `clean` (bare word, mid-session) | **Empty** this chat's session file in place so it can be reused — keeps slug, worktree, branch, and `## Pushes` history. Confirms first if anything risky is in flight. See `references/cleanup.md`. |
 | `scrap` (bare word, mid-session) | **Delete this chat's session entirely** — doc, worktree, and local branch. Confirms first if anything risky is in flight. See `references/cleanup.md`. |
 | `burn` (bare word, any time) | **Nuke ALL rapid artifacts for the current repo** (docs, worktrees, `rapid/*` branches). Confirms first; lists anything that would be lost. See `references/cleanup.md`. |
 | `/rapid done` / `/rapid end` / `/rapid off` | Archive **this chat's** session. See Step 6. |

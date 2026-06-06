@@ -89,7 +89,7 @@ Start with the slash command, then drive everything with bare words mid-session.
 | `drop <N>` | Mark note N dropped — "never," not "later" (bookkeeping only; `reverse` discards work) |
 | `link` / `link <N>` | Print recent PR URLs from this session |
 | `reverse <N>` / `undo <N>` | Roll back note N's work — discard, delete branch, or close PR (with confirmation) |
-| `wash` / `clean` / `wipe` / `clear` | Empty the queue in place; keep slug, worktree, and push history for reuse |
+| `wash` / `clean` | Empty the queue in place; keep slug, worktree, and push history for reuse |
 | `scrap` | Delete this one session entirely (doc + worktree + branch) |
 | `burn` | Nuke ALL rapid artifacts for the current repo (confirms first, lists what's at risk) |
 | `/rapid done` / `end` / `off` | Archive the session (flags unshipped work first) |

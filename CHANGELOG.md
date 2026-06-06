@@ -47,9 +47,11 @@
 - **Vehicle slugs.** Session names are now `<adjective>-<vehicle>`
   (`amber-kart`, `swift-glider`, `neon-moped`) instead of animals — things
   that travel, for a queue that ships.
-- **Bare-word safety.** `wash`/`clear` with no session no longer silently
-  starts one — every bare word without a session is just a normal message
-  (exceptions: `burn` is repo-wide, `/rapid update` is about the skill).
+- **Bare-word safety.** `wash` aliases trimmed to `wash`/`clean` (`wipe`
+  and `clear` removed — too common as ordinary words), and a bare word
+  with no session no longer silently starts one — it's just a normal
+  message (exceptions: `burn` is repo-wide, `/rapid update` is about the
+  skill).
 
 ## 1.0.0 — 2026-05-31
 
