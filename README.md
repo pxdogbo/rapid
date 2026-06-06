@@ -14,8 +14,10 @@ agent:  Started rapid/amber-fox at ~/worktrees/Maistro/amber-fox.
 you:    also the title bar text wraps weird at 1280px
 agent:  Noted (queued as note 2). Finishing avatar size first.
 
-you:    status
-agent:  2
+you:    review
+agent:  rapid/amber-fox — review
+        done, unshipped: #1 avatar sizing (say `push`)
+        in progress:     #2 title bar wrap
 
 you:    push
 agent:  PR open → https://github.com/you/repo/pull/123
@@ -36,19 +38,22 @@ agent:  PR open → https://github.com/you/repo/pull/123
   own branch off `origin/main` (bisectable), but `push` rolls all unshipped
   work into a single combined branch + a single PR. Your PR list doesn't get
   flooded with eight one-line PRs.
-- **Sealed PRs.** Once a PR's URL is shared, that PR is closed-for-edits. New
-  work accumulates locally until the next `push` cuts a fresh batch. No
-  surprise commits landing on a PR you already reviewed.
+- **Sealed PRs — with one escape hatch.** Once a PR's URL is shared, that PR
+  is closed-for-edits; new work accumulates until the next `push` cuts a
+  fresh batch. The one exception is you saying `carpool`, which rides the
+  latest work onto the most recent still-open PR.
+- **Overlap aware.** Before starting a note the agent checks whether its
+  files were already changed by an unmerged earlier note — it builds on
+  unshipped work instead of contradicting it, and asks (carpool or park?)
+  when a file is sitting in an open PR.
 - **Smart triage.** A new note is either folded into the current task (spec
   refinement), queued, or pivoted to (when it's blocking you) — and the agent
   says which, in one line.
-- **Self-cleaning.** Every session start garbage-collects finished sessions:
-  stale worktrees, merged branches, and shipped docs get reaped automatically.
-  You never have to remember to run `done`.
+- **Self-cleaning.** Every session start garbage-collects finished sessions
+  (stale worktrees, merged branches, shipped docs) and fast-forwards your
+  local `main` when it's clean. You never have to remember to run `done`.
 
 ## Install
-
-It's a single file. Drop it where your agent reads skills from:
 
 ```bash
 # Claude Code
@@ -57,7 +62,15 @@ git clone https://github.com/pxdogbo/rapid ~/.claude/skills/rapid
 
 Works in any agent that reads markdown skills (Claude Code, Codex CLI, etc.) —
 session state lives in plain files under `~/.rapid/`, never in tool-specific
-storage.
+storage. The first `/rapid` walks you through a one-time setup: it explains
+where files go and lets you pick different locations (saved to
+`~/.rapid/config.json`).
+
+### Updating
+
+The agent checks for a new version at most once a day (at session start,
+fail-silent) and mentions it in one line. `/rapid update` pulls the latest
+and prints the changelog delta.
 
 ## Commands
 
@@ -67,19 +80,21 @@ Start with the slash command, then drive everything with bare words mid-session.
 |---|---|
 | `/rapid` / `/rapid <note>` | Start a session (reuses an empty one if available) — fresh doc + worktree on `rapid/<slug>` |
 | *(any message)* | Drive-by note → appended to the queue before anything else happens |
-| `status` | Replies with **just a number**: tickets remaining |
+| `review` / `recap` | Session recap: shipped (with PR links), done-but-unshipped, in progress, queued, parked, blocked |
 | `push` | Finish current note, roll every unshipped note into ONE combined branch + ONE PR, stop at PR-open |
-| `add` / `carpool` | Like `push`, but ride along on the most recent still-open PR instead of cutting a new one |
+| `carpool` | Ride the latest work along on the most recent still-open PR instead of cutting a new one |
 | `test` / `testdrive` | Agent verifies the last shipped note end-to-end itself (browser, simulator, curl) and reports ✅/❌/⚠️ with evidence |
 | `park` / `park <N>` | Set a note aside without dropping it |
+| `unpark <N>` | Flip a parked note back into the queue |
+| `drop <N>` | Mark note N dropped — "never," not "later" (bookkeeping only; `reverse` discards work) |
 | `link` / `link <N>` | Print recent PR URLs from this session |
 | `reverse <N>` / `undo <N>` | Roll back note N's work — discard, delete branch, or close PR (with confirmation) |
 | `wash` / `clean` / `wipe` / `clear` | Empty the queue in place; keep slug, worktree, and push history for reuse |
 | `scrap` | Delete this one session entirely (doc + worktree + branch) |
 | `burn` | Nuke ALL rapid artifacts for the current repo (confirms first, lists what's at risk) |
-| `/rapid status` | Full session summary |
 | `/rapid done` / `end` / `off` | Archive the session (flags unshipped work first) |
 | `/rapid resume <slug>` | Re-activate an archived session in this chat |
+| `/rapid update` | Pull the latest skill version and show what changed |
 
 ## The queue
 
@@ -103,7 +118,7 @@ via the GitHub UI when you're ready.
 
 ```
 ~/.rapid/
-├── active                  # slug of the most recently started session
+├── config.json             # one-time setup: paths, last update check
 ├── sessions/
 │   ├── amber-fox.md        # live session doc (queue + push history)
 │   └── archive/            # ended sessions
@@ -112,8 +127,22 @@ via the GitHub UI when you're ready.
     └── amber-fox/          # the session's isolated working dir
 ```
 
-Multiple chats (or machines) can run concurrent sessions — each chat binds to
-its own slug; the `active` file is just a discovery pointer, never an owner.
+Both roots are configurable in `config.json`. Multiple chats (or machines)
+can run concurrent sessions — each chat binds to its own slug.
+
+## Repo layout
+
+```
+SKILL.md          # the core loop — what the agent loads on every session
+references/       # heavy verbs, read on demand when their trigger fires
+├── push.md       #   push, carpool
+├── cleanup.md    #   wash, scrap, burn
+├── notes.md      #   park, unpark, drop, link
+├── reverse.md    #   reverse / undo
+├── test.md       #   test / testdrive
+└── setup.md      #   onboarding, config.json, /rapid update
+CHANGELOG.md
+```
 
 ## Design notes
 
