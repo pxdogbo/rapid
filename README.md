@@ -81,9 +81,25 @@ where files go and lets you pick different locations (saved to
 ### Updating
 
 The agent checks for a new version at most once a day (at session start,
-fail-silent) and mentions it in one line. Clone installs: `/rapid update`
-pulls the latest and prints the changelog delta. skills-CLI installs:
-`npx skills update`.
+fail-silent) and mentions it in one line — it never applies anything on
+its own. `/rapid update` shows the changelog (and the full diff on
+request) **before** asking to apply; clone installs then `git pull`,
+skills-CLI installs run `npx skills update`.
+
+### Why you can trust updates
+
+- **Markdown-only.** The skill ships zero executable code — no binaries,
+  no postinstall hooks, no scripts. An update is a human-readable text
+  diff and nothing else.
+- **Preview before apply.** `/rapid update` shows what changed (changelog
+  + full diff on request) and waits for your yes. The daily version check
+  only *mentions* new versions.
+- **Tagged + auditable.** Every release is a git tag on this public repo —
+  compare any two versions:
+  [`v1.0.0...v1.1.0`](https://github.com/pxdogbo/rapid/compare/v1.0.0...v1.1.0).
+- **Read it like code.** Skills run with your agent's permissions, so
+  treat them like a dependency: skim the diff before you accept. The
+  whole skill is ~7 files of markdown — it's a five-minute read.
 
 ## Commands
 

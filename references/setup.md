@@ -94,7 +94,9 @@ During session start (after the GC sweep, never blocking it):
      SKILL.md from the repo and read its frontmatter.
 3. If latest > installed, append ONE line to the session-start
    acknowledgement:
-   `rapid v<latest> available (you have v<installed>) — /rapid update to see what's new.`
+   `rapid v<latest> available (you have v<installed>) — /rapid update to preview what changed.`
+   The ping never applies anything — updating is always preview + confirm
+   via `/rapid update`.
 4. **Fail silently** on any error (offline, no git, timeout). Never
    block or delay a session start on this — the note queue is the
    product, the version ping is a courtesy.
@@ -103,26 +105,47 @@ During session start (after the GC sweep, never blocking it):
 
 ## `/rapid update`
 
-Updates the installed skill in place and shows what changed.
+**Preview first, apply only on confirmation.** Nothing is pulled,
+overwritten, or executed before the user has seen what changed and said
+yes. The skill is markdown-only — an update is a readable text diff, so
+show it like one.
 
 1. **Locate the skill directory** (the directory containing the
    SKILL.md you are reading from). Note the installed `version:` from
    its frontmatter.
-2. **If it's a git clone** (has a `.git`):
-   ```
-   git -C <skill-dir> pull --ff-only
-   ```
-   If the pull fails (diverged, dirty), report verbatim and stop — the
-   user may have local edits worth keeping. Never force.
-3. **If it's not a clone**: it was likely installed via the skills CLI —
-   tell the user to run `npx skills update` instead (or reinstall with
-   `git clone https://github.com/pxdogbo/rapid <their tool's skill path>`
-   if they want `/rapid update` to work) — and stop.
-4. **Show the delta**: read `CHANGELOG.md` and print every entry newer
-   than the previously installed version. If versions match after the
-   pull: `Already on the latest (v<version>).`
+2. **Fetch the latest changelog WITHOUT touching the install**:
+   - Git clone: `git -C <skill-dir> fetch --quiet origin main`, then read
+     `origin/main:CHANGELOG.md` and `origin/main:SKILL.md` frontmatter.
+   - Otherwise: `curl -fsS --max-time 5` the raw `CHANGELOG.md` and
+     `SKILL.md` from the repo.
+   If latest == installed: `Already on the latest (v<version>).` Stop.
+3. **Show the preview**: print every changelog entry newer than the
+   installed version, then:
+   `v<installed> → v<latest>. Apply? (For the full text diff first, say "show diff".)`
+   - On `show diff` (clone): `git -C <skill-dir> diff HEAD..origin/main`
+     — the entire change, every line readable. Non-clone: link to the
+     GitHub compare view `https://github.com/pxdogbo/rapid/compare/v<installed>...v<latest>`.
+   - Wait for the user. Anything other than a yes = no update, no
+     changes, stop.
+4. **Apply on confirmation**:
+   - Git clone: `git -C <skill-dir> pull --ff-only`. If the pull fails
+     (diverged, dirty), report verbatim and stop — the user may have
+     local edits worth keeping. Never force.
+   - skills-CLI install: tell the user to run `npx skills update` (or
+     reinstall as a clone if they want `/rapid update` to apply directly).
 5. **Remind about reload** in one line: a running session keeps using
    the instructions already in context; new sessions pick up the new
    version.
 
 `/rapid update` works any time — no session required.
+
+### Why updates are auditable
+
+Worth telling the user if they ask about update safety:
+- The skill is **plain markdown** — no binaries, no install hooks, no
+  executable code ships with it. Every update is a human-readable diff.
+- Versions are **git tags** on the public repo; any two versions can be
+  compared on GitHub (`/compare/v1.0.0...v1.1.0`).
+- The agent never auto-applies an update — the once-daily check only
+  *mentions* a new version; applying always goes through the preview +
+  confirm flow above.
