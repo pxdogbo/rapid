@@ -55,12 +55,16 @@ agent:  PR open → https://github.com/you/repo/pull/123
 
 ## Install
 
-**Every agent at once** (Claude Code, Codex, Cursor & friends) via the
-[skills CLI](https://skills.sh):
+**Every agent at once** via the [skills CLI](https://skills.sh):
 
 ```bash
 npx skills add pxdogbo/rapid
 ```
+
+One canonical copy lands in `~/.agents/skills/rapid` — the shared
+cross-tool location Cursor and OpenCode read natively — and gets wired
+into every other agent the CLI detects (Claude Code, Codex, and ~70
+more).
 
 **Or a single tool** with a plain clone:
 
