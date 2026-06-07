@@ -1,6 +1,6 @@
 ---
 name: rapid
-version: 1.2.0
+version: 1.2.1
 user-invocable: true
 description: >
   Rapid session — capture realtime notes from the user while working with a
@@ -51,10 +51,10 @@ folder anytime with `open ~/.rapid`. Both roots are overridable in
 ~/.rapid/
 ├── config.json                  # first-run choices: paths, last update check
 ├── sessions/
-│   ├── amber-kart.md             # an active session doc
-│   ├── velvet-scooter.md          # another concurrently-active session doc (different chat)
+│   ├── turbo-kart.md             # an active session doc
+│   ├── nitro-scooter.md          # another concurrently-active session doc (different chat)
 │   └── archive/
-│       └── crisp-luge.md        # ended sessions land here
+│       └── zippy-luge.md        # ended sessions land here
 ```
 
 If `config.json` does not exist, this is a **first run** — run the
@@ -72,8 +72,8 @@ on a fresh branch off `origin/main`:
 
 ```
 ~/Documents/Maistro/                  ← main checkout (any branch)
-~/worktrees/Maistro/amber-kart/        ← worktree on `rapid/amber-kart`
-~/worktrees/Maistro/velvet-scooter/     ← worktree on `rapid/velvet-scooter`
+~/worktrees/Maistro/turbo-kart/        ← worktree on `rapid/turbo-kart`
+~/worktrees/Maistro/nitro-scooter/     ← worktree on `rapid/nitro-scooter`
 ```
 
 Centralized keeps the project directory pristine — these are throwaway
@@ -215,7 +215,7 @@ Run this sweep, scoped to the current repo (resolve root via
    dirty, skip silently.
 4. Do this **silently** unless something was reaped or main moved — then
    prepend ONE line to the start acknowledgement, e.g. `Reaped 3 finished
-   sessions (neon-rover, plush-buggy, swift-sled); fast-forwarded main.`
+   sessions (sonic-rover, speedy-buggy, swift-sled); fast-forwarded main.`
    Never block the new session on GC; if a reap step errors, skip that
    item and keep going.
 
@@ -246,8 +246,9 @@ one.
    Pick from this pool (or improvise — just keep it short, two words, kid-safe,
    and the noun something that travels):
 
-   adjectives: amber, velvet, brisk, quiet, sturdy, neon, copper, glassy, lucid,
-   silent, jagged, mellow, swift, bright, hushed, plush, ember, crisp, dusky, vivid
+   adjectives (speed & motion): swift, brisk, turbo, nitro, zippy, speedy,
+   hasty, blazing, sonic, hyper, nimble, fleet, dashing, racing, darting,
+   flying, soaring, express, lightning, breakneck
 
    vehicles: kart, sled, jet, buggy, wagon, scooter, glider, rocket, chariot,
    skiff, kayak, yacht, tram, moped, luge, rover, trike, sloop, dinghy, blimp
@@ -270,7 +271,7 @@ one.
 
    `<repo-name>` is the final path component of the repo root. Example:
    repo at `~/Documents/Maistro` → worktree at
-   `~/worktrees/Maistro/amber-kart/` on branch `rapid/amber-kart`.
+   `~/worktrees/Maistro/turbo-kart/` on branch `rapid/turbo-kart`.
 
    If the worktree creation fails (existing path, dirty refs, network error
    on fetch), report the error verbatim and ask the user how to proceed.
@@ -617,28 +618,28 @@ User: `/rapid the avatar in the sidebar feels too small`
 
 Claude (this chat had no session):
 1. Config exists (not a first run); version check already done today.
-2. Generates slug `amber-kart`, no collision in `sessions/` or `archive/`.
+2. Generates slug `turbo-kart`, no collision in `sessions/` or `archive/`.
 3. Creates the worktree + branch (Step 2).
-4. Writes `sessions/amber-kart.md` with note 1 = `[~] [14:32] avatar in sidebar feels too small`.
-5. Binds `amber-kart` as **this chat's** slug in conversation context.
-6. Replies: `Started rapid/amber-kart at <worktree>. Picking up note 1: avatar size in sidebar — looking now.`
+4. Writes `sessions/turbo-kart.md` with note 1 = `[~] [14:32] avatar in sidebar feels too small`.
+5. Binds `turbo-kart` as **this chat's** slug in conversation context.
+6. Replies: `Started rapid/turbo-kart at <worktree>. Picking up note 1: avatar size in sidebar — looking now.`
 7. Begins the work.
 
 User (3 minutes later, same chat): `also the title bar text wraps weird at 1280px`
 
-Claude (drive-by note, this chat owns `amber-kart`):
-1. Appends note 2 to `amber-kart.md` as `[ ]`.
+Claude (drive-by note, this chat owns `turbo-kart`):
+1. Appends note 2 to `turbo-kart.md` as `[ ]`.
 2. Replies: `Noted (queued as note 2). Finishing avatar size first.`
 3. Continues.
 
 User (later, in **a different chat**): `/rapid the export button is dead`
 
 Claude in that other chat:
-1. Step 2a scans `sessions/` for empty docs. `amber-kart.md` has live
+1. Step 2a scans `sessions/` for empty docs. `turbo-kart.md` has live
    notes, so it's NOT reusable; no other empty docs exist.
-2. Falls through to 2b: generates slug `velvet-scooter`, creates its own
-   doc + worktree on `rapid/velvet-scooter`.
-3. Replies: `Started rapid/velvet-scooter at <worktree>. Picking up note 1:
+2. Falls through to 2b: generates slug `nitro-scooter`, creates its own
+   doc + worktree on `rapid/nitro-scooter`.
+3. Replies: `Started rapid/nitro-scooter at <worktree>. Picking up note 1:
    export button — looking now.`
 
 Both sessions run concurrently, each chat operating on its own slug.
@@ -647,20 +648,20 @@ Both sessions run concurrently, each chat operating on its own slug.
 
 ## Example — reusing a washed session
 
-User (in the same chat as `amber-kart`, after `push` + merge):
+User (in the same chat as `turbo-kart`, after `push` + merge):
 `wash`
 
 Claude:
-1. Reads `amber-kart.md`. All notes are `[x]` shipped, no parked, no
+1. Reads `turbo-kart.md`. All notes are `[x]` shipped, no parked, no
    uncommitted, no in-progress. No risk → skip confirmation.
 2. Empties the `## Notes` block, leaves the `## Pushes` history intact.
-3. Replies: `Washed rapid/amber-kart — notes cleared, worktree still
-   at ~/worktrees/Maistro/amber-kart/. Drop new notes anytime.`
+3. Replies: `Washed rapid/turbo-kart — notes cleared, worktree still
+   at ~/worktrees/Maistro/turbo-kart/. Drop new notes anytime.`
 
 User (next message): `the empty state copy on the dashboard reads weird`
 
 Claude:
-1. This chat still owns `amber-kart`. Appends as note 1 of the new batch.
+1. This chat still owns `turbo-kart`. Appends as note 1 of the new batch.
 2. Replies: `Noted (in progress now): empty-state copy on the dashboard
    — looking now.`
 3. Begins work on the same worktree — no new branch or doc needed.

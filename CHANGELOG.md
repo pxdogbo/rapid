@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.1 — 2026-06-06
+
+- **Speed-themed slug adjectives.** The adjective pool is now all speed &
+  motion (`turbo-kart`, `nitro-scooter`, `breakneck-blimp`) — matching the
+  vehicle nouns. Example slugs updated across the docs.
+
 ## 1.2.0 — 2026-06-06
 
 - **Delegation for big notes.** When a note is feature-sized and the
@@ -60,7 +66,7 @@
   per-tool clone paths documented too. Frontmatter gained
   `user-invocable: true` so Codex surfaces `/rapid` in its slash menu.
 - **Vehicle slugs.** Session names are now `<adjective>-<vehicle>`
-  (`amber-kart`, `swift-glider`, `neon-moped`) instead of animals — things
+  (`turbo-kart`, `swift-glider`, `neon-moped`) instead of animals — things
   that travel, for a queue that ships.
 - **Bare-word safety.** `wash` aliases trimmed to `wash`/`clean` (`wipe`
   and `clear` removed — too common as ordinary words), and a bare word
