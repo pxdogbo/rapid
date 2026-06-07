@@ -55,22 +55,35 @@ agent:  PR open → https://github.com/you/repo/pull/123
 
 ## Install
 
+**Every agent at once** (Claude Code, Codex, Cursor & friends) via the
+[skills CLI](https://skills.sh):
+
+```bash
+npx skills add pxdogbo/rapid
+```
+
+**Or a single tool** with a plain clone:
+
 ```bash
 # Claude Code
 git clone https://github.com/pxdogbo/rapid ~/.claude/skills/rapid
+
+# Codex CLI
+git clone https://github.com/pxdogbo/rapid ~/.codex/skills/rapid
 ```
 
-Works in any agent that reads markdown skills (Claude Code, Codex CLI, etc.) —
-session state lives in plain files under `~/.rapid/`, never in tool-specific
-storage. The first `/rapid` walks you through a one-time setup: it explains
+Session state lives in plain files under `~/.rapid/`, never in
+tool-specific storage — every installed agent reads and writes the same
+queues. The first `/rapid` walks you through a one-time setup: it explains
 where files go and lets you pick different locations (saved to
 `~/.rapid/config.json`).
 
 ### Updating
 
 The agent checks for a new version at most once a day (at session start,
-fail-silent) and mentions it in one line. `/rapid update` pulls the latest
-and prints the changelog delta.
+fail-silent) and mentions it in one line. Clone installs: `/rapid update`
+pulls the latest and prints the changelog delta. skills-CLI installs:
+`npx skills update`.
 
 ## Commands
 

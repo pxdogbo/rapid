@@ -114,9 +114,10 @@ Updates the installed skill in place and shows what changed.
    ```
    If the pull fails (diverged, dirty), report verbatim and stop — the
    user may have local edits worth keeping. Never force.
-3. **If it's not a clone**: tell the user how to reinstall —
-   `git clone https://github.com/pxdogbo/rapid ~/.claude/skills/rapid`
-   (or their tool's skill path) — and stop.
+3. **If it's not a clone**: it was likely installed via the skills CLI —
+   tell the user to run `npx skills update` instead (or reinstall with
+   `git clone https://github.com/pxdogbo/rapid <their tool's skill path>`
+   if they want `/rapid update` to work) — and stop.
 4. **Show the delta**: read `CHANGELOG.md` and print every entry newer
    than the previously installed version. If versions match after the
    pull: `Already on the latest (v<version>).`

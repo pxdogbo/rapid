@@ -44,6 +44,10 @@
 - **Removed the `active` pointer file.** It was a soft
   "most-recently-started" hint nothing depended on; each chat already
   tracks its own slug.
+- **Cross-tool install.** `npx skills add pxdogbo/rapid` wires the skill
+  into every agent on the machine (Claude Code, Codex, Cursor & friends);
+  per-tool clone paths documented too. Frontmatter gained
+  `user-invocable: true` so Codex surfaces `/rapid` in its slash menu.
 - **Vehicle slugs.** Session names are now `<adjective>-<vehicle>`
   (`amber-kart`, `swift-glider`, `neon-moped`) instead of animals — things
   that travel, for a queue that ships.

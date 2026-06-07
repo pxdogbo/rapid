@@ -1,6 +1,7 @@
 ---
 name: rapid
 version: 1.1.0
+user-invocable: true
 description: >
   Rapid session — capture realtime notes from the user while working with a
   live product (app, website, etc.) without losing context. Each `/rapid`
