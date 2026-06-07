@@ -1,6 +1,6 @@
 ---
 name: rapid
-version: 1.2.1
+version: 1.2.2
 user-invocable: true
 description: >
   Rapid session — capture realtime notes from the user while working with a
@@ -247,11 +247,17 @@ one.
    and the noun something that travels):
 
    adjectives (speed & motion): swift, brisk, turbo, nitro, zippy, speedy,
-   hasty, blazing, sonic, hyper, nimble, fleet, dashing, racing, darting,
-   flying, soaring, express, lightning, breakneck
+   drifting, blazing, sonic, hyper, nimble, fleet, dashing, racing, darting,
+   flying, soaring, express, lightning, breakneck, rapid, quick, agile,
+   snappy, zooming, rushing, quantum, overdrive, blistering, supersonic,
+   meteoric, whirlwind, warp, ballistic, kinetic, screaming, stealth, peppy,
+   aero, accelerated
 
-   vehicles: kart, sled, jet, buggy, wagon, scooter, glider, rocket, chariot,
-   skiff, kayak, yacht, tram, moped, luge, rover, trike, sloop, dinghy, blimp
+   vehicles: kart, sled, jet, buggy, go-kart, scooter, glider, rocket, drone,
+   hoverboard, kayak, yacht, tram, moped, luge, rover, trike, e-bike, atv,
+   blimp, coupe, chopper, cruiser, shuttle, capsule, sub, jetpack, snowmobile,
+   bobsled, quad, mech, hypercar, rig, cab, dirtbike, segway, raft, maglev,
+   hovercraft, hot-rod
 
    If the slug already exists in `sessions/` or `sessions/archive/`, pick again.
 

@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.2.2 — 2026-06-07
+
+- **Slug pools doubled.** 40 speed adjectives × 40 vehicles (1600 combos):
+  quantum, overdrive, warp, ballistic, stealth… meet drone, jetpack,
+  maglev, hypercar, hot-rod. `warp-maglev` and `stealth-jetpack` are now
+  possible sessions.
+
 ## 1.2.1 — 2026-06-06
 
 - **Speed-themed slug adjectives.** The adjective pool is now all speed &
