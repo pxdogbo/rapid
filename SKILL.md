@@ -1,6 +1,6 @@
 ---
 name: rapid
-version: 1.1.0
+version: 1.2.0
 user-invocable: true
 description: >
   Rapid session — capture realtime notes from the user while working with a
@@ -441,13 +441,56 @@ While working:
 - Add the one-line outcome under the `[c]` box the same way you would
   under `[x]` — file path / "no-op, already correct" — so a future
   `push` has the per-note summary line ready to drop into the PR body.
-- If a note needs a subagent, write that under the note before spawning:
-  ```
-    - delegated to general-purpose agent: <one-line task>
-  ```
 - If a note is unclear, flip it to `[!]` with an inline question; do not
   block on it — keep moving on the rest of the queue and surface the
   question in your reply.
+
+### Big notes — delegate to a background agent
+
+The main loop's job is capture: a new note must always get an instant
+acknowledgement. When a note is **feature-sized** — multiple files, a
+refactor, anything that would bury you for many minutes — and your
+harness supports background subagents (Claude Code's Agent tool, Codex's
+agents, etc.), delegate it instead of going heads-down. Tools without
+background agents skip this section and work the note inline.
+
+1. **Qualify it.** Delegate only when BOTH hold:
+   - The note is genuinely big (multi-file feature / refactor). Tweaks
+     and one-file fixes are faster inline — delegation has overhead.
+   - Its files do NOT overlap any in-flight note (Step 5's overlap
+     check). Overlapping work stays inline and sequential.
+2. **Give the delegate its own worktree.** The session worktree is one
+   checkout on one branch — two agents inside it collide. Spawn the
+   delegate in a disposable worktree on the note's fresh branch:
+   ```
+   git fetch origin main
+   git worktree add ~/worktrees/<repo-name>/<slug>-<note-slug> \
+                    -b <type>/<note-slug> origin/main
+   ```
+   The main loop keeps the session worktree and stays free to capture
+   notes and work small non-overlapping ones inline.
+3. **One delegate at a time.** Queue further big notes as `[ ]` until the
+   current delegate lands — parallel delegates multiply review burden and
+   merge risk faster than they save wall-clock.
+4. **Record it before spawning** (append-before-acting applies to
+   delegation too):
+   ```
+   - [~] [14:32] semantic light/dark theme across the app
+     - branch: feat/dice-theme (off origin/main)
+     - delegated [14:32]: background agent, worktree ~/worktrees/<repo>/<slug>-dice-theme
+   ```
+5. **Delegate plays by session rules**: commit to the note branch with a
+   real message; NEVER push, NEVER open PRs, never touch other branches.
+   Its prompt should say exactly that.
+6. **On completion**: verify the commit actually exists on the note
+   branch (`git log <branch> -1`), flip the note to `[c]` with the usual
+   one-line outcome, remove the delegate worktree
+   (`git worktree remove <path>`), then re-read the doc per the
+   between-notes flow. The branch lives on — `push` batches it like any
+   other note.
+7. **On failure or timeout**: flip the note to `[!]` with a one-line
+   `delegate failed [HH:MM]: <why>`, clean up the worktree, and surface
+   it in your next reply. Do not silently retry.
 
 ### Between notes — always re-read the doc
 
@@ -485,8 +528,9 @@ rapid/<slug> — review
 shipped:         #1 avatar sizing, #2 title wrap → PR #12
 done, unshipped: #4 sticker copy (on fix/sticker-copy — say `push`)
 in progress:     #5 ContentView spacing
+delegated:       #3 light/dark theme — background agent since 14:32
 queued:          #6 footer link, #7 empty-state copy
-parked:          #3 logo padding
+parked:          #9 logo padding
 blocked:         #8 — waiting on: which color token?
 ```
 
@@ -498,7 +542,8 @@ line per violation found:
 - every `[x]` note has a `→ PR #` line (else: `⚠️ note <N> is marked
   shipped but has no PR URL`)
 - every `[~]` / `[c]` note has a `branch:` line
-- at most one note is `[~]`
+- at most one `[~]` is being worked inline, and at most one carries a
+  `delegated` sub-bullet
 
 **`/rapid done` / `/rapid end` / `/rapid off`** — All three are aliases.
 1. Append `**Ended:** <ISO datetime>` and a final summary block at the bottom

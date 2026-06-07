@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.2.0 — 2026-06-06
+
+- **Delegation for big notes.** When a note is feature-sized and the
+  harness supports background subagents (Claude Code, Codex), the agent
+  delegates it to a background agent in its own disposable worktree —
+  the main loop stays free to capture notes instantly and work small
+  ones inline. One delegate at a time; delegates commit to the note
+  branch but never push or open PRs; completion flips the note to `[c]`
+  for the normal `push` batch. `review` gains a `delegated:` row, and
+  the doc lint allows one inline `[~]` plus one delegated.
+
 ## 1.1.0 — 2026-06-05
 
 - **Restructured for progressive disclosure.** SKILL.md now holds only the
