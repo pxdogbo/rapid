@@ -248,7 +248,7 @@ one.
 
    adjectives (speed & motion): swift, brisk, turbo, nitro, zippy, speedy,
    drifting, blazing, sonic, hyper, nimble, fleet, dashing, racing, darting,
-   flying, soaring, express, lightning, breakneck, rapid, quick, agile,
+   flying, soaring, express, lightning, breakneck, quick, agile,
    snappy, zooming, rushing, quantum, overdrive, blistering, supersonic,
    meteoric, whirlwind, warp, ballistic, kinetic, screaming, stealth, peppy,
    aero, accelerated
