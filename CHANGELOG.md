@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.2.4 — 2026-06-08
+
+- **Broaden the terse-style formats.** The response-style section now points
+  to the full toolbox — tables, lists, checklists, code blocks, and
+  mermaid/ASCII diagrams — and says to match the format to the data, not
+  just "bullets and tables."
+
 ## 1.2.3 — 2026-06-08
 
 - **Terse-by-default response style.** New section instructs the agent to
