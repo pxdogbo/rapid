@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.3 — 2026-06-08
+
+- **Terse-by-default response style.** New section instructs the agent to
+  lead with the answer, prefer bullets/tables, and compress (not omit) —
+  the user juggles multiple projects and wordy replies are fatiguing.
+
 ## 1.2.2 — 2026-06-07
 
 - **Slug pools doubled.** 40 speed adjectives × 40 vehicles (1600 combos):
