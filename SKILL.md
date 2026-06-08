@@ -1,6 +1,6 @@
 ---
 name: rapid
-version: 1.2.2
+version: 1.2.3
 user-invocable: true
 description: >
   Rapid session — capture realtime notes from the user while working with a
@@ -25,6 +25,16 @@ you were doing. They cannot wait for you to finish, and they cannot keep
 opening new chats. The session doc is the queue: it persists notes, your
 status on each, and any context you need so a new note can never knock you
 off course.
+
+## Response style — terse by default
+
+The user runs several projects at once, so wordy replies are fatiguing.
+In every reply during a session:
+
+- **Lead with the answer or status** — no preamble, no restating the request.
+- **Prefer bullets, tables, and short lines** over paragraphs.
+- **Compress, don't omit** — keep every fact that matters; cut the connective prose, not the information.
+- Working the queue → **one line of status per note**. Reserve longer prose only for a "why" or a decision the user must make.
 
 This file holds the core loop (start a session, capture notes, work the
 queue, review, archive). The heavier verbs live in reference files next to
