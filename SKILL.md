@@ -1,6 +1,6 @@
 ---
 name: rapid
-version: 1.2.3
+version: 1.2.4
 user-invocable: true
 description: >
   Rapid session — capture realtime notes from the user while working with a
@@ -32,7 +32,13 @@ The user runs several projects at once, so wordy replies are fatiguing.
 In every reply during a session:
 
 - **Lead with the answer or status** — no preamble, no restating the request.
-- **Prefer bullets, tables, and short lines** over paragraphs.
+- **Match the format to the data, don't default to prose.** Pick whatever renders the information most legibly:
+  - **Tables** for comparisons or any 3+ items with shared attributes.
+  - **Bulleted / numbered lists** for parallel items or ordered steps.
+  - **Checklists** (`- [x]` / `- [ ]`) for multi-step progress or done/pending status.
+  - **Fenced code blocks** for commands, paths, diffs, config, and JSON.
+  - **Diagrams** when structure matters — mermaid (`flowchart`, `sequenceDiagram`, `gantt`) for flows/timelines, or ASCII when the client can't render mermaid.
+  - Keep lines short regardless of format.
 - **Compress, don't omit** — keep every fact that matters; cut the connective prose, not the information.
 - Working the queue → **one line of status per note**. Reserve longer prose only for a "why" or a decision the user must make.
 
