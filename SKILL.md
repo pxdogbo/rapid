@@ -1,6 +1,6 @@
 ---
 name: rapid
-version: 1.2.5
+version: 1.2.6
 user-invocable: true
 description: >
   Rapid session — capture realtime notes from the user while working with a
@@ -628,6 +628,68 @@ it as plain `/rapid` (reuse-or-new per Step 2).
 - **Cross-tool friendly.** This skill works the same in Claude Code, Codex
   CLI, and any tool reading from `~/.rapid/`. Never hardcode
   Claude-Code-only assumptions into the session doc or config.
+- **On UI/design notes, carry the direction — don't wait for line-items.**
+  The user is tired of specifying every pixel. When a note is visual:
+  1. **Look at the actual UI, not just the code.** If the user shares a
+     screenshot, study it. If they don't and the change is non-trivial,
+     drive the app (agent-browser / a screenshot) and *look* before and
+     after — never reason about layout blind.
+  2. **Confirm the change matches what they want by viewing the result.**
+     "If I ask you to make a change you should look at it" — verify the
+     rendered outcome looks right (alignment, spacing, empty space,
+     consistency) before calling the note done, and show it.
+  3. **Sweep siblings.** When you fix one instance of a pattern (a chip,
+     a label, spacing, a status indicator), find every other place in the
+     app with the same pattern and bring them in line in the same pass —
+     don't make the user point at each one.
+  4. **Keep the established design language** (sizing, placement, color
+     semantics, component style) consistent with what already exists; reuse
+     a shared component rather than re-styling ad hoc.
+  5. **Make 1–2 concrete design suggestions** with each change. The user
+     would rather wave off a suggestion than enumerate every detail.
+- **New feature → scan the app for where it plugs in; don't build it in
+  isolation.** Before/while implementing any new feature, grep the app for
+  the existing systems the same *kind* of thing already lives in, and wire
+  the new thing into all of them — the feature isn't done until it's a
+  first-class citizen everywhere its peers are. Examples of systems to
+  check: filter/sort menus (a new tag/status belongs in the tag filter,
+  not just on the object), tab bars and nav, settings/preferences panels,
+  search, keyboard shortcuts, empty/loading states, mobile vs desktop
+  surfaces, the Docs tab, and any shared enum/type + its switch/label maps.
+  Concretely: adding a `fail` QA tag means adding it to the gallery's QA
+  *filter* and badges too, not just the data. Enumerate the integration
+  points you found and hit in the outcome line so the user can see the
+  sweep was real (and catch one you missed).
+- **Self-unblock — fix the blocker, don't just report it.** If something
+  stops you from doing the work right (missing `node_modules`, no dev
+  server, missing tooling, a broken local config, an auth/account snag),
+  take it upon yourself to fix it and keep going — don't bounce it back to
+  the user and wait. Install the deps, symlink the env, start the server,
+  pin the right token, write the helper. Only escalate when the fix needs a
+  secret/decision genuinely outside your reach, and even then propose the
+  exact unblock you'd run. Then, if the blocker is reusable knowledge, fold
+  the fix into this skill (or a reference) so it never blocks you twice.
+- **Be able to screenshot the running app (so rule "look at the UI" is real).**
+  When you need to *see* a change and there's no screenshot from the user:
+  1. Get the app running yourself. In a git worktree there's usually no
+     `node_modules` and no env — symlink them from the main checkout:
+     `ln -s <main>/node_modules <worktree>/node_modules` and
+     **then add `/node_modules` to `.git/info/exclude`** — many repos ignore
+     `node_modules/` (trailing slash = directories only), so the *symlink*
+     isn't ignored and a stray `git add -A` will commit it. Never `git add
+     -A` in such a worktree; stage explicit paths. And
+     `ln -s <main>/.env.local <worktree>/.env.local` (or `.env`), then start
+     the dev server in the background (`npm run dev` / the project's run
+     skill) on a free port.
+  2. Drive it with the `agent-browser` skill (or the project's browser
+     tooling): navigate to the local URL, get past any auth (reuse an
+     existing session/cookie or a known dev login), open the exact
+     screen/tab, set the viewport (mobile AND desktop when the note is
+     default-both), and capture.
+  3. Look at the capture, confirm it matches what the user asked, and
+     attach it. If you genuinely can't reach the screen (hard auth wall, no
+     seed data), say so in one line and fall back to the deployed/preview
+     URL — don't silently skip looking.
 - **Every note covers both desktop AND mobile by default.** Unless the user
   explicitly scopes a note to one surface ("desktop only", "just on the
   iPhone view", "in the Output node sheet only"), assume the request
