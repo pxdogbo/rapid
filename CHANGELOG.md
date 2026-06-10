@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.2.6 — 2026-06-10
+
+- **Agentic UI + feature-work rules.** New guidance so the agent carries
+  design direction instead of waiting for pixel-level line-items: look at the
+  actual rendered UI (screenshot before/after), sweep sibling instances of a
+  pattern, keep the established design language, and offer 1–2 concrete
+  suggestions per change.
+- **New feature → scan the app for where it plugs in.** A feature isn't done
+  until it's a first-class citizen everywhere its peers live (filters, nav,
+  settings, search, shortcuts, empty states, mobile vs desktop, shared
+  enums/label maps); enumerate the integration points hit in the outcome line.
+- **Self-unblock.** Fix the blocker (deps, dev server, env, tooling, auth)
+  and keep going rather than bouncing it back; fold reusable fixes into the
+  skill.
+- **Be able to screenshot the running app**, so "look at the UI" is real:
+  symlink node_modules/.env from the main checkout, start the dev server,
+  drive it with agent-browser at mobile + desktop viewports, and fall back to
+  the deployed/preview URL when a screen is unreachable.
+
 ## 1.2.5 — 2026-06-09
 
 - **Verify PR/deploy status before reporting it.** New rule: never tell the
