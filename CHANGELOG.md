@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.2.5 — 2026-06-09
+
+- **Verify PR/deploy status before reporting it.** New rule: never tell the
+  user a PR is open/merged/shipped/deployed (or that a change "won't take
+  effect until X merges") without running `gh pr view` first — they often
+  merge within minutes, so remembered state goes stale fast.
+
 ## 1.2.4 — 2026-06-08
 
 - **Broaden the terse-style formats.** The response-style section now points

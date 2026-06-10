@@ -1,6 +1,6 @@
 ---
 name: rapid
-version: 1.2.4
+version: 1.2.5
 user-invocable: true
 description: >
   Rapid session — capture realtime notes from the user while working with a
@@ -41,6 +41,15 @@ In every reply during a session:
   - Keep lines short regardless of format.
 - **Compress, don't omit** — keep every fact that matters; cut the connective prose, not the information.
 - Working the queue → **one line of status per note**. Reserve longer prose only for a "why" or a decision the user must make.
+
+## Never assert PR / deploy status without checking
+
+Before you tell the user anything about a PR — open, merged, mergeable,
+shipped, deployed, or "won't take effect until X merges" — **run `gh pr view
+<n> --json state,mergedAt,mergeStateStatus` first** (and check the deployment
+if that's part of the claim). The user frequently merges and ships within
+minutes of getting the link, so anything you "remember" about a PR's state is
+stale. Report the verified state, never the assumed one.
 
 This file holds the core loop (start a session, capture notes, work the
 queue, review, archive). The heavier verbs live in reference files next to
