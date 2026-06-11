@@ -1,6 +1,6 @@
 ---
 name: rapid
-version: 1.2.6
+version: 1.2.7
 user-invocable: true
 description: >
   Rapid session — capture realtime notes from the user while working with a
@@ -214,21 +214,39 @@ Run this sweep, scoped to the current repo (resolve root via
 1. For each session doc in `sessions/` (NOT archive) whose `**Repo:**`
    header matches the current repo root, AND which is **not** the session
    this chat is about to reuse/own:
-   - **Skip (leave it) if anything is at risk:** uncommitted changes in
-     its worktree (`git -C <worktree> status --porcelain` non-empty), or
-     any `[~]` / `[c]` / `[p]` / `[!]` note in the doc. Those belong to a
-     live or unshipped session — never reap them.
-   - **Otherwise it's finished** (all notes `[x]` shipped or `[-]` dropped
-     or empty, worktree clean) → reap it:
+   - **Determine "shipped" by PR state, NOT by ancestry.** A squash- or
+     rebase-merged branch still reads as *ahead* of `origin/main`
+     (`git rev-list origin/main..HEAD` non-zero, `git merge-base
+     --is-ancestor HEAD origin/main` false) even though its work is fully
+     merged. **Never** use ancestry / `rev-list` / `--is-ancestor` to
+     decide if a branch shipped — that false-positive is the #1 cause of
+     worktrees piling up (sessions look "unshipped" forever and never get
+     reaped). Instead, for each branch the session recorded (`branch:
+     <name>` lines + `rapid/<slug>*`), check its PR:
+     `gh pr list --head <branch> --state all --json state --jq '.[0].state'`.
+     **MERGED or CLOSED → shipped.** A branch is **unshipped** only if it
+     has NO merged/closed PR AND has unpushed commits (no `origin/<branch>`
+     ref, or local commits beyond `origin/<branch>`).
+   - **Skip (leave it) ONLY if something is genuinely at risk:**
+     uncommitted changes in its worktree (`git -C <worktree> status
+     --porcelain` non-empty), a `[p]` parked or `[!]` blocked note, or an
+     **unshipped** branch (per the test above). A `[~]` / `[c]` note whose
+     branch is MERGED/CLOSED is already shipped — **stale checkboxes do
+     NOT block reaping.** (Users rarely flip `[c]`→`[x]` after a squash
+     merge; reap on PR state, not on the checkbox.)
+   - **Otherwise it's finished** → reap it:
      a. `git worktree remove --force <worktree>` if the worktree exists
         and sits on a `rapid/*` branch. Leave worktrees parked on a
         non-rapid feature branch alone.
-     b. Delete its `rapid/*` local branches and any `branch: <name>`
-        recorded in the doc **whose PR is merged/closed or which has no
-        remote ref** (`git branch -D`). Never delete a branch with an
-        open PR.
-     c. Delete the merged/closed remote `rapid/*` branches it pushed
-        (`git push origin --delete`), only when their PR is not open.
+     b. Delete its local `rapid/*` branches + recorded `branch: <name>`
+        branches **whose PR is merged/closed or which has no remote ref**
+        (`git branch -D`). Never delete a branch with an OPEN PR or an
+        unshipped branch with unpushed commits.
+     c. Delete the merged/closed remote branches it pushed (`git push
+        origin --delete <exact-branch-name>`), only when their PR is not
+        open. **Exclude any keep-list by EXACT, fully-qualified ref name**
+        (e.g. `rapid/foo-batch-1`, never a bare suffix) — a loose
+        grep/pattern can silently delete a branch you meant to keep.
      d. `rm` the session doc.
 2. After the sweep, run `git worktree prune` to clear stale registrations.
 3. **Freshen the user's local main**: if the primary checkout is on

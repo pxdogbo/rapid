@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.2.7 — 2026-06-11
+
+- **GC reaps by PR state, not ancestry.** Step 2·GC (and the `scrap`/`burn`
+  risk-passes) now decide "shipped" via `gh pr list --head <branch> --state
+  all` (MERGED/CLOSED = shipped). Banned `rev-list origin/main..HEAD` /
+  `merge-base --is-ancestor` — a squash/rebase-merged branch reads as *ahead*
+  of main and was the #1 cause of sessions never reaping (worktrees piling up
+  to GBs). Stale `[c]`/`[~]` checkboxes no longer block reaping.
+- **Exact-ref deletion.** Remote-branch deletes must use the exact,
+  fully-qualified ref name, never a bare suffix/pattern — the footgun that
+  nearly nuked an unrelated branch.
+
 ## 1.2.6 — 2026-06-10
 
 - **Agentic UI + feature-work rules.** New guidance so the agent carries
