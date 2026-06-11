@@ -134,8 +134,13 @@ Behavior:
 2. **Risk pass — same checks as `wash`, plus the worktree:**
    - **Uncommitted changes** in the worktree (`git -C <worktree>
      status --porcelain`).
-   - **Unpushed commits** on session-owned branches (compare
-     against `origin/main` and the branch's upstream if any).
+   - **Unshipped commits** on session-owned branches — decide by **PR
+     state, NOT ancestry.** A squash/rebase-merged branch reads as ahead
+     of `origin/main` (`rev-list origin/main..HEAD` non-zero) yet is fully
+     shipped, so never use `rev-list` / `merge-base --is-ancestor` here. A
+     branch is unshipped only when `gh pr list --head <branch> --state all
+     --json state --jq '.[0].state'` is empty or OPEN **and** it has
+     commits beyond its `origin/<branch>` tip (or no remote ref at all).
    - **In-progress `[~]`, committed-unshipped `[c]`, parked `[p]`,
      blocked `[!]`** notes.
 
@@ -231,7 +236,12 @@ Behavior:
    - **Remote branches** matching the same set that have an upstream.
 3. **Risk pass — collect anything at risk before deleting**:
    - **Uncommitted changes** in any in-scope worktree.
-   - **Unpushed local commits** on in-scope branches.
+   - **Unshipped commits** on in-scope branches — judged by **PR state,
+     not ancestry** (squash/rebase merges read as ahead of `main` but are
+     shipped; check `gh pr list --head <branch>` for MERGED/CLOSED). Flag a
+     branch only if it has no merged/closed PR AND has commits beyond its
+     remote tip. When deleting remote branches, exclude any keep-list by
+     EXACT fully-qualified ref name, never a bare suffix.
    - **Parked notes** (`[p]`) in any active or archived in-scope doc.
    - **Open PRs** on in-scope remote branches (via `gh pr list --head
      <branch> --state open --json number,title,url`).
