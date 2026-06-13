@@ -1,5 +1,38 @@
 # Changelog
 
+## 1.3.0 — 2026-06-13
+
+- **New `fleet` command — collaborate with other agents on one session's
+  work.** A lead chat splits its backlog into N **file-disjoint**
+  assignments (so parallel agents never edit the same file), writes them
+  into a `## Fleet` roster + append-only log in its own doc, and emits a
+  generic join command. The user opens N chats and pastes `/rapid fleet
+  join <lead-slug>` into each; each agent **self-claims** an open
+  assignment (optimistic claim-and-verify with a lexicographic tie-break,
+  since there's no lock), spins up its **own** independent rapid session
+  (own slug/worktree/branch), and **ships its own PRs**. The lead
+  coordinates and tracks; members touch the shared doc only on four events
+  (claimed / blocked / shipped / handoff). No live channel between chats —
+  the user is the relay and the lead re-reads on `fleet` / prod. GC never
+  reaps a doc with an active fleet block. See `references/fleet.md`.
+- **`fleet sync` — ship the whole fleet from the lead.** When the work is
+  done, the user no longer visits each member chat to push. `fleet sync`
+  (lead) gathers every member's committed branch (member worktrees share
+  the lead's git repo), verifies readiness, flags any with uncommitted
+  work (`sync force` lets the lead commit on their behalf), and stages them
+  — then one `push` to the lead opens one PR per assignment. Honors the
+  never-PR-without-`push` rule: sync gathers, push ships.
+
+## 1.2.8 — 2026-06-13
+
+- **New `wax` command — groom the doc without emptying it.** The
+  non-destructive cousin of `wash`: condenses finished notes to one line
+  (keeping their PR links), groups related live notes under feature
+  subheadings, refreshes in-progress state, and strips stale sub-bullets.
+  Hard guardrails so grooming never amputates load-bearing tokens (PR
+  URLs, `branch:` lines, the `## Pushes` block, status boxes). Doc-only —
+  no git mutations. See `references/wax.md`.
+
 ## 1.2.7 — 2026-06-11
 
 - **GC reaps by PR state, not ancestry.** Step 2·GC (and the `scrap`/`burn`

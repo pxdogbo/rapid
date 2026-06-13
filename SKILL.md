@@ -1,6 +1,6 @@
 ---
 name: rapid
-version: 1.2.7
+version: 1.3.0
 user-invocable: true
 description: >
   Rapid session — capture realtime notes from the user while working with a
@@ -11,10 +11,12 @@ description: >
   commits the queue and opens a PR, never a bare git push), carpool,
   wash/clean, park, unpark, drop, test/testdrive, scrap, burn,
   link, reverse/undo) operate on the session this chat started, not on
-  whatever doc happens to be marked active globally. Use whenever the user
-  types /rapid, /rapid <note>, /rapid review, /rapid done, /rapid off,
-  /rapid update, or says they want to "start a rapid session" / "drop a
-  quick note" mid-task.
+  whatever doc happens to be marked active globally. wax grooms the doc in
+  place (condense + group + de-stale) without emptying the queue. fleet
+  splits one session's work across several agents in separate chats. Use
+  whenever the user types /rapid, /rapid <note>, /rapid review, /rapid
+  done, /rapid off, /rapid update, "start a fleet of N", or says they want
+  to "start a rapid session" / "drop a quick note" mid-task.
 ---
 
 # /rapid — Realtime Note Queue
@@ -51,6 +53,32 @@ if that's part of the claim). The user frequently merges and ships within
 minutes of getting the link, so anything you "remember" about a PR's state is
 stale. Report the verified state, never the assumed one.
 
+## Close superseded / stale PRs yourself — never hand PR housekeeping to the user
+
+The user acts on PRs straight from GitHub **notifications** and merges
+within minutes, usually **without reading your chat reply**. A chat line
+like "close #397 and merge #398 instead" will simply be missed — they
+merge whatever notification they see. So never leave PR cleanup as an
+instruction for the user. Do it yourself:
+
+- **A new PR supersedes an earlier one** (it replaces a revert, a
+  placeholder, a rejected attempt, or duplicates the work) → **close the
+  obsolete PR yourself**: `gh pr close <n> --comment "Superseded by
+  #<new> — …" --delete-branch`, then mention it in one line.
+- **A PR you already shared goes stale/conflicting** because `main` moved
+  under it (another PR merged in between) → fix it unprompted. Per the
+  frozen-PR rule (don't force-push a shared PR), **rebase the work onto
+  current `main` on a fresh branch, open the corrected PR, and close the
+  stale one yourself.** Detect it with `gh pr view <n> --json
+  mergeStateStatus` (CONFLICTING / DIRTY = act now).
+- Litmus test before writing "merge X instead of Y": could the user ever
+  *see* that instruction in time? If the safe outcome depends on them
+  reading chat, it isn't safe — make the **open PR list itself correct**
+  (exactly one mergeable PR, the right one) so merging-from-notification
+  always does the right thing.
+
+This is housekeeping, not a scope change — it does not need permission.
+
 This file holds the core loop (start a session, capture notes, work the
 queue, review, archive). The heavier verbs live in reference files next to
 this one — **read the reference file when its trigger fires**, not before:
@@ -58,6 +86,8 @@ this one — **read the reference file when its trigger fires**, not before:
 | File | Covers |
 |---|---|
 | `references/push.md` | `push`, `carpool` |
+| `references/wax.md` | `wax` |
+| `references/fleet.md` | `fleet` (start / join / status / sync / end) |
 | `references/cleanup.md` | `wash`/`clean`, `scrap`, `burn` |
 | `references/notes.md` | `park`, `unpark`, `drop`, `link` |
 | `references/reverse.md` | `reverse <N>` / `undo <N>` |
@@ -130,12 +160,18 @@ skipped and the session is doc-only.
 | `drop <N>` (bare word, mid-session) | Mark note N dropped (`[-]`) — "never," not "later." Bookkeeping only; use `reverse` to also discard work. See `references/notes.md`. |
 | `link` / `link <N>` (bare word, mid-session) | Print the URL(s) of recent PRs opened from **this chat's** session, newest first. See `references/notes.md`. |
 | `reverse <N>` / `undo <N>` (bare word, mid-session) | **Undo the work done on note N** — discard uncommitted changes, reset committed branches, or close pushed PRs (with confirmation). See `references/reverse.md`. |
+| `wax` (bare word, mid-session) | **Groom** this chat's session doc in place — condense finished notes, group related ones, refresh in-progress state, strip stale sub-bullets. Keeps the whole live queue; doc-only, no git. See `references/wax.md`. |
+| `fleet` (bare word, mid-session) | **Fleet status.** Lead sees the roster + log + any decision it owes; a member sees its assignment + lead directives. Re-reads the doc first (no live channel). See `references/fleet.md`. |
 | `wash` / `clean` (bare word, mid-session) | **Empty** this chat's session file in place so it can be reused — keeps slug, worktree, branch, and `## Pushes` history. Confirms first if anything risky is in flight. See `references/cleanup.md`. |
 | `scrap` (bare word, mid-session) | **Delete this chat's session entirely** — doc, worktree, and local branch. Confirms first if anything risky is in flight. See `references/cleanup.md`. |
 | `burn` (bare word, any time) | **Nuke ALL rapid artifacts for the current repo** (docs, worktrees, `rapid/*` branches). Confirms first; lists anything that would be lost. See `references/cleanup.md`. |
 | `/rapid done` / `/rapid end` / `/rapid off` | Archive **this chat's** session. See Step 6. |
 | `/rapid resume <slug>` / `/rapid start <slug>` | Re-activate an archived session in this chat. `start` and `resume` are aliases. `/rapid start` alone (no slug) behaves like `/rapid` (reuse-or-new). |
 | `/rapid update` | Pull the latest version of this skill and show the changelog delta. Works any time, no session needed. See `references/setup.md`. |
+| `/rapid fleet <N>` / "start a fleet of N" | **Lead.** Split this chat's session work into N file-disjoint assignments, post them in a `## Fleet` block, and emit the join command for the user to paste into N new chats. See `references/fleet.md`. |
+| `/rapid fleet join <lead-slug>` | **Member** (run in a fresh chat). Self-claim an open assignment from the lead's doc, spin up your own session/worktree, and start working. See `references/fleet.md`. |
+| `/rapid fleet sync` | **Lead.** Gather every member's committed branch into the lead's push set and report readiness (flagging any with uncommitted work); a following `push` then ships them as one PR per assignment — no visiting each chat. See `references/fleet.md`. |
+| `/rapid fleet end` | **Lead.** Disband the fleet: reconcile member PRs, render the final summary, mark the `## Fleet` block disbanded. See `references/fleet.md`. |
 
 ### The bare-word rule
 
@@ -229,11 +265,13 @@ Run this sweep, scoped to the current repo (resolve root via
      ref, or local commits beyond `origin/<branch>`).
    - **Skip (leave it) ONLY if something is genuinely at risk:**
      uncommitted changes in its worktree (`git -C <worktree> status
-     --porcelain` non-empty), a `[p]` parked or `[!]` blocked note, or an
-     **unshipped** branch (per the test above). A `[~]` / `[c]` note whose
-     branch is MERGED/CLOSED is already shipped — **stale checkboxes do
-     NOT block reaping.** (Users rarely flip `[c]`→`[x]` after a squash
-     merge; reap on PR state, not on the checkbox.)
+     --porcelain` non-empty), a `[p]` parked or `[!]` blocked note, an
+     **unshipped** branch (per the test above), or an **active `## Fleet`
+     block** (a lead war-room whose `**Status:**` is not `disbanded` — it's
+     live coordination state). A `[~]` / `[c]` note whose branch is
+     MERGED/CLOSED is already shipped — **stale checkboxes do NOT block
+     reaping.** (Users rarely flip `[c]`→`[x]` after a squash merge; reap
+     on PR state, not on the checkbox.)
    - **Otherwise it's finished** → reap it:
      a. `git worktree remove --force <worktree>` if the worktree exists
         and sits on a `rapid/*` branch. Leave worktrees parked on a
@@ -348,6 +386,7 @@ one.
 **Repo:** <absolute path to repo root, or "n/a">
 **Worktree:** <absolute path to worktree, or "n/a">
 **Branch:** <rapid/<slug>, or "n/a">
+**Fleet:** <omit unless in a fleet; "lead" or "member of rapid/<slug>, assignment <id>" — set by the fleet commands, see references/fleet.md>
 
 ## Notes
 

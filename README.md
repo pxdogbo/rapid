@@ -122,12 +122,18 @@ Start with the slash command, then drive everything with bare words mid-session.
 | `drop <N>` | Mark note N dropped — "never," not "later" (bookkeeping only; `reverse` discards work) |
 | `link` / `link <N>` | Print recent PR URLs from this session |
 | `reverse <N>` / `undo <N>` | Roll back note N's work — discard, delete branch, or close PR (with confirmation) |
+| `wax` | Groom the doc in place — condense finished notes, group related ones, refresh state, strip bloat. Keeps the whole queue (the gentle cousin of `wash`) |
 | `wash` / `clean` | Empty the queue in place; keep slug, worktree, and push history for reuse |
 | `scrap` | Delete this one session entirely (doc + worktree + branch) |
 | `burn` | Nuke ALL rapid artifacts for the current repo (confirms first, lists what's at risk) |
 | `/rapid done` / `end` / `off` | Archive the session (flags unshipped work first) |
 | `/rapid resume <slug>` | Re-activate an archived session in this chat |
 | `/rapid update` | Pull the latest skill version and show what changed |
+| `/rapid fleet <N>` / "start a fleet of N" | Split this session's work into N file-disjoint assignments for other agents to claim |
+| `/rapid fleet join <lead-slug>` | (In a fresh chat) join a fleet — self-claim an assignment and work it in your own session |
+| `fleet` | Fleet status: roster, log, and any decision the lead owes |
+| `/rapid fleet sync` | (Lead) gather every member's committed work so one `push` ships it all — no visiting each chat |
+| `/rapid fleet end` | Disband the fleet and render the final summary |
 
 ## The queue
 
@@ -169,6 +175,8 @@ can run concurrent sessions — each chat binds to its own slug.
 SKILL.md          # the core loop — what the agent loads on every session
 references/       # heavy verbs, read on demand when their trigger fires
 ├── push.md       #   push, carpool
+├── wax.md        #   wax
+├── fleet.md      #   fleet (start / join / status / end)
 ├── cleanup.md    #   wash, scrap, burn
 ├── notes.md      #   park, unpark, drop, link
 ├── reverse.md    #   reverse / undo
