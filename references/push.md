@@ -30,6 +30,15 @@ ready. If this chat has no session, ignore — it's a normal message.
 > user texting `carpool` (see below) — that is them explicitly asking for
 > it. Anything short of that, treat the PR as closed-for-edits.
 
+> 🚢 **Fleet lead with a synced set — one PR per assignment, not a
+> combined branch.** If this session is a fleet **lead** (`**Fleet:**
+> lead`) that has run `fleet sync` (roster rows marked `synced`), `push`
+> ships those member branches directly: `git push origin
+> rapid/<member-slug>` + `gh pr create --head rapid/<member-slug>` for each,
+> one PR per assignment. Do NOT combine them — they're file-disjoint and
+> mergeable on their own. See `references/fleet.md`. Everything below is
+> the normal note-batching path for a non-fleet session.
+
 Behavior:
 
 1. **Acknowledge in one line**, e.g. `Got it — finishing note 4, then opening one PR for the batch.`

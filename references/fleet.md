@@ -7,6 +7,7 @@ Read this file when the user invokes any fleet command:
 | `/rapid fleet <N>` / "start a fleet of N" | lead | Split this session's work into N file-disjoint assignments, post them, emit the join command. |
 | `/rapid fleet join <lead-slug>` | member (fresh chat) | Self-claim an open assignment, spin up your own session, start working. |
 | `fleet` (bare word, mid-session) | either | Render fleet status; re-read the doc for new messages. |
+| `/rapid fleet sync` | lead | Gather every member's committed branch into the lead's push set and report readiness — so one `push` to the lead ships them all (one PR per assignment), no chat-hopping. |
 | `/rapid fleet end` | lead | Disband: final summary, mark the fleet closed. |
 
 A **fleet** is several agents, in separate chats the user opens by hand,
@@ -176,6 +177,68 @@ Re-read the doc first (per the no-live-channel rule), then render:
 
 `fleet` requires this chat to be in a session (lead or member). No session
 → normal message. Never queue `fleet` as a note.
+
+---
+
+## Lead: `/rapid fleet sync`
+
+When the fleet's work is done, the user shouldn't have to visit each member
+chat and say `push`. `fleet sync` lets the **lead** ship everyone's work,
+because every member worktree shares the **same git repo** as the lead — so
+the lead can see and push each `rapid/<member-slug>` branch directly.
+
+> 🔑 **Sync gathers; `push` ships.** Per the skill's core rule (never open
+> a PR until the user says `push`), `fleet sync` does NOT open PRs. It
+> verifies each member branch is ready and stages it as the lead's push
+> set. The user then says `push` to the lead, which opens **one PR per
+> assignment**. This is exactly "so I can ask you to push."
+
+Behavior:
+
+1. **Re-read the fleet roster.** For each assignment with a
+   `rapid/<member-slug>` branch, find its worktree (`git worktree list
+   --porcelain` maps branch → path) and classify it:
+   - **Already shipped** — `gh pr list --head rapid/<member-slug> --state
+     all --json number,state,url` returns an OPEN/MERGED PR. Record the
+     link; nothing to do.
+   - **Ready** — has commits beyond `origin/main` (`git rev-list --count
+     origin/main..rapid/<member-slug>` > 0), no PR yet, and its worktree is
+     clean (`git -C <member-worktree> status --porcelain` empty).
+   - **Uncommitted** — worktree has uncommitted changes. The lead **cannot
+     see them** (they're in no branch). Flag this member.
+   - **Idle** — no commits beyond main, no PR. Member did no work; note it.
+2. **Mark each Ready member's row `synced`** in the roster and append one
+   log line: `[HH:MM] lead: synced — ready a1,a2,a3 · a4 uncommitted · a5
+   already shipped (#41)`.
+3. **Report the plan** (do NOT push):
+   ```
+   fleet sync — turbo-kart
+
+   ready to push (3):  a1 rapid/aero-jet · a2 rapid/nitro-rover · a3 rapid/zippy-luge
+   already shipped (1): a5 → PR #41
+   ⚠️ uncommitted (1):  a4 rapid/warp-sled — that chat must commit,
+                        or say "sync force" and I'll commit it on its behalf
+
+   Say "push" and I'll open one PR per ready assignment.
+   ```
+4. **`sync force`** (optional, only if the user opts in): for each
+   Uncommitted member, `cd` into its worktree and commit on its behalf —
+   stage **tracked changes only** (`git add -u`, never `git add -A`: member
+   worktrees often hold a symlinked `node_modules`/`.env` that must not be
+   committed), within the assignment's `owns:` paths, with a generic
+   message (`<assignment>: sync commit on behalf of rapid/<member-slug>`).
+   Then mark the row `synced`. Flag clearly that the lead committed for it.
+
+### Then: `push` ships the synced set
+
+When the user says `push` to a lead that has `synced` rows, the lead does
+NOT cut a normal combined branch. Instead, for each `synced` member branch:
+`git push origin rapid/<member-slug>`, then `gh pr create --head
+rapid/<member-slug> --base main` with a title/body from the assignment.
+Open **one PR per assignment** (they're file-disjoint, so independently
+reviewable and mergeable). Flip each row to `shipped`, fill its PR cell,
+and log `[HH:MM] lead: pushed a1 → PR #44`. (See `references/push.md` —
+the fleet-lead case.)
 
 ---
 

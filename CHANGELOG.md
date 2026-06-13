@@ -15,6 +15,13 @@
   (claimed / blocked / shipped / handoff). No live channel between chats —
   the user is the relay and the lead re-reads on `fleet` / prod. GC never
   reaps a doc with an active fleet block. See `references/fleet.md`.
+- **`fleet sync` — ship the whole fleet from the lead.** When the work is
+  done, the user no longer visits each member chat to push. `fleet sync`
+  (lead) gathers every member's committed branch (member worktrees share
+  the lead's git repo), verifies readiness, flags any with uncommitted
+  work (`sync force` lets the lead commit on their behalf), and stages them
+  — then one `push` to the lead opens one PR per assignment. Honors the
+  never-PR-without-`push` rule: sync gathers, push ships.
 
 ## 1.2.8 — 2026-06-13
 

@@ -87,7 +87,7 @@ this one — **read the reference file when its trigger fires**, not before:
 |---|---|
 | `references/push.md` | `push`, `carpool` |
 | `references/wax.md` | `wax` |
-| `references/fleet.md` | `fleet` (start / join / status / end) |
+| `references/fleet.md` | `fleet` (start / join / status / sync / end) |
 | `references/cleanup.md` | `wash`/`clean`, `scrap`, `burn` |
 | `references/notes.md` | `park`, `unpark`, `drop`, `link` |
 | `references/reverse.md` | `reverse <N>` / `undo <N>` |
@@ -170,6 +170,7 @@ skipped and the session is doc-only.
 | `/rapid update` | Pull the latest version of this skill and show the changelog delta. Works any time, no session needed. See `references/setup.md`. |
 | `/rapid fleet <N>` / "start a fleet of N" | **Lead.** Split this chat's session work into N file-disjoint assignments, post them in a `## Fleet` block, and emit the join command for the user to paste into N new chats. See `references/fleet.md`. |
 | `/rapid fleet join <lead-slug>` | **Member** (run in a fresh chat). Self-claim an open assignment from the lead's doc, spin up your own session/worktree, and start working. See `references/fleet.md`. |
+| `/rapid fleet sync` | **Lead.** Gather every member's committed branch into the lead's push set and report readiness (flagging any with uncommitted work); a following `push` then ships them as one PR per assignment — no visiting each chat. See `references/fleet.md`. |
 | `/rapid fleet end` | **Lead.** Disband the fleet: reconcile member PRs, render the final summary, mark the `## Fleet` block disbanded. See `references/fleet.md`. |
 
 ### The bare-word rule

@@ -132,6 +132,7 @@ Start with the slash command, then drive everything with bare words mid-session.
 | `/rapid fleet <N>` / "start a fleet of N" | Split this session's work into N file-disjoint assignments for other agents to claim |
 | `/rapid fleet join <lead-slug>` | (In a fresh chat) join a fleet — self-claim an assignment and work it in your own session |
 | `fleet` | Fleet status: roster, log, and any decision the lead owes |
+| `/rapid fleet sync` | (Lead) gather every member's committed work so one `push` ships it all — no visiting each chat |
 | `/rapid fleet end` | Disband the fleet and render the final summary |
 
 ## The queue
