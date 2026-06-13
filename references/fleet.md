@@ -58,8 +58,13 @@ shared medium, and writing to it cannot wake a sleeping chat. So:
 - [14:40] rapid/nitro-jet: need src/shared/types.ts (a1 owns) — handoff?
 ```
 
-`status` per assignment: `open` → `claimed` → `working` → `shipped`
-(or `blocked`). The **Log is append-only** — never rewrite past lines.
+`status` per assignment: `open` → `claimed` → `working` → `synced` →
+`shipped` (or `blocked`). `synced` means `fleet sync` has staged the
+member's committed branch and a `push` will ship it (see below). These are
+**assignment statuses in the roster table** — a separate vocabulary from
+the `## Notes` status boxes (`[ ]` `[~]` `[c]` `[x]` `[!]` `[p]` `[-]`),
+which fleet does not change. The **Log is append-only** — never rewrite
+past lines.
 
 A member's own session doc carries one header line linking it back:
 `**Fleet:** member of rapid/<lead-slug>, assignment a2`.
