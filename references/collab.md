@@ -7,12 +7,11 @@ Read this when the user invokes `/rapid collab <slug>` or the bare word `collab`
 | `/rapid collab <slug> [message]` | Open or continue a chatroom with the agent working session `<slug>`. Post a message into the shared room and tell the user to relay. |
 | `collab` (bare word, mid-session) | Re-read your `## Collab` (and any room you joined); show new messages from the peer; flag anything awaiting your reply. |
 
-`collab` is the **lightweight** cousin of `fleet`. `fleet` splits one backlog
-into file-disjoint lanes with a managed roster. `collab` is just a **chatroom**:
-two agents in two separate chats, each on its own session, talking — to
-coordinate a shared file, settle a decision, or hand something across. No
-roster, no assignments. For structured parallel work use `fleet`; to just talk,
-use `collab`.
+`collab` is just a **chatroom**: two agents in two separate chats, each on its
+own session, talking — to coordinate a shared file, settle a decision, or hand
+something across. It's deliberately lightweight: no notes, no branches, just
+messages. (To hand a whole scoped task to another chat instead of chatting, use
+`handoff` — see `references/handoff.md`.)
 
 ---
 
@@ -89,7 +88,7 @@ back. No session → normal message; never queue `collab` as a note.
 - Keep it to coordination — decisions, file ownership, hand-offs, questions.
   It's a chatroom, not a log of your own work (that's `## Notes`).
 - **Never edit the peer's `## Notes` or anything outside `## Collab`.** The
-  `## Collab` room and the fleet Log are the ONLY sanctioned cross-doc writes
+  `## Collab` room is the ONLY sanctioned cross-doc write
   (one chat owns one doc — see SKILL Rules).
 
 ---
@@ -102,4 +101,4 @@ back. No session → normal message; never queue `collab` as a note.
   room goes with it; keep the underlying session alive (live notes / unshipped
   branch) to keep a room.
 - `wash` keeps the `## Collab` section (like `## Pushes` history).
-- `wax` leaves `## Collab` untouched (append-only, like the fleet Log).
+- `wax` leaves `## Collab` untouched (append-only, like `## Pushes`).

@@ -12,10 +12,11 @@ description: >
   wash/clean, park, unpark, drop, test/testdrive, scrap, burn,
   link, reverse/undo) operate on the session this chat started, not on
   whatever doc happens to be marked active globally. wax grooms the doc in
-  place (condense + group + de-stale) without emptying the queue. fleet
-  splits one session's work across several agents in separate chats. Use
+  place (condense + group + de-stale) without emptying the queue. handoff
+  seeds a scoped plan as a standalone session a fresh chat adopts; collab is
+  a chatroom between two live agents. Use
   whenever the user types /rapid, /rapid <note>, /rapid review, /rapid
-  done, /rapid off, /rapid update, "start a fleet of N", or says they want
+  done, /rapid off, /rapid update, /rapid handoff, or says they want
   to "start a rapid session" / "drop a quick note" mid-task.
 ---
 
@@ -88,7 +89,7 @@ this one — **read the reference file when its trigger fires**, not before:
 |---|---|
 | `references/push.md` | `push`, `carpool` |
 | `references/wax.md` | `wax` |
-| `references/fleet.md` | `fleet` (start / join / status / sync / end) |
+| `references/handoff.md` | `handoff` (hand a session / note / plan to a fresh chat) |
 | `references/collab.md` | `collab` (cross-agent chatroom between two sessions) |
 | `references/cleanup.md` | `wash`/`clean`, `scrap`, `burn` |
 | `references/notes.md` | `park`, `unpark`, `drop`, `link` |
@@ -163,7 +164,6 @@ skipped and the session is doc-only.
 | `link` / `link <N>` (bare word, mid-session) | Print the URL(s) of recent PRs opened from **this chat's** session, newest first. See `references/notes.md`. |
 | `reverse <N>` / `undo <N>` (bare word, mid-session) | **Undo the work done on note N** — discard uncommitted changes, reset committed branches, or close pushed PRs (with confirmation). See `references/reverse.md`. |
 | `wax` (bare word, mid-session) | **Groom** this chat's session doc in place — condense finished notes, group related ones, refresh in-progress state, strip stale sub-bullets. Keeps the whole live queue; doc-only, no git. See `references/wax.md`. |
-| `fleet` (bare word, mid-session) | **Fleet status.** Lead sees the roster + log + any decision it owes; a member sees its assignment + lead directives. Re-reads the doc first (no live channel). See `references/fleet.md`. |
 | `collab` (bare word, mid-session) | **Check the collab room.** Re-read this chat's `## Collab` (and any room it joined) and surface new messages from the other agent since last check — loudly flag any awaiting your reply. No live channel: the user relays between chats. See `references/collab.md`. |
 | `wash` / `clean` (bare word, mid-session) | **Empty** this chat's session file in place so it can be reused — keeps slug, worktree, branch, and `## Pushes` history. Confirms first if anything risky is in flight. See `references/cleanup.md`. |
 | `scrap` (bare word, mid-session) | **Delete this chat's session entirely** — doc, worktree, and local branch. Confirms first if anything risky is in flight. See `references/cleanup.md`. |
@@ -171,12 +171,8 @@ skipped and the session is doc-only.
 | `/rapid done` / `/rapid end` / `/rapid off` | Archive **this chat's** session. See Step 6. |
 | `/rapid resume <slug>` / `/rapid start <slug>` | Re-activate an archived session in this chat, OR **adopt a seeded hand-off session** (`**Handoff:** pending`): read its plan, flip the header to `adopted`, and cut its worktree + `rapid/<slug>` branch off `origin/main` (it has none yet). `start` and `resume` are aliases. `/rapid start` alone (no slug) behaves like `/rapid` (reuse-or-new). |
 | `/rapid update` | Pull the latest version of this skill and show the changelog delta. Works any time, no session needed. See `references/setup.md`. |
-| `/rapid fleet <N>` / "start a fleet of N" | **Lead.** Split this chat's session work into N file-disjoint assignments, post them in a `## Fleet` block, and emit the join command for the user to paste into N new chats. See `references/fleet.md`. |
-| `/rapid fleet join <lead-slug>` | **Member** (run in a fresh chat). Self-claim an open assignment from the lead's doc, spin up your own session/worktree, and start working. See `references/fleet.md`. |
-| `/rapid fleet sync` | **Lead.** Gather every member's committed branch into the lead's push set and report readiness (flagging any with uncommitted work); a following `push` then ships them as one PR per assignment — no visiting each chat. See `references/fleet.md`. |
-| `/rapid fleet end` | **Lead.** Disband the fleet: reconcile member PRs, render the final summary, mark the `## Fleet` block disbanded. See `references/fleet.md`. |
-| "make a fleet doc" / "hand this off to a new chat" (natural language — no dedicated command) | **Seed a standalone hand-off session for ANOTHER chat.** Write the full self-contained plan as a NEW session doc (own slug, header `**Handoff:** pending`, no worktree yet), then **ALWAYS end your reply with the copy-paste line `/rapid start <slug>`** so the user can open it in a fresh chat. The adopting chat cuts its own branch off `origin/main` and works in its OWN doc — never this one. NOT a loose `~/.rapid/*.md` file. See `references/fleet.md`. |
-| `/rapid collab <slug> [message]` | **Open / continue a chatroom with the agent on session `<slug>`.** Re-read both docs' `## Collab`, post your message into the shared room (the peer's `## Collab`, or the existing room if one's already open with them), and tell the user to relay to that chat. For talking + informal coordination with another live agent; lighter than `fleet` (no roster). See `references/collab.md`. |
+| `/rapid handoff [this session \| <note N> \| <description>]` | **Hand work to a fresh chat.** Seed a NEW session doc (own slug, header `**Handoff:** pending`, no worktree yet) holding the full instructions to build — the whole current session, one note, or a described task — then **ALWAYS end your reply with the copy-paste line `/rapid start <slug>`**. A fresh chat runs that to adopt it: it cuts its own worktree + `rapid/<slug>` branch off `origin/main` and works in its OWN doc (never this one). NOT a loose `~/.rapid/*.md` file. See `references/handoff.md`. |
+| `/rapid collab <slug> [message]` | **Open / continue a chatroom with the agent on session `<slug>`.** Re-read both docs' `## Collab`, post your message into the shared room (the peer's `## Collab`, or the existing room if one's already open with them), and tell the user to relay to that chat. For talking + informal coordination with another live agent; a lightweight chatroom, just talk. See `references/collab.md`. |
 
 ### The bare-word rule
 
@@ -274,10 +270,9 @@ Run this sweep, scoped to the current repo (resolve root via
    - **Skip (leave it) ONLY if something is genuinely at risk:**
      uncommitted changes in its worktree (`git -C <worktree> status
      --porcelain` non-empty), a `[p]` parked or `[!]` blocked note, an
-     **unshipped** branch (per the test above), or an **active `## Fleet`
-     block** (a lead war-room whose `**Status:**` is not `disbanded` — it's
-     live coordination state), or a `**Handoff:** pending` header (a seeded
-     hand-off session waiting for a fresh chat to adopt it). A `[~]` / `[c]` note whose branch is
+     **unshipped** branch (per the test above), or a `**Handoff:** pending`
+     header (a seeded hand-off session waiting for a fresh chat to adopt it).
+     A `[~]` / `[c]` note whose branch is
      MERGED/CLOSED is already shipped — **stale checkboxes do NOT block
      reaping.** (Users rarely flip `[c]`→`[x]` after a squash merge; reap
      on PR state, not on the checkbox.)
@@ -397,8 +392,7 @@ one.
 **Repo:** <absolute path to repo root, or "n/a">
 **Worktree:** <absolute path to worktree, or "n/a">
 **Branch:** <rapid/<slug>, or "n/a">
-**Fleet:** <omit unless in a fleet; "lead" or "member of rapid/<slug>, assignment <id>" — set by the fleet commands, see references/fleet.md>
-**Handoff:** <omit normally; "pending" on a seeded hand-off session awaiting a fresh chat; "adopted <ISO> by this chat" once adopted via /rapid start <slug>. See references/fleet.md>
+**Handoff:** <omit normally; "pending" on a seeded hand-off session awaiting a fresh chat; "adopted <ISO> by this chat" once adopted via /rapid start <slug>. See references/handoff.md>
 
 ## Notes
 
@@ -695,12 +689,12 @@ it as plain `/rapid` (reuse-or-new per Step 2).
   by exactly one chat. NEVER edit a *different* chat's session doc to record
   your work: two chats editing one file silently lose each other's writes
   (the lost-update trap). To hand work to another chat, seed a **hand-off
-  session** (ask me to "make a fleet doc"; see `references/fleet.md`) — its own doc + its
+  session** (`/rapid handoff`; see `references/handoff.md`) — its own doc + its
   own branch — and reference it by slug only. Likewise never write a loose
   `~/.rapid/*.md` plan file for another chat to "point at": it's owned by
   nobody, so the adopting chat ends up writing status back into YOUR doc. The
-  ONLY sanctioned cross-doc write is a fleet **member** appending to the
-  lead's append-only Log (its own roster row only).
+  ONLY sanctioned cross-doc write is posting to a peer's `## Collab` room
+  (see `references/collab.md`).
 - **Append before acting.** Always write the note to the doc before starting
   work, even if work takes one second. The doc must never lag behind.
 - **One source of truth.** If conversation context and the doc disagree,

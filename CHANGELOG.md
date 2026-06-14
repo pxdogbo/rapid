@@ -2,34 +2,26 @@
 
 ## 1.5.0 — 2026-06-14
 
+- **Replaced the multi-agent roster `fleet` with a simple `handoff`.** The old
+  `fleet` (split one backlog into N file-disjoint lanes with a roster +
+  war-room) is gone. In its place, **`/rapid handoff [this session | <note N> |
+  <description>]`** seeds a NEW standalone session doc (own slug, header
+  `**Handoff:** pending`, no worktree) holding the full instructions, and ALWAYS
+  ends with the copy-paste line `/rapid start <slug>`. A fresh chat runs that to
+  adopt it — `/rapid start` / `/rapid resume` now cut the worktree + branch off
+  `origin/main` when adopting a pending hand-off. One plan, one chat. See
+  `references/handoff.md`.
 - **New `collab` — a chatroom between two live agents.** `/rapid collab <slug>
-  [message]` opens/continues a chat with the agent on another session: it posts
-  into a shared, append-only `## Collab` room (the peer's section, or the
-  existing room if one's already open) and tells the user to relay to that chat.
-  The bare word `collab` re-reads the room and surfaces new messages awaiting
-  your reply. Every new session doc now carries a (blank) `## Collab` section.
-  Lighter than `fleet` (no roster/assignments) — for talking and informal
-  coordination, not a managed work-split. No live channel: the user relays. See
-  `references/collab.md`.
-
-## 1.4.0 — 2026-06-14
-
-- **Hand-off sessions — seed a standalone session a fresh chat adopts (NO new
-  command).** For when you write a rich, self-contained plan (a scoped feature,
-  migration, build spec) and hand it to ONE other chat to execute. Asking to
-  "make a fleet doc" seeds a NEW session doc (own slug, header `**Handoff:**
-  pending`, no worktree yet) and ALWAYS ends with the copy-paste line `/rapid
-  start <slug>`. Adoption reuses the EXISTING `/rapid start <slug>` / `/rapid
-  resume <slug>`, which now cuts the worktree + `rapid/<slug>` branch off
-  `origin/main` when it adopts a pending hand-off. Fixes the lost-update trap
-  where a plan written to a loose `~/.rapid/*-plan.md` file was owned by
-  nobody, so the adopting chat wrote its status back into the originating
-  chat's doc and the two clobbered each other. GC and reuse-as-empty both skip
-  a `**Handoff:** pending` doc. See `references/fleet.md`.
-- **New rule: one chat writes one doc — never another chat's.** A session doc
-  is owned by exactly one chat; the only sanctioned cross-doc write is a fleet
-  member appending to the lead's append-only Log. Hand work off via a hand-off
-  session, not by sharing a doc or pointing at a loose plan file.
+  [message]` posts into a shared, append-only `## Collab` room and tells the
+  user to relay to that chat; the bare word `collab` reads the room. Every new
+  session doc carries a (blank) `## Collab` section. No live channel: the user
+  relays. See `references/collab.md`.
+- **New rule: one chat writes one doc — never another chat's.** Fixes the
+  lost-update trap where a plan written to a loose `~/.rapid/*-plan.md` file was
+  owned by nobody, so the adopting chat wrote its status back into the
+  originating doc and the two clobbered each other. The only sanctioned
+  cross-doc write is posting to a peer's `## Collab` room. GC and
+  reuse-as-empty skip a `**Handoff:** pending` doc.
 
 ## 1.3.0 — 2026-06-13
 
