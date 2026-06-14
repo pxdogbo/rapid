@@ -15,7 +15,7 @@ messages. (To hand a whole scoped task to another chat instead of chatting, use
 
 ---
 
-## The constraint (same as fleet): no live channel
+## The constraint: no live channel
 
 A markdown file is the only shared medium, and writing to it cannot wake a
 sleeping chat. **The user is the relay.** After you post, tell the user which
