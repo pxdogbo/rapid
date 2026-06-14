@@ -1,5 +1,36 @@
 # Changelog
 
+## 1.5.0 — 2026-06-14
+
+- **New `collab` — a chatroom between two live agents.** `/rapid collab <slug>
+  [message]` opens/continues a chat with the agent on another session: it posts
+  into a shared, append-only `## Collab` room (the peer's section, or the
+  existing room if one's already open) and tells the user to relay to that chat.
+  The bare word `collab` re-reads the room and surfaces new messages awaiting
+  your reply. Every new session doc now carries a (blank) `## Collab` section.
+  Lighter than `fleet` (no roster/assignments) — for talking and informal
+  coordination, not a managed work-split. No live channel: the user relays. See
+  `references/collab.md`.
+
+## 1.4.0 — 2026-06-14
+
+- **Hand-off sessions — seed a standalone session a fresh chat adopts (NO new
+  command).** For when you write a rich, self-contained plan (a scoped feature,
+  migration, build spec) and hand it to ONE other chat to execute. Asking to
+  "make a fleet doc" seeds a NEW session doc (own slug, header `**Handoff:**
+  pending`, no worktree yet) and ALWAYS ends with the copy-paste line `/rapid
+  start <slug>`. Adoption reuses the EXISTING `/rapid start <slug>` / `/rapid
+  resume <slug>`, which now cuts the worktree + `rapid/<slug>` branch off
+  `origin/main` when it adopts a pending hand-off. Fixes the lost-update trap
+  where a plan written to a loose `~/.rapid/*-plan.md` file was owned by
+  nobody, so the adopting chat wrote its status back into the originating
+  chat's doc and the two clobbered each other. GC and reuse-as-empty both skip
+  a `**Handoff:** pending` doc. See `references/fleet.md`.
+- **New rule: one chat writes one doc — never another chat's.** A session doc
+  is owned by exactly one chat; the only sanctioned cross-doc write is a fleet
+  member appending to the lead's append-only Log. Hand work off via a hand-off
+  session, not by sharing a doc or pointing at a loose plan file.
+
 ## 1.3.0 — 2026-06-13
 
 - **New `fleet` command — collaborate with other agents on one session's

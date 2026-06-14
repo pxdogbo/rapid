@@ -37,6 +37,55 @@ shared medium, and writing to it cannot wake a sleeping chat. So:
 
 ---
 
+## Single hand-off — seed a standalone session a fresh chat adopts
+
+Sometimes you don't want to split *this* session's work into parallel lanes.
+You want to write a rich, self-contained PLAN (a scoped feature, a migration, a
+build spec) and hand it to ONE other chat to execute independently. That is a
+**hand-off session**: its own session doc, its own slug, its own branch.
+
+⚠️ A hand-off is NOT a loose markdown file. A plan written to a random
+`~/.rapid/<name>-plan.md` is owned by nobody — the adopting chat has no doc of
+its own, so it writes its status back into YOUR session doc, and two chats
+editing one file lose each other's writes. Always seed a real session.
+
+### Seeding a hand-off (originating chat — when the user asks to "make a fleet doc" / hand work to a new chat; no dedicated command)
+1. Generate a fresh slug (Step 2b naming). Do NOT create a worktree yet.
+2. Write the plan as a new session doc `~/.rapid/sessions/<slug>.md` using the
+   normal template, with header `**Handoff:** pending` and `**Repo:**` set to
+   the target repo root. Put the full plan under `## Notes` (as `[ ]` notes
+   and/or a plan body) plus all context the executing chat needs to be
+   self-sufficient — it will NOT see this chat's history.
+3. Leave `**Worktree:**` / `**Branch:**` as `n/a (created on adopt)` — the
+   adopting chat cuts the branch off `origin/main` when it starts, so it forks
+   from the latest main, not a stale point. No idle worktree until adopt.
+4. In YOUR own doc, record a one-line pointer (`hand-off → rapid/<slug>`). Do
+   not copy the plan back into your doc, and do not expect the other chat to
+   update your doc.
+5. **ALWAYS end your reply with the copy-paste adopt command** — the user
+   opens it in a fresh chat, so never make them hunt for it:
+   ```
+   Hand-off session rapid/<slug> ready (~/.rapid/sessions/<slug>.md).
+   In a NEW chat, paste:  /rapid start <slug>
+   It works in its own branch + doc and never touches this one.
+   ```
+
+### Adopting it (fresh chat): `/rapid start <slug>`
+`/rapid start <slug>` / `/rapid resume <slug>` binds this chat to the hand-off
+session. On adopt: flip the header to `**Handoff:** adopted <ISO> by this
+chat`, create the worktree + `rapid/<slug>` branch off `origin/main` (the
+Step 2b worktree step), then work it as an ordinary session — own notes, own
+`push`, own PRs. Write progress ONLY to this doc.
+
+### Rules
+- A hand-off session is owned by exactly ONE chat at a time (whoever adopted
+  it). Two chats are never in the same session doc.
+- A `**Handoff:** pending` doc is never auto-reaped and never reused-as-empty
+  (it's a seeded plan waiting for a chat) — see SKILL Step 2·GC and Step 2a.
+- Doc-only seed; the branch is born on adopt, off the latest `origin/main`.
+
+---
+
 ## The `## Fleet` block (lives in the lead's session doc)
 
 ```markdown
