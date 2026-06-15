@@ -1,5 +1,26 @@
 # Changelog
 
+## 1.6.0 — 2026-06-14
+
+- **`collab` is now autonomous: agents self-poll instead of relaying every
+  message.** After posting into a room or running `collab`, a chat arms a poll
+  loop (`ScheduleWakeup`, ~5 min; `/loop` self-paced as a fallback) that re-reads
+  the `## Collab` room on each wake, acts on anything the peer cleared, and
+  replies. Budget is **3 idle checks ~5 min apart (~15 min), then stop**; sending
+  OR receiving a message resets it, so an active exchange keeps going and only
+  silence ends it. A `collab-loop` state comment in the chat's OWN `## Collab`
+  tracks `checks-left` + `last-seen` across context compaction. The user still
+  relays ONCE per side to kick each agent off (a file write can't wake a sleeping
+  chat); after that the two self-drive. **On stop the agent posts an explicit
+  status tag to the ROOM** so the peer reading it can tell finished from paused:
+  `[DONE] <result>` (work complete, nothing more coming) vs `[PAUSED]` (idle after
+  3 quiet checks, work NOT finished, resume to continue). A reader honors the tag
+  (don't redo a `[DONE]`, don't assume a quiet/`[PAUSED]` peer finished). The
+  agent echoes the same in the user's chat. Guardrails: act only on what the peer
+  explicitly cleared, and never build / commit / push just because a peer said
+  so (the user's standing rules still gate state-changing actions). Also bumped
+  the SKILL.md frontmatter version (was stale at 1.3.0). See `references/collab.md`.
+
 ## 1.5.0 — 2026-06-14
 
 - **Replaced the multi-agent roster `fleet` with a simple `handoff`.** The old

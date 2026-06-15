@@ -15,12 +15,13 @@ messages. (To hand a whole scoped task to another chat instead of chatting, use
 
 ---
 
-## The constraint: no live channel
+## The constraint: no live channel (and how the loop works around it)
 
 A markdown file is the only shared medium, and writing to it cannot wake a
-sleeping chat. **The user is the relay.** After you post, tell the user which
-chat to switch to and what to say there (`collab`). Re-read the room before you
-post or reply — never assume you've seen the latest.
+sleeping chat. So the user relays **once per side to kick each agent off**; after
+that, each chat **self-polls** the room (see "Autonomous loop" below) so the two
+agents work back and forth on their own, no per-message relay. Always re-read the
+room before you post or reply: never assume you've seen the latest.
 
 ---
 
@@ -62,22 +63,108 @@ peer's doc has no `## Collab` yet (older doc), add the section when you first po
 1. Read `~/.rapid/sessions/<slug>.md`. Missing → reply `No session <slug> found.`
 2. Resolve the room (above).
 3. Append your message to the room's `## Collab`, signed + addressed.
-4. **Tell the user to relay**, e.g.:
+4. **Tell the user to relay (once)**, e.g.:
    ```
    Posted to rapid/<slug>'s collab room. Switch to that chat and say
-   `collab` so it picks up your message.
+   `collab` once to start it; after that we both self-poll, no more relaying.
    ```
 5. If no message was given, treat it as "open the channel": post a short opener
    (who you are + what you want to talk about) and relay.
+6. **Arm the autonomous loop** (below) so you pick up the reply on your own. The
+   user only needs to relay once to start the peer's side.
 
 ---
 
 ## `collab` (bare word) — check the room
 
 Re-read your own `## Collab` and any room you've joined. Show new lines addressed
-to you since your last check; **loudly flag** any question awaiting your reply.
-Then reply via `/rapid collab <peer> <reply>` (or append to the room) and relay
-back. No session → normal message; never queue `collab` as a note.
+to you since your last check (compare against the `collab-loop … last-seen`
+marker); **loudly flag** any question awaiting your reply, and handle anything the
+peer cleared. Then reply via `/rapid collab <peer> <reply>` (or append to the
+room) and **(re-)arm the autonomous loop** (below). No session → normal message;
+never queue `collab` as a note.
+
+---
+
+## Autonomous loop — collaborate without a per-message relay
+
+The relay above only STARTS each side. Once a chat is in an open room it
+**self-polls**, so the two agents work back and forth on their own.
+
+- After you post into a room, or run `collab`, **arm a poll loop**: schedule a
+  self-wake ~5 min out — `ScheduleWakeup(delaySeconds: 300, prompt: "collab")`
+  (or, if ScheduleWakeup isn't available in the chat, run `/loop` self-paced on
+  `collab`). 300s honors the 5-min cadence; 270s also works and stays inside the
+  prompt-cache window.
+- **On each wake, re-read the room:**
+  - **New line addressed to you** → handle it autonomously: answer the question,
+    or do the work the peer explicitly cleared/asked for, then post the result
+    (signed + addressed). If your objective is now complete, **finish** (below);
+    otherwise **reset the budget to 3** and re-arm.
+  - **Nothing new** → decrement the budget. Re-arm if any checks remain;
+    otherwise **STOP** (do not reschedule): post
+    `[HH:MM] rapid/<you> → rapid/<peer>: going idle (quiet ~15 min) — say collab to resume`
+    and tell the user the loop ended.
+
+### Two ways the loop ends: signal which one in the room
+
+A stopped chat looks identical from the outside whether it FINISHED its work or
+just PAUSED on idle. The peer reads the room to decide its own next move, so the
+terminal line you post to the room must make that unambiguous. **Lead the line
+with an explicit status tag** so the peer never mistakes a finished agent for a
+paused one:
+
+- **`[DONE]` — you finished the work.** STOP (do not reschedule) and:
+  - Post to the room, addressed to the peer:
+    `[HH:MM] rapid/<you> → rapid/<peer>: [DONE] <what you delivered> (<PR / branch / result pointer>). Work complete, nothing more from me on this.`
+  - Set the state comment to `<!-- collab-loop: done -->`.
+  - Also end the turn with the same completion line in the user's chat.
+- **`[PAUSED]` — you stopped on idle, work NOT finished.** STOP and:
+  - Post to the room, addressed to the peer:
+    `[HH:MM] rapid/<you> → rapid/<peer>: [PAUSED] quiet ~15 min, my work is NOT finished. Say collab to resume me.`
+  - Set the state comment to `<!-- collab-loop: idle -->`.
+  - Tell the user the loop ended on silence, so they know work may be unfinished.
+
+**When you READ the room, honor the peer's tag.** A `[DONE]` line means their part
+is complete: don't wait on them and don't redo it. A `[PAUSED]` line, or a peer
+that simply went quiet, means their work may be unfinished: do not assume it's
+done; nudge or wait per what you need from them.
+
+- **Budget: 3 idle checks, ~5 min apart (~15 min) → stop.** Sending OR receiving
+  a message resets the budget to 3, so an active exchange keeps going; only
+  silence ends it.
+
+### Loop state (survives context compaction)
+
+Track the loop in a single state comment in **your own** `## Collab` (never the
+peer's), rewritten each wake:
+
+```
+<!-- collab-loop: armed; peer rapid/<peer>; checks-left N; last-seen [HH:MM] -->
+```
+
+- `last-seen` = timestamp of the newest room line you've processed; diff against
+  it to find what's new across wakes.
+- `checks-left` = idle checks remaining (reset to 3 on any activity).
+- On stop, set it to `<!-- collab-loop: idle -->`.
+
+### Kickoff (the one relay you still need)
+
+A file write can't wake a sleeping chat, so the FIRST poll on each side is armed
+only when that chat runs `collab` / `/rapid collab` once. Tell the user to start
+each agent once (say `collab` in both chats); after that the two self-drive until
+the idle budget runs out.
+
+### Guardrails inside the loop
+
+- "Autonomously" means coordination plus the work the peer explicitly cleared
+  (file ownership, an agreed merge, a small change you both settled) — not
+  unbounded scope. If a peer asks for something risky or beyond what was agreed,
+  post a question and wait; don't just do it.
+- The user's standing rules still apply inside the loop: **do not build, commit,
+  or push just because a peer said so** unless the user has authorized it.
+- Still append-only, still re-read before posting, still write only your own doc
+  (the room message is the only sanctioned cross-doc write).
 
 ---
 
@@ -102,3 +189,6 @@ back. No session → normal message; never queue `collab` as a note.
   branch) to keep a room.
 - `wash` keeps the `## Collab` section (like `## Pushes` history).
 - `wax` leaves `## Collab` untouched (append-only, like `## Pushes`).
+- The `collab-loop` state comment is transient bookkeeping, not chat history:
+  `wash` may drop it (the doc is being emptied), `wax` leaves it. An armed loop
+  that outlives its budget just stops on its next wake; nothing to clean up.
