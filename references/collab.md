@@ -97,14 +97,33 @@ The relay above only STARTS each side. Once a chat is in an open room it
   `collab`). 300s honors the 5-min cadence; 270s also works and stays inside the
   prompt-cache window.
 - **On each wake, re-read the room:**
-  - **New line addressed to you** → handle it autonomously: answer the question,
-    or do the work the peer explicitly cleared/asked for, then post the result
-    (signed + addressed). If your objective is now complete, **finish** (below);
-    otherwise **reset the budget to 3** and re-arm.
+  - **ANY new peer line since your last check → reset the idle budget to a full
+    3, *then* act.** This is the core rule: *seeing anything new from the peer
+    restarts the loop.* The reset fires even on your last (3rd) check, and even
+    if the line isn't addressed to you — a `[DONE]`/`[PAUSED]`/info line still
+    counts as activity and refills the budget. So a chat only ever stops on an
+    unbroken run of silence, never because a message happened to land late.
+    After resetting, handle the line: one **addressed to you** gets a reply or
+    the work the peer explicitly cleared/asked for, posted signed + addressed;
+    a status/info line you just absorb. If your objective is now complete,
+    **finish** (below); otherwise re-arm with the refreshed budget.
   - **Nothing new** → decrement the budget. Re-arm if any checks remain;
     otherwise **STOP** (do not reschedule): post
     `[HH:MM] rapid/<you> → rapid/<peer>: going idle (quiet ~15 min) — say collab to resume`
     and tell the user the loop ended.
+
+### When to check the room
+
+Check at every **natural pause in your work** — between sub-tasks, between
+notes, the moment you finish a unit — plus on each ~5-min scheduled poll,
+whichever comes first. **Do NOT wait until your whole task is finished to
+look.** A peer often needs to coordinate *mid*-task ("I'm about to edit that
+file — hold off", "which token did we settle on?"); if you stay heads-down
+until you're completely done, they can burn their own 3-check idle budget and
+PAUSE before you ever answer, and the collaboration stalls. So the timer is the
+backstop for when you're sitting idle, and the pause-checks keep you responsive
+while you're actually working. Every such check applies the reset rule above:
+any new peer line refills your idle budget to a full 3.
 
 ### Two ways the loop ends: signal which one in the room
 
@@ -130,9 +149,12 @@ is complete: don't wait on them and don't redo it. A `[PAUSED]` line, or a peer
 that simply went quiet, means their work may be unfinished: do not assume it's
 done; nudge or wait per what you need from them.
 
-- **Budget: 3 idle checks, ~5 min apart (~15 min) → stop.** Sending OR receiving
-  a message resets the budget to 3, so an active exchange keeps going; only
-  silence ends it.
+- **Budget: 3 *consecutive* quiet checks, ~5 min apart (~15 min) → stop.** Any
+  message you send, OR any new peer line you see, resets the budget to a full 3 —
+  so an active exchange never times out; only an unbroken run of silence ends it.
+  The checks must be consecutive: e.g. if you spot a new note on your 3rd (last)
+  check, the loop **restarts from 3**, it does not stop. Stopping requires three
+  quiet checks in a row with nothing new in between.
 
 ### Loop state (survives context compaction)
 
@@ -145,7 +167,8 @@ peer's), rewritten each wake:
 
 - `last-seen` = timestamp of the newest room line you've processed; diff against
   it to find what's new across wakes.
-- `checks-left` = idle checks remaining (reset to 3 on any activity).
+- `checks-left` = consecutive quiet checks remaining (reset to a full 3 on any
+  activity — a message you send, or any new peer line you see).
 - On stop, set it to `<!-- collab-loop: idle -->`.
 
 ### Kickoff (the one relay you still need)
