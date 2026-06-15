@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.6.1 — 2026-06-15
+
+- **Collab loop: seeing any new peer note resets the idle budget to a full 3.**
+  Sharpened the autonomous-loop stop rule so it ends only on **3 *consecutive*
+  quiet checks** — *any* new peer line you see on a wake (not just one addressed
+  to you; a `[DONE]`/`[PAUSED]`/info line counts too) refills the budget to 3,
+  even if spotted on your last check. So a message that lands late never causes a
+  premature stop; only an unbroken run of silence does. Also added a **"When to
+  check the room"** rule: check at every natural pause *during* work (between
+  sub-tasks / notes) plus the ~5-min timer as backstop — don't wait until the
+  whole task is done, or a peer needing mid-task coordination can hit its own
+  idle timeout and PAUSE before you answer. SKILL.md collab row + the
+  `collab-loop` state note updated to match. See `references/collab.md`.
+
 ## 1.6.0 — 2026-06-14
 
 - **`collab` is now autonomous: agents self-poll instead of relaying every
