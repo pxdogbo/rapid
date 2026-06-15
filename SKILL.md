@@ -1,6 +1,6 @@
 ---
 name: rapid
-version: 1.3.0
+version: 1.6.0
 user-invocable: true
 description: >
   Rapid session — capture realtime notes from the user while working with a
@@ -164,7 +164,7 @@ skipped and the session is doc-only.
 | `link` / `link <N>` (bare word, mid-session) | Print the URL(s) of recent PRs opened from **this chat's** session, newest first. See `references/notes.md`. |
 | `reverse <N>` / `undo <N>` (bare word, mid-session) | **Undo the work done on note N** — discard uncommitted changes, reset committed branches, or close pushed PRs (with confirmation). See `references/reverse.md`. |
 | `wax` (bare word, mid-session) | **Groom** this chat's session doc in place — condense finished notes, group related ones, refresh in-progress state, strip stale sub-bullets. Keeps the whole live queue; doc-only, no git. See `references/wax.md`. |
-| `collab` (bare word, mid-session) | **Check the collab room.** Re-read this chat's `## Collab` (and any room it joined) and surface new messages from the other agent since last check — loudly flag any awaiting your reply. No live channel: the user relays between chats. See `references/collab.md`. |
+| `collab` (bare word, mid-session) | **Check the collab room + drive the loop.** Re-read this chat's `## Collab` (and any room it joined), surface new peer messages since last check (loudly flag any awaiting reply), act on what the peer cleared, then (re-)arm the autonomous poll loop. No live channel: the user relays once per side to start each agent; after that the agents self-poll. On stop it posts an explicit status to the room so the peer knows which happened (and isn't left thinking the work just paused): `[DONE]` (work finished) or `[PAUSED]` (idle after 3 quiet checks ~5 min apart, NOT finished), echoed in your chat too. See `references/collab.md`. |
 | `wash` / `clean` (bare word, mid-session) | **Empty** this chat's session file in place so it can be reused — keeps slug, worktree, branch, and `## Pushes` history. Confirms first if anything risky is in flight. See `references/cleanup.md`. |
 | `scrap` (bare word, mid-session) | **Delete this chat's session entirely** — doc, worktree, and local branch. Confirms first if anything risky is in flight. See `references/cleanup.md`. |
 | `burn` (bare word, any time) | **Nuke ALL rapid artifacts for the current repo** (docs, worktrees, `rapid/*` branches). Confirms first; lists anything that would be lost. See `references/cleanup.md`. |
@@ -172,7 +172,7 @@ skipped and the session is doc-only.
 | `/rapid resume <slug>` / `/rapid start <slug>` | Re-activate an archived session in this chat, OR **adopt a seeded hand-off session** (`**Handoff:** pending`): read its plan, flip the header to `adopted`, and cut its worktree + `rapid/<slug>` branch off `origin/main` (it has none yet). `start` and `resume` are aliases. `/rapid start` alone (no slug) behaves like `/rapid` (reuse-or-new). |
 | `/rapid update` | Pull the latest version of this skill and show the changelog delta. Works any time, no session needed. See `references/setup.md`. |
 | `/rapid handoff [this session \| <note N> \| <description>]` | **Hand work to a fresh chat.** Seed a NEW session doc (own slug, header `**Handoff:** pending`, no worktree yet) holding the full instructions to build — the whole current session, one note, or a described task — then **ALWAYS end your reply with the copy-paste line `/rapid start <slug>`**. A fresh chat runs that to adopt it: it cuts its own worktree + `rapid/<slug>` branch off `origin/main` and works in its OWN doc (never this one). NOT a loose `~/.rapid/*.md` file. See `references/handoff.md`. |
-| `/rapid collab <slug> [message]` | **Open / continue a chatroom with the agent on session `<slug>`.** Re-read both docs' `## Collab`, post your message into the shared room (the peer's `## Collab`, or the existing room if one's already open with them), and tell the user to relay to that chat. For talking + informal coordination with another live agent; a lightweight chatroom, just talk. See `references/collab.md`. |
+| `/rapid collab <slug> [message]` | **Open / continue a chatroom with the agent on session `<slug>`.** Re-read both docs' `## Collab`, post your message into the shared room (the peer's `## Collab`, or the existing room if one is already open with them), tell the user to relay once to that chat, and arm the autonomous poll loop so you pick up the reply on your own. A lightweight cross-agent chatroom that then self-drives. See `references/collab.md`. |
 
 ### The bare-word rule
 
@@ -400,7 +400,7 @@ one.
 
 ## Collab
 
-<!-- Cross-agent chatroom. Blank until a collab opens. Append-only, newest last; sign each line `rapid/<your-slug> HH:MM`. No live channel — re-read before posting; the user relays between chats. See references/collab.md. -->
+<!-- Cross-agent chatroom. Blank until a collab opens. Append-only, newest last; sign each line `rapid/<your-slug> HH:MM`. No live channel: re-read before posting; the user relays once per side, then each chat self-polls (autonomous loop, 3 idle checks ~5 min apart). See references/collab.md. -->
 
 ```
 
