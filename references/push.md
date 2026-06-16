@@ -70,8 +70,8 @@ Behavior:
    do NOT resolve blindly. Name the colliding notes and offer the three
    ways out:
    ```
-   Conflict while batching: note 2 (fix/avatar-size) and note 5
-   (fix/sidebar-spacing) both changed src/Sidebar.tsx.
+   Conflict while batching: note 2 (rapid/<slug>-avatar-size) and note 5
+   (rapid/<slug>-sidebar-spacing) both changed src/Sidebar.tsx.
    Options:
      1. I resolve it now (I'll show you the resolution before continuing)
      2. drop note 5 from this batch — it ships on the next push
@@ -107,7 +107,7 @@ Behavior:
    ```
    ## Pushes
    - batch 1 — 2026-04-28 02:06 → rapid/<slug>-batch-1 → PR #123 (open)
-     - feat/lyrics-line-block-ops, feat/theme-accent-hue-slider, fix/confirm-modal-glass, …
+     - rapid/<slug>-lyrics-block-ops, rapid/<slug>-accent-hue-slider, rapid/<slug>-confirm-modal-glass, …
    ```
 10. **Reply with a one-block summary**: combined branch name, PR URL, and
     a bullet list of which notes shipped. Mention that the user merges
@@ -166,8 +166,8 @@ Behavior:
    new one:
    ```
    - batch 1 — … → PR #123 (open)
-     - feat/lyrics-line-block-ops, …
-     - + carpooled [<date>]: fix/header-copy, fix/footer-link
+     - rapid/<slug>-lyrics-line-block-ops, …
+     - + carpooled [<date>]: rapid/<slug>-header-copy, rapid/<slug>-footer-link
    ```
 7. **Reply in one block**: which notes were added, the PR URL, and a
    reminder that the PR now contains the extra commits.

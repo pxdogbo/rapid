@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.7.0 — 2026-06-16
+
+- **Rapid now only ever creates `rapid/*` branches.** Per-note working branches
+  changed from `<type>/<short-slug>` (`feat/*`, `fix/*`) to
+  `rapid/<slug>-<note-slug>`, joining the session branch (`rapid/<slug>`) and
+  push batches (`rapid/<slug>-batch-<N>`) under one prefix. A session must never
+  attach to or cut a non-`rapid/` branch unless the user explicitly asks.
+  **Why:** per-note branches are local-only cherry-pick sources that never get
+  pushed, so when named `feat/*`/`fix/*` the Step 2·GC auto-reap (which keys on
+  `rapid/<slug>*`) couldn't see them and they piled up indefinitely (a user hit
+  100+ stale local branches). The existing `rapid/*` scan now reaps them
+  automatically. Naming-only — pushes still ride `rapid/<slug>-batch-<N>`, so
+  PR/GitHub branch names are unaffected. `burn` stays the catch-all that also
+  sweeps any non-`rapid/` branches a session recorded.
+
 ## 1.6.1 — 2026-06-15
 
 - **Collab loop: seeing any new peer note resets the idle budget to a full 3.**

@@ -1,6 +1,6 @@
 ---
 name: rapid
-version: 1.6.1
+version: 1.7.0
 user-invocable: true
 description: >
   Rapid session — capture realtime notes from the user while working with a
@@ -483,11 +483,20 @@ don't silently pick.
 While working:
 
 - **All file edits happen in the session's worktree.**
+- **🔴 Rapid only ever creates `rapid/*` branches — never `feat/*`/`fix/*`/etc.**
+  Everything a session touches is rapid-prefixed: the session branch
+  `rapid/<slug>`, each note's working branch `rapid/<slug>-<note-slug>`, and
+  each push batch `rapid/<slug>-batch-<N>`. **Never** attach a session to, or
+  cut, a non-`rapid/` branch **unless the user explicitly asks** (e.g. "ship
+  this as `feat/x`"). The `rapid/` prefix is the *single* signal Step 2·GC
+  auto-reap and `burn` key on — a non-`rapid/` branch is invisible to cleanup
+  and is exactly how branches pile up. (Naming only: pushes already ride the
+  `rapid/<slug>-batch-<N>` branch, so PR/GitHub names are unaffected.)
 - **Every new note ships on its own fresh branch off `origin/main`.** Before
   starting a note, run `git fetch origin main` inside the worktree and check
-  out a brand-new branch off `origin/main` (e.g. `fix/login-glow-bug`,
-  `feat/avatar-size`). Use a `<type>/<short-slug>` name — never the session
-  branch, never a previous note's branch.
+  out a brand-new branch off `origin/main`, named `rapid/<slug>-<note-slug>`
+  (e.g. `rapid/turbo-kart-login-glow`) — never the session branch, never a
+  previous note's branch, never a non-`rapid/` name.
 - **Overlap check — before cutting the branch.** Check whether the files
   this note will touch were already changed by an unmerged earlier note
   (`git -C <worktree> diff --name-only origin/main...<branch>` for each
@@ -521,7 +530,7 @@ While working:
 - Record the branch under the note as you start it:
   ```
   - [~] [14:38] error glow on node cards
-    - branch: fix/node-error-glow (off origin/main)
+    - branch: rapid/<slug>-node-error-glow (off origin/main)
   ```
   The `push` step picks up note branches via these lines.
 - **Never push or open PRs inline.** Commit work to its local branch
@@ -564,7 +573,7 @@ background agents skip this section and work the note inline.
    ```
    git fetch origin main
    git worktree add ~/worktrees/<repo-name>/<slug>-<note-slug> \
-                    -b <type>/<note-slug> origin/main
+                    -b rapid/<slug>-<note-slug> origin/main
    ```
    The main loop keeps the session worktree and stays free to capture
    notes and work small non-overlapping ones inline.
@@ -575,7 +584,7 @@ background agents skip this section and work the note inline.
    delegation too):
    ```
    - [~] [14:32] semantic light/dark theme across the app
-     - branch: feat/dice-theme (off origin/main)
+     - branch: rapid/<slug>-dice-theme (off origin/main)
      - delegated [14:32]: background agent, worktree ~/worktrees/<repo>/<slug>-dice-theme
    ```
 5. **Delegate plays by session rules**: commit to the note branch with a
@@ -625,7 +634,7 @@ things stand:
 rapid/<slug> — review
 
 shipped:         #1 avatar sizing, #2 title wrap → PR #12
-done, unshipped: #4 sticker copy (on fix/sticker-copy — say `push`)
+done, unshipped: #4 sticker copy (on rapid/<slug>-sticker-copy — say `push`)
 in progress:     #5 ContentView spacing
 delegated:       #3 light/dark theme — background agent since 14:32
 queued:          #6 footer link, #7 empty-state copy
