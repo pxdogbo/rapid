@@ -1,6 +1,6 @@
 ---
 name: rapid
-version: 1.7.0
+version: 1.8.0
 user-invocable: true
 description: >
   Rapid session — capture realtime notes from the user while working with a
@@ -9,7 +9,7 @@ description: >
   starts a brand-new one (fresh doc + sibling git worktree on a `rapid/<slug>`
   branch). Drive-by notes and bare-word triggers (review/recap, push (→ always
   commits the queue and opens a PR, never a bare git push), carpool,
-  wash/clean, park, unpark, drop, test/testdrive, scrap, burn,
+  wash/clean, park, unpark, drop, test/testdrive, scrap, tidy, burn,
   link, reverse/undo) operate on the session this chat started, not on
   whatever doc happens to be marked active globally. wax grooms the doc in
   place (condense + group + de-stale) without emptying the queue. handoff
@@ -91,11 +91,11 @@ this one — **read the reference file when its trigger fires**, not before:
 | `references/wax.md` | `wax` |
 | `references/handoff.md` | `handoff` (hand a session / note / plan to a fresh chat) |
 | `references/collab.md` | `collab` (cross-agent chatroom between two sessions) |
-| `references/cleanup.md` | `wash`/`clean`, `scrap`, `burn` |
+| `references/cleanup.md` | `wash`/`clean`, `scrap`, `tidy`, `burn` |
 | `references/notes.md` | `park`, `unpark`, `drop`, `link` |
 | `references/reverse.md` | `reverse <N>` / `undo <N>` |
 | `references/test.md` | `test` / `testdrive` |
-| `references/setup.md` | first-run onboarding, config.json, `/rapid update`, version check |
+| `references/setup.md` | first-run onboarding, config.json, `/rapid update`, version check, reap throttle |
 
 ---
 
@@ -107,7 +107,7 @@ folder anytime with `open ~/.rapid`. Both roots are overridable in
 
 ```
 ~/.rapid/
-├── config.json                  # first-run choices: paths, last update check
+├── config.json                  # first-run choices: paths, update + reap throttles
 ├── sessions/
 │   ├── turbo-kart.md             # an active session doc
 │   ├── nitro-scooter.md          # another concurrently-active session doc (different chat)
@@ -152,7 +152,7 @@ skipped and the session is doc-only.
 
 | User input              | Action                                                            |
 |-------------------------|-------------------------------------------------------------------|
-| `/rapid`                | **Reuse an empty session in this chat if one exists** (oldest in `sessions/` with zero notes), else start a brand-new one. See Step 2. |
+| `/rapid`                | **Reuse an empty session in this chat if one exists** (oldest in `sessions/` with zero notes), else start a brand-new one — **instantly**; the finished-session reap runs *after* the ack (Step 2·after), never before. See Step 2. |
 | `/rapid <text>`         | Same as above, with `<text>` appended as note 1. See Step 2.      |
 | `review` / `recap` (bare word, mid-session) | Session recap: what shipped (with PR links), what's done-but-unshipped, in progress, queued, parked, blocked. See Step 6. |
 | `push` (bare word, mid-session) | Finish the current `[~]` note, commit it, cut a fresh combined branch + open a new PR for it and any other unshipped `[c]` notes. Stop at PR-open. See `references/push.md`. |
@@ -167,6 +167,7 @@ skipped and the session is doc-only.
 | `collab` (bare word, mid-session) | **Check the collab room + drive the loop.** Re-read this chat's `## Collab` (and any room it joined), surface new peer messages since last check (loudly flag any awaiting reply), act on what the peer cleared, then (re-)arm the autonomous poll loop. No live channel: the user relays once per side to start each agent; after that the agents self-poll. On stop it posts an explicit status to the room so the peer knows which happened (and isn't left thinking the work just paused): `[DONE]` (work finished) or `[PAUSED]` (idle after 3 *consecutive* quiet checks ~5 min apart — any new peer note resets that count, NOT finished), echoed in your chat too. See `references/collab.md`. |
 | `wash` / `clean` (bare word, mid-session) | **Empty** this chat's session file in place so it can be reused — keeps slug, worktree, branch, and `## Pushes` history. Confirms first if anything risky is in flight. See `references/cleanup.md`. |
 | `scrap` (bare word, mid-session) | **Delete this chat's session entirely** — doc, worktree, and local branch. Confirms first if anything risky is in flight. See `references/cleanup.md`. |
+| `tidy` / `reap` (bare word, any time) | **Reap finished sessions for the current repo now** — the on-demand version of the start-time sweep: removes worktrees, deletes merged/closed branches, and `rm`s docs for *finished* (shipped/safe) sessions only, leaving live/unshipped/parked/blocked work and other repos untouched. Prints a summary; no confirmation needed (it removes only what the silent auto-reap already would). Lighter than `burn`. See `references/cleanup.md`. |
 | `burn` (bare word, any time) | **Nuke ALL rapid artifacts for the current repo** (docs, worktrees, `rapid/*` branches). Confirms first; lists anything that would be lost. See `references/cleanup.md`. |
 | `/rapid done` / `/rapid end` / `/rapid off` | Archive **this chat's** session. See Step 6. |
 | `/rapid resume <slug>` / `/rapid start <slug>` | Re-activate an archived session in this chat, OR **adopt a seeded hand-off session** (`**Handoff:** pending`): read its plan, flip the header to `adopted`, and cut its worktree + `rapid/<slug>` branch off `origin/main` (it has none yet). `start` and `resume` are aliases. `/rapid start` alone (no slug) behaves like `/rapid` (reuse-or-new). |
@@ -183,8 +184,8 @@ that command. NEVER queue it as a note. If this chat has NO session,
 every bare word is just a normal message: do nothing rapid-related,
 respond as you would in any chat.
 
-Two exceptions to the session requirement:
-- `burn` is repo-wide and runs regardless of session state.
+Exceptions to the session requirement:
+- `burn` and `tidy` are repo-wide and run regardless of session state.
 - `/rapid update` is about the skill itself and works any time.
 
 ### Drive-by notes
@@ -234,79 +235,25 @@ context compaction.
 
 ## Step 2 — Start or reuse a session (slug + doc + worktree)
 
-When `/rapid` (or `/rapid <text>` or `/rapid start` with no slug) fires:
+When `/rapid` (or `/rapid <text>` or `/rapid start` with no slug) fires,
+**get the user into a session first, clean up second.** `/rapid` exists for
+instant capture — never make the user wait on network or housekeeping before
+their note lands. The run order is fixed:
 
-**Step 2·0 — First-run check.** If `~/.rapid/config.json` does not
-exist, run the onboarding in `references/setup.md` first, then continue
-here. If it exists, also run the **once-daily version check** from that
-file (non-blocking, fail silent).
+1. **Step 2·0 — First-run check** — local, instant.
+2. **Step 2a / 2b — bind or create the session and acknowledge** — instant.
+3. **Step 2·hint — surface other sessions** — one cheap local line, instant.
+4. **Step 2·after — reap finished leftovers + version check** — throttled,
+   non-blocking, and ALWAYS after the acknowledgement, never before it.
 
-**Step 2·GC — Auto-reap finished sessions.** Before reusing or
-creating anything, garbage-collect the leftovers of prior sessions for
-**this repo**. This is the cleanup hook, because in practice users start
-new sessions far more often than they run `/rapid done` — so `done` can't
-be the only thing that cleans up. Reaping on start means worktrees and
-branches never silently pile up.
+Steps 2·hint and 2·after are documented just below Step 2b — that is where
+they run.
 
-Run this sweep, scoped to the current repo (resolve root via
-`git rev-parse --show-toplevel`; if not in a repo, skip GC entirely):
-
-1. For each session doc in `sessions/` (NOT archive) whose `**Repo:**`
-   header matches the current repo root, AND which is **not** the session
-   this chat is about to reuse/own:
-   - **Determine "shipped" by PR state, NOT by ancestry.** A squash- or
-     rebase-merged branch still reads as *ahead* of `origin/main`
-     (`git rev-list origin/main..HEAD` non-zero, `git merge-base
-     --is-ancestor HEAD origin/main` false) even though its work is fully
-     merged. **Never** use ancestry / `rev-list` / `--is-ancestor` to
-     decide if a branch shipped — that false-positive is the #1 cause of
-     worktrees piling up (sessions look "unshipped" forever and never get
-     reaped). Instead, for each branch the session recorded (`branch:
-     <name>` lines + `rapid/<slug>*`), check its PR:
-     `gh pr list --head <branch> --state all --json state --jq '.[0].state'`.
-     **MERGED or CLOSED → shipped.** A branch is **unshipped** only if it
-     has NO merged/closed PR AND has unpushed commits (no `origin/<branch>`
-     ref, or local commits beyond `origin/<branch>`).
-   - **Skip (leave it) ONLY if something is genuinely at risk:**
-     uncommitted changes in its worktree (`git -C <worktree> status
-     --porcelain` non-empty), a `[p]` parked or `[!]` blocked note, an
-     **unshipped** branch (per the test above), or a `**Handoff:** pending`
-     header (a seeded hand-off session waiting for a fresh chat to adopt it).
-     A `[~]` / `[c]` note whose branch is
-     MERGED/CLOSED is already shipped — **stale checkboxes do NOT block
-     reaping.** (Users rarely flip `[c]`→`[x]` after a squash merge; reap
-     on PR state, not on the checkbox.)
-   - **Otherwise it's finished** → reap it:
-     a. `git worktree remove --force <worktree>` if the worktree exists
-        and sits on a `rapid/*` branch. Leave worktrees parked on a
-        non-rapid feature branch alone.
-     b. Delete its local `rapid/*` branches + recorded `branch: <name>`
-        branches **whose PR is merged/closed or which has no remote ref**
-        (`git branch -D`). Never delete a branch with an OPEN PR or an
-        unshipped branch with unpushed commits.
-     c. Delete the merged/closed remote branches it pushed (`git push
-        origin --delete <exact-branch-name>`), only when their PR is not
-        open. **Exclude any keep-list by EXACT, fully-qualified ref name**
-        (e.g. `rapid/foo-batch-1`, never a bare suffix) — a loose
-        grep/pattern can silently delete a branch you meant to keep.
-     d. `rm` the session doc.
-2. After the sweep, run `git worktree prune` to clear stale registrations.
-3. **Freshen the user's local main**: if the primary checkout is on
-   `main` and clean (`git status --porcelain` empty), run
-   `git -C <repo-root> pull --ff-only`. This keeps the main checkout from
-   drifting behind merged rapid PRs. It is always safe for in-progress
-   branches — a fast-forward only moves the `main` pointer; worktrees and
-   note branches are untouched. If the checkout is on another branch or
-   dirty, skip silently.
-4. Do this **silently** unless something was reaped or main moved — then
-   prepend ONE line to the start acknowledgement, e.g. `Reaped 3 finished
-   sessions (sonic-rover, speedy-buggy, swift-sled); fast-forwarded main.`
-   Never block the new session on GC; if a reap step errors, skip that
-   item and keep going.
-
-The point: the user never has to remember `done`. Every `/rapid` start
-leaves the repo with only live/unshipped sessions plus the new one, and
-a local main that matches origin.
+**Step 2·0 — First-run check.** If `~/.rapid/config.json` does not exist, run
+the onboarding in `references/setup.md` first, then continue here. This is the
+only thing that may precede the acknowledgement, and only on the very first
+use. The once-daily version check and the finished-session reap both moved to
+**Step 2·after** (post-ack) so neither delays the session.
 
 **Step 2a — Try to reuse an empty session first.** Scan
 `~/.rapid/sessions/` (NOT the archive) for any `.md` file
@@ -381,6 +328,102 @@ one.
    working on it immediately (Step 4). All file edits for the session must
    happen *inside* the worktree path; never edit files in the original
    checkout from a rapid session unless the user explicitly says so.
+
+**Step 2·hint — surface other sessions (instant, local, NO network).**
+Immediately after the acknowledgement, do a CHEAP local scan — doc reads only,
+**no `gh`, no `git fetch`, nothing over the network** — of `sessions/` for
+other docs whose `**Repo:**` header matches this repo, and append at most ONE
+short hint line. Include whichever parts apply:
+- **Resumable** — other sessions for this repo that have live notes (any
+  `[ ]` / `[~]` / `[c]` / `[!]` / `[p]` under `## Notes`), excluding this
+  chat's own. List up to 3 slugs; the user picks one up with `/rapid resume
+  <slug>`.
+- **Finished to clear** — a count of this repo's *other* docs that are NOT
+  live (notes all `[x]` / `[-]`, or empty). If ≥ 1, nudge `say tidy to clear`.
+
+Example: `↳ 2 resumable: sonic-jet, nimble-sub · 3 finished — say tidy`. If
+this repo has no other sessions, print nothing — never emit an empty hint.
+Keep it network-free: this is a glance, not a verification. Precise
+shipped/merged state is the reap's job (Step 2·after), so the finished count
+here is the cheap doc-state heuristic, not a PR-verified number.
+
+**Step 2·after — Reap finished leftovers + version check (post-ack, throttled,
+non-blocking).** Only now — session bound, acknowledged, hint shown — clean up
+this repo's finished leftovers. This is still the cleanup hook: users start
+sessions far more than they run `/rapid done`, so reaping on start is what
+keeps worktrees and branches from piling up. But it must NEVER delay capture,
+so three rules gate it:
+
+- **Throttle per-repo.** Read `lastReap` for this repo from `config.json` (a
+  map of repo-root → ISO datetime; see `references/setup.md`). If this repo was
+  reaped within the last **6 hours**, SKIP the whole sweep — touch nothing, say
+  nothing. The once-daily version check shares this post-ack pass — run it here
+  too (per `references/setup.md`), also after the ack. The throttle alone makes
+  nearly every `/rapid` start do zero network.
+- **Off the critical path.** A sweep that IS due runs *after* the ack. If your
+  harness supports background tasks (e.g. Claude Code's background `Bash` /
+  `Agent`), launch it detached and report the outcome in a one-line follow-up
+  when it finishes. Otherwise run it inline after the ack — still fast, because
+  it's throttled and the PR-state checks are batched (next rule).
+- **Batch, never loop.** Fetch all PR states for the repo in ONE call —
+  `gh pr list --state all --limit 300 --json number,headRefName,state` — and
+  build a `headRefName → state` map, then look each recorded branch up in it.
+  Calling `gh pr list --head <branch>` once per branch in a blocking loop is
+  exactly the sequential network I/O that made start slow — don't.
+
+Run this sweep, scoped to the current repo (`git rev-parse --show-toplevel`; if
+not in a repo, skip entirely):
+
+1. For each session doc in `sessions/` (NOT archive) whose `**Repo:**` header
+   matches the current repo root, AND which is **not** the session this chat
+   just reused/created:
+   - **Determine "shipped" by PR state, NOT ancestry.** A squash- or
+     rebase-merged branch still reads as *ahead* of `origin/main` even though
+     its work is fully merged. **Never** use ancestry / `rev-list` /
+     `--is-ancestor` to decide if a branch shipped — that false-positive is the
+     #1 cause of worktrees piling up. Instead look each recorded branch
+     (`branch: <name>` lines + `rapid/<slug>*`) up in the prefetched PR-state
+     map: **MERGED or CLOSED → shipped.** A branch is **unshipped** only if it
+     has NO merged/closed PR AND has unpushed commits (no `origin/<branch>`
+     ref, or local commits beyond it).
+   - **Skip (leave it) ONLY if something is genuinely at risk:** uncommitted
+     changes in its worktree (`git -C <worktree> status --porcelain` non-empty),
+     a `[p]` parked or `[!]` blocked note, an **unshipped** branch (per the test
+     above), or a `**Handoff:** pending` header. A `[~]` / `[c]` note whose
+     branch is MERGED/CLOSED is already shipped — **stale checkboxes do NOT
+     block reaping.**
+   - **Otherwise it's finished** → reap it:
+     a. `git worktree remove --force <worktree>` if the worktree exists and
+        sits on a `rapid/*` branch. Leave worktrees parked on a non-rapid
+        feature branch alone.
+     b. Delete its local `rapid/*` branches + recorded `branch: <name>`
+        branches **whose PR is merged/closed or which has no remote ref**
+        (`git branch -D`). Never delete a branch with an OPEN PR or an
+        unshipped branch with unpushed commits.
+     c. Delete the merged/closed remote branches it pushed (`git push origin
+        --delete <exact-branch-name>`), only when their PR is not open.
+        **Exclude any keep-list by EXACT, fully-qualified ref name** — a loose
+        grep/pattern can silently delete a branch you meant to keep.
+     d. `rm` the session doc.
+2. After the sweep, run `git worktree prune` to clear stale registrations.
+3. **Freshen the user's local main**: if the primary checkout is on `main` and
+   clean (`git status --porcelain` empty), run `git -C <repo-root> pull
+   --ff-only`. Always safe — a fast-forward only moves the `main` pointer;
+   worktrees and note branches are untouched. On another branch or dirty, skip
+   silently.
+4. **Record + surface.** Write `lastReap[<repo-root>] = <now ISO>` to
+   `config.json` once the sweep completes, so the next start stays throttled.
+   The ack already went out, so report any result as a one-line FOLLOW-UP (do
+   NOT prepend to the ack): `Reaped 3 finished sessions (sonic-rover,
+   speedy-buggy, swift-sled); fast-forwarded main.` If nothing was reaped and
+   main didn't move, say nothing. If a reap step errors, skip that item and
+   keep going — never block the session on housekeeping.
+
+The point is unchanged — the user never has to remember `done`, and a repo in
+regular use keeps only its live/unshipped sessions plus a local main that
+matches origin — but the cleanup now happens *behind* an instant start instead
+of in front of it. The on-demand `tidy` verb (see `references/cleanup.md`) runs
+this same sweep immediately, ignoring the throttle, when the user asks for it.
 
 ### Session doc template
 
@@ -488,8 +531,8 @@ While working:
   `rapid/<slug>`, each note's working branch `rapid/<slug>-<note-slug>`, and
   each push batch `rapid/<slug>-batch-<N>`. **Never** attach a session to, or
   cut, a non-`rapid/` branch **unless the user explicitly asks** (e.g. "ship
-  this as `feat/x`"). The `rapid/` prefix is the *single* signal Step 2·GC
-  auto-reap and `burn` key on — a non-`rapid/` branch is invisible to cleanup
+  this as `feat/x`"). The `rapid/` prefix is the *single* signal Step 2·after
+  auto-reap, `tidy`, and `burn` key on — a non-`rapid/` branch is invisible to cleanup
   and is exactly how branches pile up. (Naming only: pushes already ride the
   `rapid/<slug>-batch-<N>` branch, so PR/GitHub names are unaffected.)
 - **Every new note ships on its own fresh branch off `origin/main`.** Before

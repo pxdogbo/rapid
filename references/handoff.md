@@ -67,6 +67,6 @@ session. On adopt:
   Two chats are never in the same session doc — never write another chat's doc to
   report progress (see SKILL Rules).
 - A `**Handoff:** pending` doc is never auto-reaped and never reused-as-empty
-  (it's a seeded plan waiting for a chat) — see SKILL Step 2·GC and Step 2a.
+  (it's a seeded plan waiting for a chat) — see SKILL Step 2·after and Step 2a.
 - Doc-only seed; the branch is born on adopt, off the latest `origin/main`.
 - `wash` keeps a `**Handoff:**` header; `wax` leaves the seeded plan alone.

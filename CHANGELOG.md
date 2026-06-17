@@ -1,5 +1,35 @@
 # Changelog
 
+## 1.8.0 — 2026-06-17
+
+- **Instant start — cleanup moved off the critical path.** `/rapid` now binds
+  or creates the session and acknowledges *first*, then reaps finished
+  leftovers *after* — never before. The Step 2 sweep that used to run
+  synchronously on every start (a `gh pr list` per recorded branch + `git
+  fetch`/`pull`, scaling with the number of leftovers, often a multi-second to
+  multi-minute wall) is now: **(1) throttled** per-repo via a new `lastReap`
+  map in `config.json` — skipped entirely if the repo was reaped in the last
+  6 hours, so nearly every start does zero network; **(2) non-blocking** — run
+  detached when the harness supports background tasks, else inline after the
+  ack; and **(3) batched** — all PR states fetched in ONE `gh pr list` for the
+  repo instead of N sequential `--head` calls. Why GC exists is unchanged
+  (users start sessions far more than they run `done`); it just no longer makes
+  them wait to drop a note. The reap section is renamed **Step 2·GC → Step
+  2·after** to reflect that it runs post-acknowledgement.
+- **One-line "other sessions" hint at start.** After the ack, a cheap,
+  network-free doc scan appends a hint when the repo has other sessions: which
+  are resumable (live notes → `/rapid resume <slug>`) and how many are finished
+  (→ `say tidy`). Surfaces resume + cleanup without a blocking menu — the hot
+  path (`/rapid <note>`) stays zero-friction.
+- **New `tidy` / `reap` verb.** On-demand version of the start-time reap:
+  cleans only *finished* (shipped/safe) sessions for the current repo and
+  reports what it did. The gentle middle of the cleanup ladder — safer than
+  `burn` (which nukes everything); needs no session and no confirmation, and
+  bumps `lastReap` so the next auto-sweep stays throttled. See
+  `references/cleanup.md`.
+- **Version check is post-ack too.** The once-daily update ping now runs in the
+  same throttled post-ack pass as the reap, so it never delays capture.
+
 ## 1.7.0 — 2026-06-16
 
 - **Rapid now only ever creates `rapid/*` branches.** Per-note working branches
