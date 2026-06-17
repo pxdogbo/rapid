@@ -16,7 +16,8 @@ the first-run onboarding and read at the start of every session. Schema:
   "sessionsRoot": "~/.rapid/sessions",
   "worktreesRoot": "~/worktrees",
   "onboardedAt": "2026-06-05T10:00:00Z",
-  "lastUpdateCheck": "2026-06-05"
+  "lastUpdateCheck": "2026-06-05",
+  "lastReap": { "/Users/you/Developer/your-repo": "2026-06-05T14:00:00Z" }
 }
 ```
 
@@ -26,6 +27,12 @@ the first-run onboarding and read at the start of every session. Schema:
 - `onboardedAt` — set once when onboarding completes; its presence means
   "never ask again."
 - `lastUpdateCheck` — date (YYYY-MM-DD) of the last new-version check.
+- `lastReap` — map of repo-root → ISO datetime of the last finished-session
+  reap for that repo. Step 2·after throttles on it: if the repo was reaped
+  within the last **6 hours**, the start-time sweep is skipped entirely, so the
+  overwhelming majority of `/rapid` starts do zero network. A manual `tidy`
+  updates it too. A missing key / unknown repo means "never reaped" → the sweep
+  runs. Created lazily on the first reap; absent until then.
 
 **Resolve every path through this file.** Anywhere the skill docs say
 `~/.rapid/sessions/` or `~/worktrees/`, the actual path is whatever
@@ -81,7 +88,8 @@ skip the consent question — the user has already been using the defaults
 
 ## Once-daily version check
 
-During session start (after the GC sweep, never blocking it):
+After the session is acknowledged — in the same throttled post-ack pass as the
+finished-session reap (SKILL.md Step 2·after), never before the ack:
 
 1. Read `lastUpdateCheck` from config.json. If it's today's date, skip.
 2. Otherwise write today's date to `lastUpdateCheck` (regardless of

@@ -49,9 +49,12 @@ agent:  PR open → https://github.com/you/repo/pull/123
 - **Smart triage.** A new note is either folded into the current task (spec
   refinement), queued, or pivoted to (when it's blocking you) — and the agent
   says which, in one line.
-- **Self-cleaning.** Every session start garbage-collects finished sessions
-  (stale worktrees, merged branches, shipped docs) and fast-forwards your
-  local `main` when it's clean. You never have to remember to run `done`.
+- **Self-cleaning, off the critical path.** `/rapid` starts *instantly* — it
+  binds or creates the session and acknowledges first, then reaps finished
+  sessions (stale worktrees, merged branches, shipped docs) and fast-forwards
+  your local `main` *after*, throttled to at most once every few hours per repo
+  so a start almost never waits on the network. You never have to remember
+  `done`; run `tidy` anytime to reap finished sessions on demand.
 
 ## Install
 
@@ -125,15 +128,13 @@ Start with the slash command, then drive everything with bare words mid-session.
 | `wax` | Groom the doc in place — condense finished notes, group related ones, refresh state, strip bloat. Keeps the whole queue (the gentle cousin of `wash`) |
 | `wash` / `clean` | Empty the queue in place; keep slug, worktree, and push history for reuse |
 | `scrap` | Delete this one session entirely (doc + worktree + branch) |
+| `tidy` / `reap` | Reap only the *finished* sessions for this repo, on demand — the gentle, no-confirm cleanup (lighter than `burn`) |
 | `burn` | Nuke ALL rapid artifacts for the current repo (confirms first, lists what's at risk) |
 | `/rapid done` / `end` / `off` | Archive the session (flags unshipped work first) |
 | `/rapid resume <slug>` | Re-activate an archived session in this chat |
 | `/rapid update` | Pull the latest skill version and show what changed |
-| `/rapid fleet <N>` / "start a fleet of N" | Split this session's work into N file-disjoint assignments for other agents to claim |
-| `/rapid fleet join <lead-slug>` | (In a fresh chat) join a fleet — self-claim an assignment and work it in your own session |
-| `fleet` | Fleet status: roster, log, and any decision the lead owes |
-| `/rapid fleet sync` | (Lead) gather every member's committed work so one `push` ships it all — no visiting each chat |
-| `/rapid fleet end` | Disband the fleet and render the final summary |
+| `/rapid handoff [this session \| note N \| description]` | Seed a standalone session a fresh chat adopts via `/rapid start <slug>` — hand off the whole session, one note, or a described task |
+| `/rapid collab <slug> [message]` / `collab` | Open or continue a cross-agent chatroom with another session's agent; bare `collab` checks the room and drives the autonomous poll loop |
 
 ## The queue
 
@@ -157,7 +158,7 @@ via the GitHub UI when you're ready.
 
 ```
 ~/.rapid/
-├── config.json             # one-time setup: paths, last update check
+├── config.json             # one-time setup: paths, update + reap throttles
 ├── sessions/
 │   ├── turbo-kart.md        # live session doc (queue + push history)
 │   └── archive/            # ended sessions
@@ -176,8 +177,9 @@ SKILL.md          # the core loop — what the agent loads on every session
 references/       # heavy verbs, read on demand when their trigger fires
 ├── push.md       #   push, carpool
 ├── wax.md        #   wax
-├── fleet.md      #   fleet (start / join / status / end)
-├── cleanup.md    #   wash, scrap, burn
+├── handoff.md    #   handoff
+├── collab.md     #   collab
+├── cleanup.md    #   wash, scrap, tidy, burn
 ├── notes.md      #   park, unpark, drop, link
 ├── reverse.md    #   reverse / undo
 ├── test.md       #   test / testdrive
