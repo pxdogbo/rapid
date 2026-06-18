@@ -792,6 +792,7 @@ it as plain `/rapid` (reuse-or-new per Step 2).
   *filter* and badges too, not just the data. Enumerate the integration
   points you found and hit in the outcome line so the user can see the
   sweep was real (and catch one you missed).
+- **Only test or start dev servers when asked.** Never start a dev server, run the app, or invoke browser automation on your own initiative — not after making changes, not to "verify." Only do it when the user explicitly asks (e.g. `test`, `testdrive`, or a direct instruction to run/verify).
 - **Self-unblock — fix the blocker, don't just report it.** If something
   stops you from doing the work right (missing `node_modules`, no dev
   server, missing tooling, a broken local config, an auth/account snag),
