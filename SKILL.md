@@ -55,6 +55,18 @@ if that's part of the claim). The user frequently merges and ships within
 minutes of getting the link, so anything you "remember" about a PR's state is
 stale. Report the verified state, never the assumed one.
 
+## Verify the PR is still OPEN before any git write
+
+Before pushing, merging, running `gh pr edit`, or adding any commit to an
+existing branch, **run `gh pr view <branch-or-#> --json state,mergedAt` and
+confirm the PR is still OPEN.** The user merges within minutes, so a PR you
+opened earlier in this same session may already be merged. A merged or closed
+PR is **sealed**: commits pushed to its branch afterward land in no PR and
+never reach `main`. If it is merged/closed, cut a fresh branch off current
+`main` and open a NEW PR for the new commits — never keep piling onto the
+sealed branch. This holds even outside a formal rapid session: any time you do
+anything with git for the user (push, merge, edit a PR), check first.
+
 ## Close superseded / stale PRs yourself — never hand PR housekeeping to the user
 
 The user acts on PRs straight from GitHub **notifications** and merges
