@@ -102,6 +102,10 @@ Behavior:
    **Always record the PR URL under each flipped note** — this is required,
    not optional. Format: `→ PR #<N> <url>` on its own indented line so the
    user can click straight to the PR from the session doc.
+   **Also flip the session header `**Pushed:**` field** from `no` to this PR's
+   ref (`PR #<N> <url>`; comma-append if the session has opened more than one PR
+   over its life). That header is the at-a-glance "this session reached a PR"
+   flag a later scan or cleanup keys on before it deletes anything.
 9. **Record the push** in the session doc under a `## Pushes` heading
    (one entry per `push` invocation, listing the rolled-up notes):
    ```

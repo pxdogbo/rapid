@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.8.1 (2026-06-22)
+
+- **Session-level `**Pushed:**` header flag.** New doc-header field, `no` until
+  a `push`/`carpool` opens a PR, then the PR ref(s). Gives cleanup and scans an
+  at-a-glance answer to "did this session ever reach a PR," instead of inferring
+  it from the `## Pushes` block or per-note `[x]` boxes. The reap now treats a
+  `**Pushed:** no` header as an explicit at-risk signal (local-only work that
+  never became a PR) and never auto-deletes it; a pushed session stays deletable
+  only after its PR is confirmed merged. Closes the gap where committed-but-
+  never-pushed work could be quietly cleaned away.
+
 ## 1.8.0 — 2026-06-17
 
 - **Instant start — cleanup moved off the critical path.** `/rapid` now binds
