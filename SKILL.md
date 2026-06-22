@@ -1,6 +1,6 @@
 ---
 name: rapid
-version: 1.8.0
+version: 1.8.1
 user-invocable: true
 description: >
   Rapid session — capture realtime notes from the user while working with a
@@ -401,7 +401,9 @@ not in a repo, skip entirely):
    - **Skip (leave it) ONLY if something is genuinely at risk:** uncommitted
      changes in its worktree (`git -C <worktree> status --porcelain` non-empty),
      a `[p]` parked or `[!]` blocked note, an **unshipped** branch (per the test
-     above), or a `**Handoff:** pending` header. A `[~]` / `[c]` note whose
+     above), a `**Pushed:** no` header (work never became a PR, so it is
+     local-only and must never be auto-deleted), or a `**Handoff:** pending`
+     header. A `[~]` / `[c]` note whose
      branch is MERGED/CLOSED is already shipped — **stale checkboxes do NOT
      block reaping.**
    - **Otherwise it's finished** → reap it:
@@ -447,6 +449,8 @@ this same sweep immediately, ignoring the throttle, when the user asks for it.
 **Repo:** <absolute path to repo root, or "n/a">
 **Worktree:** <absolute path to worktree, or "n/a">
 **Branch:** <rapid/<slug>, or "n/a">
+**Pushed:** no
+<!-- "no" until a push/carpool opens a PR, then the PR ref(s), e.g. "PR #123 https://…/pull/123" (comma-separate if a session opens more than one over its life). The at-a-glance "did this session reach a PR" flag. Cleanup/scan rule: a session still marked "no" has LOCAL-ONLY work that never became a PR, so never auto-delete it; a session with PR ref(s) is deletable only after each PR is confirmed merged. -->
 **Handoff:** <omit normally; "pending" on a seeded hand-off session awaiting a fresh chat; "adopted <ISO> by this chat" once adopted via /rapid start <slug>. See references/handoff.md>
 
 ## Notes
