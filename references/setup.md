@@ -2,7 +2,8 @@
 
 Read this file when: `~/.rapid/config.json` does not exist (first run),
 or the user invokes `/rapid update`, or the once-daily version check is
-due during session start.
+due (it now rides the reap sweep — the menu's Cleanup option or `tidy` —
+never session start).
 
 ---
 
@@ -16,8 +17,7 @@ the first-run onboarding and read at the start of every session. Schema:
   "sessionsRoot": "~/.rapid/sessions",
   "worktreesRoot": "~/worktrees",
   "onboardedAt": "2026-06-05T10:00:00Z",
-  "lastUpdateCheck": "2026-06-05",
-  "lastReap": { "/Users/you/Developer/your-repo": "2026-06-05T14:00:00Z" }
+  "lastUpdateCheck": "2026-06-05"
 }
 ```
 
@@ -27,12 +27,11 @@ the first-run onboarding and read at the start of every session. Schema:
 - `onboardedAt` — set once when onboarding completes; its presence means
   "never ask again."
 - `lastUpdateCheck` — date (YYYY-MM-DD) of the last new-version check.
-- `lastReap` — map of repo-root → ISO datetime of the last finished-session
-  reap for that repo. Step 2·after throttles on it: if the repo was reaped
-  within the last **6 hours**, the start-time sweep is skipped entirely, so the
-  overwhelming majority of `/rapid` starts do zero network. A manual `tidy`
-  updates it too. A missing key / unknown repo means "never reaped" → the sweep
-  runs. Created lazily on the first reap; absent until then.
+
+> Earlier versions stored a `lastReap` map (repo-root → datetime) to throttle
+> an automatic start-time sweep. As of 1.9.0 cleanup is manual — there is no
+> automatic sweep and nothing throttles on it — so `lastReap` is no longer
+> read or written. An old key left in `config.json` is harmless; ignore it.
 
 **Resolve every path through this file.** Anywhere the skill docs say
 `~/.rapid/sessions/` or `~/worktrees/`, the actual path is whatever
@@ -75,7 +74,7 @@ exist. Run this BEFORE creating any directories, docs, or worktrees.
 3. **Create the directories** (`sessionsRoot`, `sessionsRoot/archive`)
    and **write config.json** with `onboardedAt` set to now.
 4. **Mention updates once**: `When a new version of the skill ships,
-   I'll mention it at session start — /rapid update pulls it.`
+   I'll flag it the next time you clean up — /rapid update pulls it.`
 5. **Continue straight into the normal session start** — don't make the
    user re-type their `/rapid <note>`; carry the first note through.
 
@@ -88,8 +87,10 @@ skip the consent question — the user has already been using the defaults
 
 ## Once-daily version check
 
-After the session is acknowledged — in the same throttled post-ack pass as the
-finished-session reap (SKILL.md Step 2·after), never before the ack:
+This rides the **reap sweep** — the menu's Cleanup option or the `tidy` verb
+(SKILL.md "The reap sweep"). It no longer runs at session start, so starting a
+session never goes to the network. `/rapid update` always checks regardless.
+When a reap runs:
 
 1. Read `lastUpdateCheck` from config.json. If it's today's date, skip.
 2. Otherwise write today's date to `lastUpdateCheck` (regardless of
@@ -100,14 +101,13 @@ finished-session reap (SKILL.md Step 2·after), never before the ack:
      fetch --quiet origin main` and read the frontmatter from
      `origin/main:SKILL.md`. Otherwise `curl -fsS --max-time 3` the raw
      SKILL.md from the repo and read its frontmatter.
-3. If latest > installed, append ONE line to the session-start
-   acknowledgement:
+3. If latest > installed, append ONE line to the cleanup report:
    `rapid v<latest> available (you have v<installed>) — /rapid update to preview what changed.`
    The ping never applies anything — updating is always preview + confirm
    via `/rapid update`.
 4. **Fail silently** on any error (offline, no git, timeout). Never
-   block or delay a session start on this — the note queue is the
-   product, the version ping is a courtesy.
+   block or delay the cleanup on this — the version ping is a courtesy
+   riding along, not the point of the sweep.
 
 ---
 

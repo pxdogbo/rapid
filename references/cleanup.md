@@ -199,12 +199,12 @@ Edge cases:
 ## Bare `tidy` / `reap`
 
 When the user texts just `tidy` (or `reap`) — no slash, no other content —
-**run the start-time reap sweep on demand, right now, for the CURRENT repo**,
-and report what it did. It is the same safe garbage-collection as SKILL.md
-**Step 2·after**, with three differences: it runs immediately (ignoring the
-`lastReap` 6-hour throttle — the user explicitly asked for it), it always
-reports (the auto-sweep is silent when it finds nothing), and it needs no
-session in this chat.
+**run the reap sweep on demand, right now, for the CURRENT repo**, and report
+what it did. It is the safe garbage-collection defined in SKILL.md (**The reap
+sweep**) — the same sweep the menu's **Cleanup** option runs. As of 1.9.0
+cleanup is never automatic: `tidy` (or picking Cleanup from the start menu) is
+how it runs, and it always reports what it found. It needs no session in this
+chat.
 
 `tidy` is the gentle middle of the cleanup ladder: it removes ONLY sessions
 that are **finished** (shipped/safe by PR state) and never touches live,
@@ -216,24 +216,22 @@ Behavior:
 
 1. **Resolve the current repo** (`git rev-parse --show-toplevel`). Not in a
    repo → reply `tidy needs a git repo — cd into one first.` and stop.
-2. **Run the Step 2·after sweep** (SKILL.md): batch all PR states in one
-   `gh pr list --state all --limit 300 --json number,headRefName,state`, then
-   for each in-scope **finished** doc remove its worktree, delete its
+2. **Run the reap sweep** (SKILL.md "The reap sweep"): batch all PR states in
+   one `gh pr list --state all --limit 300 --json number,headRefName,state`,
+   then for each in-scope **finished** doc remove its worktree, delete its
    merged/closed branches (by EXACT ref name), and `rm` the doc. Decide
    "shipped" by PR state, never ancestry; skip anything at risk (uncommitted,
    parked, blocked, unshipped, or hand-off-pending). Then `git worktree prune`
-   and fast-forward a clean local `main`.
-3. **Update `lastReap[<repo-root>]`** in `config.json` to now — a manual tidy
-   counts as a reap, so the next auto-sweep stays throttled.
-4. **Reply with a one-line summary**:
+   and fast-forward a clean local `main`. The once-daily version check rides
+   along (see `references/setup.md`).
+3. **Reply with a one-line summary**:
    - Reaped something: `Tidied <repo>: reaped 3 finished sessions (sonic-jet,
      nimble-sub, brisk-tram), deleted 5 branches; fast-forwarded main.`
    - Nothing to do: `Nothing to tidy — every session for <repo> is live or
      unshipped.`
-5. **No confirmation, no force.** Unlike `burn`, `tidy` removes only finished,
-   shipped work — exactly what the start-time auto-reap already removes
-   silently — so it runs without a prompt. The at-risk skip rules keep anything
-   borderline; nothing live, parked, or unshipped is ever touched.
+4. **No confirmation, no force.** Unlike `burn`, `tidy` removes only finished,
+   shipped work, so it runs without a prompt. The at-risk skip rules keep
+   anything borderline; nothing live, parked, or unshipped is ever touched.
 
 ---
 

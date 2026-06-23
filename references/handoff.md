@@ -66,7 +66,7 @@ session. On adopt:
 - A hand-off session is owned by exactly ONE chat at a time (whoever adopted it).
   Two chats are never in the same session doc — never write another chat's doc to
   report progress (see SKILL Rules).
-- A `**Handoff:** pending` doc is never auto-reaped and never reused-as-empty
-  (it's a seeded plan waiting for a chat) — see SKILL Step 2·after and Step 2a.
+- A `**Handoff:** pending` doc is never reaped and never reused-as-empty
+  (it's a seeded plan waiting for a chat) — see SKILL "The reap sweep" and Step 2a.
 - Doc-only seed; the branch is born on adopt, off the latest `origin/main`.
 - `wash` keeps a `**Handoff:**` header; `wax` leaves the seeded plan alone.

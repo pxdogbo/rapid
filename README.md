@@ -49,12 +49,14 @@ agent:  PR open → https://github.com/you/repo/pull/123
 - **Smart triage.** A new note is either folded into the current task (spec
   refinement), queued, or pivoted to (when it's blocking you) — and the agent
   says which, in one line.
-- **Self-cleaning, off the critical path.** `/rapid` starts *instantly* — it
-  binds or creates the session and acknowledges first, then reaps finished
-  sessions (stale worktrees, merged branches, shipped docs) and fast-forwards
-  your local `main` *after*, throttled to at most once every few hours per repo
-  so a start almost never waits on the network. You never have to remember
-  `done`; run `tidy` anytime to reap finished sessions on demand.
+- **Menu-first, instant start.** Bare `/rapid` opens a menu — new session,
+  resume, cleanup, review, handoff, update, help — and does *nothing* until you
+  pick: no network, no housekeeping, no waiting. Got a note already? `/rapid
+  <note>` skips the menu and captures straight away.
+- **Cleanup only when you ask.** Reaping finished sessions (stale worktrees,
+  merged branches, shipped docs) and fast-forwarding your local `main` never
+  runs automatically — you trigger it with the menu's Cleanup option or `tidy`,
+  so starting work is never blocked by chores. `burn` is the full wipe.
 
 ## Install
 
@@ -87,11 +89,13 @@ where files go and lets you pick different locations (saved to
 
 ### Updating
 
-The agent checks for a new version at most once a day (at session start,
-fail-silent) and mentions it in one line — it never applies anything on
-its own. `/rapid update` shows the changelog (and the full diff on
-request) **before** asking to apply; clone installs then `git pull`,
-skills-CLI installs run `npx skills update`.
+The agent checks for a new version at most once a day — riding along
+whenever you clean up (the menu's Cleanup option or `tidy`), fail-silent —
+and mentions it in one line. It never applies anything on its own, and
+starting a session never checks (so start stays instant). `/rapid update`
+always checks and shows the changelog (and the full diff on request)
+**before** asking to apply; clone installs then `git pull`, skills-CLI
+installs run `npx skills update`.
 
 ### Why you can trust updates
 
@@ -114,7 +118,8 @@ Start with the slash command, then drive everything with bare words mid-session.
 
 | Command | What it does |
 |---|---|
-| `/rapid` / `/rapid <note>` | Start a session (reuses an empty one if available) — fresh doc + worktree on `rapid/<slug>` |
+| `/rapid` (bare) | Open the instant menu — new / resume / cleanup / review / handoff / update / help. Nothing runs until you pick |
+| `/rapid <note>` | Skip the menu — capture straight into a new or reused session (fresh doc + worktree on `rapid/<slug>`) and start the note |
 | *(any message)* | Drive-by note → appended to the queue before anything else happens |
 | `review` / `recap` | Session recap: shipped (with PR links), done-but-unshipped, in progress, queued, parked, blocked |
 | `push` | Finish current note, roll every unshipped note into ONE combined branch + ONE PR, stop at PR-open |
@@ -158,7 +163,7 @@ via the GitHub UI when you're ready.
 
 ```
 ~/.rapid/
-├── config.json             # one-time setup: paths, update + reap throttles
+├── config.json             # one-time setup: paths, last update check
 ├── sessions/
 │   ├── turbo-kart.md        # live session doc (queue + push history)
 │   └── archive/            # ended sessions
