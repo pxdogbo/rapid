@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.9.1 — 2026-06-23
+
+- **ASCII logo header on the `/rapid` menu.** Bare `/rapid` now prints a small
+  `rapid` wordmark — a diagonal slash tucked against the letters so it reads
+  `/rapid` — above the menu options, with the tagline, installed version, and
+  `rapid-skill.vercel.app` underneath. The version is rendered from this
+  SKILL.md's frontmatter (`v<version>`), so it tracks the installed build
+  automatically. Cosmetic only; the menu's behavior and the `/rapid <note>`
+  fast path are unchanged.
+
 ## 1.9.0 — 2026-06-23
 
 - **Menu-first start.** Bare `/rapid` (and `/rapid start` with no slug) now opens
