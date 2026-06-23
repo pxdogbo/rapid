@@ -1,6 +1,6 @@
 ---
 name: rapid
-version: 1.9.0
+version: 1.9.1
 user-invocable: true
 description: >
   Rapid session — capture realtime notes from the user while working with a
@@ -273,10 +273,22 @@ only work that ever happens is whatever option they then pick.
   counts. This is a glance, not a verification.
 
 Render the menu as a numbered list (portable across every tool; a harness with
-a native picker may use that instead). Fill the counts from the local scan:
+a native picker may use that instead). **Print the logo header verbatim** at the
+top, substituting `<version>` with this SKILL.md's frontmatter `version:` value
+so it always shows the installed build. Keep the URL line as-is. Then fill the
+option counts from the local scan:
 
 ```
-rapid — pick one (or just type your first note to start a new session):
+       /                    _      _
+      /       _ __   __ _  _ __  (_)  __| |
+     /       | '__| / _` || '_ \ | | / _` |
+    /        | |   | (_| || |_) || || (_| |
+   /         |_|    \__,_|| .__/ |_| \__,_|
+  /                       |_|
+  realtime note queue — v<version>
+  rapid-skill.vercel.app
+
+  pick one (or just type your first note to start a new session):
 
   1. New session       start fresh, or reuse an empty one, then capture
   2. Resume a session  <N live for this repo: slug, slug, …  |  none yet>
@@ -927,9 +939,18 @@ User: `/rapid`
 Claude (this chat had no session):
 1. Config exists (not a first run). Does a CHEAP local scan of `sessions/` for
    this repo — no network.
-2. Renders the menu and stops:
+2. Renders the menu (logo header with the live version) and stops:
    ```
-   rapid — pick one (or just type your first note to start a new session):
+          /                    _      _
+         /       _ __   __ _  _ __  (_)  __| |
+        /       | '__| / _` || '_ \ | | / _` |
+       /        | |   | (_| || |_) || || (_| |
+      /         |_|    \__,_|| .__/ |_| \__,_|
+     /                       |_|
+     realtime note queue — v1.9.1
+     rapid-skill.vercel.app
+
+     pick one (or just type your first note to start a new session):
 
      1. New session       start fresh, or reuse an empty one, then capture
      2. Resume a session  2 live for this repo: sonic-jet, nimble-sub
