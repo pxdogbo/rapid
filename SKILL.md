@@ -1,13 +1,18 @@
 ---
 name: rapid
-version: 1.8.1
+version: 1.9.0
 user-invocable: true
 description: >
   Rapid session — capture realtime notes from the user while working with a
-  live product (app, website, etc.) without losing context. Each `/rapid`
-  invocation reuses an existing empty session if one is available, otherwise
-  starts a brand-new one (fresh doc + sibling git worktree on a `rapid/<slug>`
-  branch). Drive-by notes and bare-word triggers (review/recap, push (→ always
+  live product (app, website, etc.) without losing context. Bare `/rapid` (or
+  `/rapid start` with no slug) opens an instant menu — new session, resume,
+  cleanup, review, handoff, update, help — and does nothing until you pick, so
+  starting never blocks on housekeeping or the network. `/rapid <note>` skips
+  the menu and captures straight into a new-or-reused session (fresh doc +
+  sibling git worktree on a `rapid/<slug>` branch). Cleanup of finished
+  sessions only ever runs when you ask for it (the menu's Cleanup option, or
+  `tidy`/`burn`) — never automatically at start. Drive-by notes and bare-word
+  triggers (review/recap, push (→ always
   commits the queue and opens a PR, never a bare git push), carpool,
   wash/clean, park, unpark, drop, test/testdrive, scrap, tidy, burn,
   link, reverse/undo) operate on the session this chat started, not on
@@ -107,7 +112,7 @@ this one — **read the reference file when its trigger fires**, not before:
 | `references/notes.md` | `park`, `unpark`, `drop`, `link` |
 | `references/reverse.md` | `reverse <N>` / `undo <N>` |
 | `references/test.md` | `test` / `testdrive` |
-| `references/setup.md` | first-run onboarding, config.json, `/rapid update`, version check, reap throttle |
+| `references/setup.md` | first-run onboarding, config.json, `/rapid update`, version check |
 
 ---
 
@@ -119,7 +124,7 @@ folder anytime with `open ~/.rapid`. Both roots are overridable in
 
 ```
 ~/.rapid/
-├── config.json                  # first-run choices: paths, update + reap throttles
+├── config.json                  # first-run choices: paths, last update check
 ├── sessions/
 │   ├── turbo-kart.md             # an active session doc
 │   ├── nitro-scooter.md          # another concurrently-active session doc (different chat)
@@ -164,8 +169,8 @@ skipped and the session is doc-only.
 
 | User input              | Action                                                            |
 |-------------------------|-------------------------------------------------------------------|
-| `/rapid`                | **Reuse an empty session in this chat if one exists** (oldest in `sessions/` with zero notes), else start a brand-new one — **instantly**; the finished-session reap runs *after* the ack (Step 2·after), never before. See Step 2. |
-| `/rapid <text>`         | Same as above, with `<text>` appended as note 1. See Step 2.      |
+| `/rapid` (bare)         | **Open the instant menu** — new session, resume, cleanup, review, handoff, update, help — and stop. Nothing is created, scanned over the network, or cleaned up until you pick. See Step 2·menu. |
+| `/rapid <text>`         | **Skip the menu — capture immediately.** Reuse an empty session in this chat if one exists (oldest in `sessions/` with zero notes), else start a brand-new one, append `<text>` as note 1, and start working it. No cleanup runs. See Step 2a/2b. |
 | `review` / `recap` (bare word, mid-session) | Session recap: what shipped (with PR links), what's done-but-unshipped, in progress, queued, parked, blocked. See Step 6. |
 | `push` (bare word, mid-session) | Finish the current `[~]` note, commit it, cut a fresh combined branch + open a new PR for it and any other unshipped `[c]` notes. Stop at PR-open. See `references/push.md`. |
 | `carpool` (bare word, mid-session) | **Add the latest work to the MOST RECENT still-open PR from this session** instead of cutting a new branch/PR. This is the one sanctioned way to amend an open PR. If that PR is merged/closed (or none exists), fall back to `push`. See `references/push.md`. |
@@ -179,10 +184,10 @@ skipped and the session is doc-only.
 | `collab` (bare word, mid-session) | **Check the collab room + drive the loop.** Re-read this chat's `## Collab` (and any room it joined), surface new peer messages since last check (loudly flag any awaiting reply), act on what the peer cleared, then (re-)arm the autonomous poll loop. No live channel: the user relays once per side to start each agent; after that the agents self-poll. On stop it posts an explicit status to the room so the peer knows which happened (and isn't left thinking the work just paused): `[DONE]` (work finished) or `[PAUSED]` (idle after 3 *consecutive* quiet checks ~5 min apart — any new peer note resets that count, NOT finished), echoed in your chat too. See `references/collab.md`. |
 | `wash` / `clean` (bare word, mid-session) | **Empty** this chat's session file in place so it can be reused — keeps slug, worktree, branch, and `## Pushes` history. Confirms first if anything risky is in flight. See `references/cleanup.md`. |
 | `scrap` (bare word, mid-session) | **Delete this chat's session entirely** — doc, worktree, and local branch. Confirms first if anything risky is in flight. See `references/cleanup.md`. |
-| `tidy` / `reap` (bare word, any time) | **Reap finished sessions for the current repo now** — the on-demand version of the start-time sweep: removes worktrees, deletes merged/closed branches, and `rm`s docs for *finished* (shipped/safe) sessions only, leaving live/unshipped/parked/blocked work and other repos untouched. Prints a summary; no confirmation needed (it removes only what the silent auto-reap already would). Lighter than `burn`. See `references/cleanup.md`. |
+| `tidy` / `reap` (bare word, any time) | **Reap finished sessions for the current repo now** — the same sweep the menu's Cleanup option runs: removes worktrees, deletes merged/closed branches, and `rm`s docs for *finished* (shipped/safe) sessions only, leaving live/unshipped/parked/blocked work and other repos untouched. Prints a summary; no confirmation needed (it removes only shipped, safe work). Lighter than `burn`. Cleanup is never automatic — this verb (or the menu) is how it runs. See `references/cleanup.md`. |
 | `burn` (bare word, any time) | **Nuke ALL rapid artifacts for the current repo** (docs, worktrees, `rapid/*` branches). Confirms first; lists anything that would be lost. See `references/cleanup.md`. |
 | `/rapid done` / `/rapid end` / `/rapid off` | Archive **this chat's** session. See Step 6. |
-| `/rapid resume <slug>` / `/rapid start <slug>` | Re-activate an archived session in this chat, OR **adopt a seeded hand-off session** (`**Handoff:** pending`): read its plan, flip the header to `adopted`, and cut its worktree + `rapid/<slug>` branch off `origin/main` (it has none yet). `start` and `resume` are aliases. `/rapid start` alone (no slug) behaves like `/rapid` (reuse-or-new). |
+| `/rapid resume <slug>` / `/rapid start <slug>` | Re-activate an archived session in this chat, OR **adopt a seeded hand-off session** (`**Handoff:** pending`): read its plan, flip the header to `adopted`, and cut its worktree + `rapid/<slug>` branch off `origin/main` (it has none yet). `start` and `resume` are aliases. `/rapid start` alone (no slug) behaves like bare `/rapid` — it opens the menu (Step 2·menu). |
 | `/rapid update` | Pull the latest version of this skill and show the changelog delta. Works any time, no session needed. See `references/setup.md`. |
 | `/rapid handoff [this session \| <note N> \| <description>]` | **Hand work to a fresh chat.** Seed a NEW session doc (own slug, header `**Handoff:** pending`, no worktree yet) holding the full instructions to build — the whole current session, one note, or a described task — then **ALWAYS end your reply with the copy-paste line `/rapid start <slug>`**. A fresh chat runs that to adopt it: it cuts its own worktree + `rapid/<slug>` branch off `origin/main` and works in its OWN doc (never this one). NOT a loose `~/.rapid/*.md` file. See `references/handoff.md`. |
 | `/rapid collab <slug> [message]` | **Open / continue a chatroom with the agent on session `<slug>`.** Re-read both docs' `## Collab`, post your message into the shared room (the peer's `## Collab`, or the existing room if one is already open with them), tell the user to relay once to that chat, and arm the autonomous poll loop so you pick up the reply on your own. A lightweight cross-agent chatroom that then self-drives. See `references/collab.md`. |
@@ -221,8 +226,12 @@ stop — never adopt another chat's live session implicitly.
 
 When deciding what to do:
 
-- **`/rapid` or `/rapid <text>`** → ignore everything; reuse an empty
-  session if one exists in `sessions/`, else start a brand-new one (Step 2).
+- **Bare `/rapid` or `/rapid start` (no slug, no note)** → open the menu
+  (Step 2·menu) and stop. Do not create, scan over the network, or clean up
+  anything until the user picks.
+- **`/rapid <text>` (note attached)** → skip the menu; reuse an empty session
+  if one exists in `sessions/`, else start a brand-new one, and capture the
+  note (Step 2a/2b).
 - **Drive-by note, or any bare-word command** → only act if this chat has
   a session slug from earlier in the conversation (exceptions: `burn`,
   `/rapid update`). If it doesn't, treat as a normal message.
@@ -245,27 +254,74 @@ context compaction.
 
 ---
 
-## Step 2 — Start or reuse a session (slug + doc + worktree)
+## Step 2·menu — the instant menu (bare `/rapid` / `/rapid start`)
 
-When `/rapid` (or `/rapid <text>` or `/rapid start` with no slug) fires,
-**get the user into a session first, clean up second.** `/rapid` exists for
-instant capture — never make the user wait on network or housekeeping before
-their note lands. The run order is fixed:
+When the user types **bare `/rapid`** or **`/rapid start` with no slug and no
+note**, do NOT create, reuse, scan over the network, or clean up anything.
+Render a menu and stop. The whole point is that starting feels immediate and
+stays under the user's control — the menu appears the moment they type, and the
+only work that ever happens is whatever option they then pick.
 
-1. **Step 2·0 — First-run check** — local, instant.
-2. **Step 2a / 2b — bind or create the session and acknowledge** — instant.
-3. **Step 2·hint — surface other sessions** — one cheap local line, instant.
-4. **Step 2·after — reap finished leftovers + version check** — throttled,
-   non-blocking, and ALWAYS after the acknowledgement, never before it.
+**Two cheap things may run before the menu — both local, both instant:**
+- **First-run check.** If `~/.rapid/config.json` does not exist, run the
+  onboarding in `references/setup.md` first. On a true first run there are no
+  sessions to resume or clean, so skip the menu and go straight into a New
+  session once onboarding finishes.
+- **Local session scan (NO network).** Read `sessions/*.md` headers for docs
+  whose `**Repo:**` matches the current repo — doc reads only, **no `gh`, no
+  `git fetch`, nothing over the network** — so the menu can show live/finished
+  counts. This is a glance, not a verification.
 
-Steps 2·hint and 2·after are documented just below Step 2b — that is where
-they run.
+Render the menu as a numbered list (portable across every tool; a harness with
+a native picker may use that instead). Fill the counts from the local scan:
 
-**Step 2·0 — First-run check.** If `~/.rapid/config.json` does not exist, run
-the onboarding in `references/setup.md` first, then continue here. This is the
-only thing that may precede the acknowledgement, and only on the very first
-use. The once-daily version check and the finished-session reap both moved to
-**Step 2·after** (post-ack) so neither delays the session.
+```
+rapid — pick one (or just type your first note to start a new session):
+
+  1. New session       start fresh, or reuse an empty one, then capture
+  2. Resume a session  <N live for this repo: slug, slug, …  |  none yet>
+  3. Cleanup           <N finished to clear (tidy)  ·  burn wipes all  |  nothing to clean>
+  4. Review / recap    see where a session stands
+  5. Handoff           hand a scoped plan to a fresh chat
+  6. Update skill      pull the latest + show what changed
+  7. Help              list every command
+```
+
+Then **wait** — do nothing until the user responds. Map the response:
+
+- **`1` / "new" / a typed note** → New session (Step 2a/2b). A typed note is
+  captured as note 1 and worked immediately.
+- **`2` / "resume"** → exactly one live session for this repo → resume it
+  (Step 6 resume flow); several → list the slugs and ask which; none → say so
+  and offer New.
+- **`3` / "cleanup"** → run the reap sweep for this repo now (**The reap
+  sweep**, below) and report what it did; mention `burn` for a full wipe.
+- **`4` / "review"** → one live session → render its review (Step 6); several →
+  ask which; none → say so.
+- **`5` / "handoff"** → run the `/rapid handoff` flow (`references/handoff.md`).
+- **`6` / "update"** → run `/rapid update` (`references/setup.md`).
+- **`7` / "help"** → print the bare-word command list (the Triggers verbs),
+  one line each.
+
+Omit a count clause when there's nothing to show, but keep every option line so
+the menu stays stable and predictable. Options 2/3/4 acting on "the live
+session" follow the same rules as their bare-word verbs.
+
+## Step 2a/2b — Start or reuse a session (slug + doc + worktree)
+
+This runs when the user **picks New session** from the menu, or types
+**`/rapid <note>`** (note attached → menu skipped). **Get the user into a
+session and capture — that's the whole job here.** No cleanup, no version
+check, no network beyond the single `git fetch origin main` needed to cut a
+fresh branch off the latest `main`. First-run onboarding (if `config.json` is
+missing and it wasn't already handled above) runs first; everything else is the
+reuse-or-create below.
+
+> Cleanup of finished sessions does **not** run on this path. It only runs when
+> the user picks Cleanup from the menu or types `tidy` / `burn`. The
+> once-daily version check likewise no longer rides session start — it runs on
+> Cleanup and `/rapid update`. Starting a session never goes to the network for
+> housekeeping.
 
 **Step 2a — Try to reuse an empty session first.** Scan
 `~/.rapid/sessions/` (NOT the archive) for any `.md` file
@@ -341,7 +397,10 @@ one.
    happen *inside* the worktree path; never edit files in the original
    checkout from a rapid session unless the user explicitly says so.
 
-**Step 2·hint — surface other sessions (instant, local, NO network).**
+**Step 2·hint — surface other sessions (note path only; instant, local, NO
+network).** This applies **only on the `/rapid <note>` fast path**, where the
+menu was skipped. (When the user reached this step by picking New from the
+menu, the menu already showed resumable + finished counts — do NOT repeat them.)
 Immediately after the acknowledgement, do a CHEAP local scan — doc reads only,
 **no `gh`, no `git fetch`, nothing over the network** — of `sessions/` for
 other docs whose `**Repo:**` header matches this repo, and append at most ONE
@@ -356,39 +415,35 @@ short hint line. Include whichever parts apply:
 Example: `↳ 2 resumable: sonic-jet, nimble-sub · 3 finished — say tidy`. If
 this repo has no other sessions, print nothing — never emit an empty hint.
 Keep it network-free: this is a glance, not a verification. Precise
-shipped/merged state is the reap's job (Step 2·after), so the finished count
-here is the cheap doc-state heuristic, not a PR-verified number.
+shipped/merged state is the reap sweep's job, so the finished count here is the
+cheap doc-state heuristic, not a PR-verified number.
 
-**Step 2·after — Reap finished leftovers + version check (post-ack, throttled,
-non-blocking).** Only now — session bound, acknowledged, hint shown — clean up
-this repo's finished leftovers. This is still the cleanup hook: users start
-sessions far more than they run `/rapid done`, so reaping on start is what
-keeps worktrees and branches from piling up. But it must NEVER delay capture,
-so three rules gate it:
+## The reap sweep (Cleanup menu option / `tidy`)
 
-- **Throttle per-repo.** Read `lastReap` for this repo from `config.json` (a
-  map of repo-root → ISO datetime; see `references/setup.md`). If this repo was
-  reaped within the last **6 hours**, SKIP the whole sweep — touch nothing, say
-  nothing. The once-daily version check shares this post-ack pass — run it here
-  too (per `references/setup.md`), also after the ack. The throttle alone makes
-  nearly every `/rapid` start do zero network.
-- **Off the critical path.** A sweep that IS due runs *after* the ack. If your
-  harness supports background tasks (e.g. Claude Code's background `Bash` /
-  `Agent`), launch it detached and report the outcome in a one-line follow-up
-  when it finishes. Otherwise run it inline after the ack — still fast, because
-  it's throttled and the PR-state checks are batched (next rule).
-- **Batch, never loop.** Fetch all PR states for the repo in ONE call —
-  `gh pr list --state all --limit 300 --json number,headRefName,state` — and
-  build a `headRefName → state` map, then look each recorded branch up in it.
-  Calling `gh pr list --head <branch>` once per branch in a blocking loop is
-  exactly the sequential network I/O that made start slow — don't.
+This is the safe garbage-collection of *finished* sessions. **It is never
+automatic.** It runs only when the user asks for it — the menu's **Cleanup**
+option (Step 2·menu) or the bare `tidy` / `reap` verb. Either way the mechanics
+below are identical; `tidy` (see `references/cleanup.md`) is the on-demand
+verb, the menu option is the same sweep reached from the menu.
+
+Why it still exists: users start sessions far more than they run `/rapid done`,
+so without an occasional reap, worktrees and branches pile up. Making it
+explicit (menu / `tidy`) instead of automatic is the trade — the user decides
+when, so start always stays instant. The menu surfaces the finished count as a
+nudge, so it's easy to remember.
+
+When it runs, **batch, never loop.** Fetch all PR states for the repo in ONE
+call — `gh pr list --state all --limit 300 --json number,headRefName,state` —
+and build a `headRefName → state` map, then look each recorded branch up in it.
+Calling `gh pr list --head <branch>` once per branch in a blocking loop is the
+sequential network I/O that used to make start slow — don't.
 
 Run this sweep, scoped to the current repo (`git rev-parse --show-toplevel`; if
 not in a repo, skip entirely):
 
 1. For each session doc in `sessions/` (NOT archive) whose `**Repo:**` header
    matches the current repo root, AND which is **not** the session this chat
-   just reused/created:
+   currently owns (if any — Cleanup/`tidy` can run with no live session):
    - **Determine "shipped" by PR state, NOT ancestry.** A squash- or
      rebase-merged branch still reads as *ahead* of `origin/main` even though
      its work is fully merged. **Never** use ancestry / `rev-list` /
@@ -425,19 +480,24 @@ not in a repo, skip entirely):
    --ff-only`. Always safe — a fast-forward only moves the `main` pointer;
    worktrees and note branches are untouched. On another branch or dirty, skip
    silently.
-4. **Record + surface.** Write `lastReap[<repo-root>] = <now ISO>` to
-   `config.json` once the sweep completes, so the next start stays throttled.
-   The ack already went out, so report any result as a one-line FOLLOW-UP (do
-   NOT prepend to the ack): `Reaped 3 finished sessions (sonic-rover,
-   speedy-buggy, swift-sled); fast-forwarded main.` If nothing was reaped and
-   main didn't move, say nothing. If a reap step errors, skip that item and
-   keep going — never block the session on housekeeping.
+4. **Report.** The user asked for this sweep, so always report the result in one
+   line: `Reaped 3 finished sessions (sonic-rover, speedy-buggy, swift-sled);
+   fast-forwarded main.` If nothing was reaped and main didn't move, say so
+   (`Nothing to clean — every session for <repo> is live or unshipped.`). If a
+   reap step errors, skip that item and keep going — never let one bad branch
+   abort the rest.
+5. **Version check.** A reap is a natural housekeeping moment, so run the
+   once-daily version check here too (see `references/setup.md`) and append the
+   one-line "new version available" ping if one is due. This is the only
+   automatic place it runs besides explicit `/rapid update` — session start
+   never checks.
 
-The point is unchanged — the user never has to remember `done`, and a repo in
-regular use keeps only its live/unshipped sessions plus a local main that
-matches origin — but the cleanup now happens *behind* an instant start instead
-of in front of it. The on-demand `tidy` verb (see `references/cleanup.md`) runs
-this same sweep immediately, ignoring the throttle, when the user asks for it.
+The user never has to remember `done`: a repo gets garbage-collected whenever
+they pick Cleanup or type `tidy`, keeping only live/unshipped sessions plus a
+local main that matches origin. The difference from before is that cleanup is
+now opt-in (menu / `tidy` / `burn`) instead of running silently at start, so
+starting a session is always instant. `tidy` (see `references/cleanup.md`) is
+this same sweep as a bare-word verb.
 
 ### Session doc template
 
@@ -547,8 +607,8 @@ While working:
   `rapid/<slug>`, each note's working branch `rapid/<slug>-<note-slug>`, and
   each push batch `rapid/<slug>-batch-<N>`. **Never** attach a session to, or
   cut, a non-`rapid/` branch **unless the user explicitly asks** (e.g. "ship
-  this as `feat/x`"). The `rapid/` prefix is the *single* signal Step 2·after
-  auto-reap, `tidy`, and `burn` key on — a non-`rapid/` branch is invisible to cleanup
+  this as `feat/x`"). The `rapid/` prefix is the *single* signal the reap sweep
+  (Cleanup / `tidy`) and `burn` key on — a non-`rapid/` branch is invisible to cleanup
   and is exactly how branches pile up. (Naming only: pushes already ride the
   `rapid/<slug>-batch-<N>` branch, so PR/GitHub names are unaffected.)
 - **Every new note ships on its own fresh branch off `origin/main`.** Before
@@ -738,14 +798,20 @@ hand-off** (`**Handoff:** pending`): flip the header to `adopted <ISO> by
 this chat`, create the worktree + `rapid/<slug>` branch off `origin/main`
 (it was doc-only), then start on its `## Notes`. `start` and `resume`
 are interchangeable. If `/rapid start` is given without a slug, treat
-it as plain `/rapid` (reuse-or-new per Step 2).
+it as bare `/rapid` — open the menu (Step 2·menu).
 
 ---
 
 ## Rules
 
-- **One session per chat. `/rapid` reuses an empty session or starts a
-  fresh one.** Step 2a will adopt any session in `sessions/` whose
+- **Starting never does housekeeping.** Bare `/rapid` / `/rapid start` only
+  ever shows the menu (Step 2·menu); `/rapid <note>` only ever reuses-or-creates
+  and captures. Neither reaps, fast-forwards `main`, or hits the network for
+  cleanup — that happens only on the menu's Cleanup option, `tidy`, `burn`, or
+  `/rapid update`. The user is in the work mindset; don't make them wait on or
+  watch background chores before their first note lands.
+- **One session per chat. New session reuses an empty one or starts fresh.**
+  Step 2a will adopt any session in `sessions/` whose
   notes block is empty (a previous chat's washed shell, or a brand-new
   doc that never got notes). It will NOT adopt a session that has
   live notes — that belongs to whichever chat owns it. The only way
@@ -854,17 +920,43 @@ it as plain `/rapid` (reuse-or-new per Step 2).
 
 ---
 
-## Example — first invocation
+## Example — bare `/rapid` (the menu)
+
+User: `/rapid`
+
+Claude (this chat had no session):
+1. Config exists (not a first run). Does a CHEAP local scan of `sessions/` for
+   this repo — no network.
+2. Renders the menu and stops:
+   ```
+   rapid — pick one (or just type your first note to start a new session):
+
+     1. New session       start fresh, or reuse an empty one, then capture
+     2. Resume a session  2 live for this repo: sonic-jet, nimble-sub
+     3. Cleanup           3 finished to clear (tidy) · burn wipes all
+     4. Review / recap    see where a session stands
+     5. Handoff           hand a scoped plan to a fresh chat
+     6. Update skill      pull the latest + show what changed
+     7. Help              list every command
+   ```
+3. Waits. Nothing is created, fetched, or cleaned until the user picks.
+
+User: `1`
+
+Claude: starts a New session (Step 2a/2b) and replies `Started rapid/turbo-kart
+at <worktree>. Drop notes anytime.`
+
+## Example — `/rapid <note>` (skip the menu, capture now)
 
 User: `/rapid the avatar in the sidebar feels too small`
 
-Claude (this chat had no session):
-1. Config exists (not a first run); version check already done today.
+Claude (this chat had no session — a note is attached, so skip the menu):
+1. Config exists (not a first run).
 2. Generates slug `turbo-kart`, no collision in `sessions/` or `archive/`.
-3. Creates the worktree + branch (Step 2).
+3. Creates the worktree + branch (Step 2b).
 4. Writes `sessions/turbo-kart.md` with note 1 = `[~] [14:32] avatar in sidebar feels too small`.
 5. Binds `turbo-kart` as **this chat's** slug in conversation context.
-6. Replies: `Started rapid/turbo-kart at <worktree>. Picking up note 1: avatar size in sidebar — looking now.`
+6. Replies: `Started rapid/turbo-kart at <worktree>. Picking up note 1: avatar size in sidebar — looking now.` (No cleanup runs; a one-line hint may follow if the repo has other sessions.)
 7. Begins the work.
 
 User (3 minutes later, same chat): `also the title bar text wraps weird at 1280px`

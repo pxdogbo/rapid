@@ -1,6 +1,31 @@
 # Changelog
 
-## 1.8.1 (2026-06-22)
+## 1.9.0 — 2026-06-23
+
+- **Menu-first start.** Bare `/rapid` (and `/rapid start` with no slug) now opens
+  an **instant menu** — New session, Resume, Cleanup, Review, Handoff, Update,
+  Help — and does *nothing* until you pick: no session created, no network, no
+  housekeeping. The menu appears the moment you type, filled from a cheap,
+  network-free local scan that shows live/finished counts. You pick the intent;
+  the skill only then acts. New section **Step 2·menu** in SKILL.md.
+- **`/rapid <note>` is the unchanged fast path.** A note attached = clear intent,
+  so it skips the menu entirely and captures straight into a new-or-reused
+  session, exactly as before. Typing your first note at the menu does the same.
+- **Cleanup is now opt-in, never automatic.** The start-time reap sweep
+  (`Step 2·after`) is **removed** — starting a session no longer reaps finished
+  leftovers, fast-forwards `main`, or touches the network for chores. The same
+  sweep now runs *only* when you ask: the menu's **Cleanup** option or the bare
+  `tidy` / `reap` verb (mechanics unchanged; renamed to **The reap sweep**).
+  Trade: the user decides when to GC, so start is always instant; the menu
+  surfaces the finished-session count as a nudge so it's easy to remember.
+- **`lastReap` throttle retired.** With no automatic sweep there's nothing to
+  throttle, so the per-repo `lastReap` map in `config.json` is no longer read or
+  written (an old key is harmless). The once-daily version check, which used to
+  ride the post-ack reap pass at start, now rides the reap sweep instead — so a
+  plain session start never goes to the network at all. `/rapid update` still
+  checks on demand.
+
+## 1.8.1 — 2026-06-22
 
 - **Session-level `**Pushed:**` header flag.** New doc-header field, `no` until
   a `push`/`carpool` opens a PR, then the PR ref(s). Gives cleanup and scans an
