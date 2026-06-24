@@ -95,10 +95,17 @@ skip the consent question — the user has already been using the defaults
 
 ## Once-daily version check
 
-This rides the **reap sweep** — the menu's Cleanup option or the `tidy` verb
-(SKILL.md "The reap sweep"). It no longer runs at session start, so starting a
-session never goes to the network. `/rapid update` always checks regardless.
-When a reap runs:
+Runs **once per day**, on whichever comes first:
+- **Session start** — right after the acknowledgement when a session is started,
+  reused, or resumed (NOT on the bare `/rapid` menu — that stays network-free
+  until the user picks). Post-ack, non-blocking, fail-silent: it never delays
+  capture, it just appends a one-line "update available" ping to / after the ack.
+- **The reap sweep** (menu Cleanup / `tidy`) — runs it there too.
+- **`/rapid update`** always checks, ignoring the daily throttle.
+
+Because of the `lastUpdateCheck` throttle, the very first session (or reap) of
+the day does the check and every later one that day skips it — so a new session
+tells you about an update without the network cost repeating all day.
 
 1. Read `lastUpdateCheck` from config.json. If it's today's date, skip.
 2. Otherwise write today's date to `lastUpdateCheck` (regardless of
@@ -109,7 +116,8 @@ When a reap runs:
      fetch --quiet origin main` and read the frontmatter from
      `origin/main:SKILL.md`. Otherwise `curl -fsS --max-time 3` the raw
      SKILL.md from the repo and read its frontmatter.
-3. If latest > installed, append ONE line to the cleanup report:
+3. If latest > installed, append ONE line — to the session-start ack (when
+   triggered at start) or the cleanup report (when triggered by a reap):
    `rapid v<latest> available (you have v<installed>) — /rapid update to preview what changed.`
    The ping never applies anything — updating is always preview + confirm
    via `/rapid update`.

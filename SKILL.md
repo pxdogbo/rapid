@@ -336,10 +336,15 @@ missing and it wasn't already handled above) runs first; everything else is the
 reuse-or-create below.
 
 > Cleanup of finished sessions does **not** run on this path. It only runs when
-> the user picks Cleanup from the menu or types `tidy` / `burn`. The
-> once-daily version check likewise no longer rides session start — it runs on
-> Cleanup and `/rapid update`. Starting a session never goes to the network for
-> housekeeping.
+> the user picks Cleanup from the menu or types `tidy` / `burn`.
+>
+> The **once-daily version check** DOES run here, though — right *after* the
+> acknowledgement, non-blocking and fail-silent (never before; the bare menu
+> stays network-free). If an update is due and available, append the one-line
+> `rapid v<latest> available … — /rapid update` ping to/after the ack. Throttled
+> to once a day via `lastUpdateCheck`, so only the first session of the day
+> checks. This is the only network a session start touches — and only to tell
+> you about updates, never for cleanup. See `references/setup.md`.
 
 **Step 2a — Try to reuse an empty session first.** Scan
 `~/.rapid/sessions/` (NOT the archive) for any `.md` file
@@ -507,9 +512,9 @@ not in a repo, skip entirely):
    abort the rest.
 5. **Version check.** A reap is a natural housekeeping moment, so run the
    once-daily version check here too (see `references/setup.md`) and append the
-   one-line "new version available" ping if one is due. This is the only
-   automatic place it runs besides explicit `/rapid update` — session start
-   never checks.
+   one-line "new version available" ping if one is due. It also runs post-ack at
+   session start and on `/rapid update`; the `lastUpdateCheck` throttle means
+   only the first of those each day actually checks.
 
 The user never has to remember `done`: a repo gets garbage-collected whenever
 they pick Cleanup or type `tidy`, keeping only live/unshipped sessions plus a
