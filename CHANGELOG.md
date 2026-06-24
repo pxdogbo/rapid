@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.11.2 — 2026-06-24
+
+- **`inbox`: dropped the auto-surfacing — reading is purely manual.** 1.11.0
+  shipped the inbox with passive surfacing (a `📬` unread count on the `/rapid`
+  menu and an "unread notes" flag when binding a session). That was the wrong
+  instinct: the intended flow is to leave a note in one agent's inbox and then,
+  when ready, go to the other agent and tell it to check. Removed the menu `📬`
+  count and the resume/reuse flag entirely — a note now waits silently until the
+  user tells the recipient to read it. The read trigger also accepts natural
+  phrasings ("check your inbox" / "check inbox" / "read your inbox"), not just
+  the bare word. The reap still treats an unread inbox note as at-risk, so a
+  left note is never cleaned away before it's read.
+
 ## 1.11.1 — 2026-06-24
 
 - **`collab-start` helper for live mode.** One command —

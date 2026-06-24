@@ -20,8 +20,9 @@ What it deliberately is **not**:
 - **No poke, even in live mode.** Inbox never `tmux send-keys` the recipient —
   not even when `collabLive` is on. The note waits passively. Need real-time
   delivery and a reply? That's `collab`.
-- **No relay-to-start.** You don't tell the user to switch chats to "kick it
-  off." The note sits in the recipient's `## Inbox` until that chat next looks.
+- **No auto-surfacing, no relay-to-start.** No menu marker, no resume flag,
+  no "tell the user to switch chats." The note sits in the recipient's
+  `## Inbox` until **the user goes to that chat and tells it to check**.
 
 Pick the right tool: `inbox` to leave a quick async note, `collab` to have a
 live conversation, `handoff` to hand a whole scoped task to a fresh chat.
@@ -55,9 +56,8 @@ own, sign `rapid/—`.
    section if an older doc lacks one.
 3. **That's the whole action — do NOT** arm a loop, poke the peer, or tell the
    user to relay. Leaving the note is all that happens.
-4. Confirm in one line: `Left a note in rapid/<slug>'s inbox. That chat sees it
-   on its next /rapid (menu shows 📬), when it resumes the session, or when it
-   says \`inbox\`.`
+4. Confirm in one line: `Left a note in rapid/<slug>'s inbox. Go to that chat
+   and tell it to check (\`inbox\`) whenever you're ready.`
 5. No message given → ask what the note should say; don't post an empty note.
 
 The recipient's `## Inbox` (like its `## Collab`) is a **sanctioned cross-doc
@@ -66,10 +66,13 @@ touch its `## Notes` or anything else.
 
 ---
 
-## `inbox` (bare word) — read your inbox
+## `inbox` — read your inbox (on the user's cue)
 
-Acts only if **this chat owns a session** (like every bare word). No session →
-treat as a normal message; never queue `inbox` as a note.
+The user reads an inbox by **going to the recipient chat and telling it to
+check** — `inbox`, or natural phrasings like "check your inbox" / "check inbox"
+/ "read your inbox". Treat any of those as this trigger. Acts only if **this
+chat owns a session** (like every bare word). No session → treat as a normal
+message; never queue it as a note.
 
 1. Read your session doc's `## Inbox`.
 2. Show every **unread** (`[ ]`) note, newest last, in plain language (who left
@@ -81,23 +84,23 @@ treat as a normal message; never queue `inbox` as a note.
    line so the trail is clear.
 5. Nothing unread → reply `Inbox clear.` and stop.
 
-Reading (→ `[x]`) is the only thing that clears the unread surfacing below.
-
 ---
 
-## Surfacing (passive — no poll, no poke)
+## How a note gets read (manual — you're the trigger)
 
-A note has to be *found*, not delivered. Three passive, network-free surfaces —
-nothing ever wakes a sleeping chat:
-- **The `/rapid` menu** (SKILL Step 2·menu): the local scan counts unread `[ ]`
-  inbox lines for this repo's sessions and shows a `📬 N` marker next to a
-  resumable session.
-- **On resume / reuse:** when a chat binds a session (Step 2a reuse, Step 6
-  resume) whose `## Inbox` has unread notes, flag it in the ack —
-  `📬 2 unread inbox notes — say \`inbox\` to read.`
-- **Bare `inbox`:** the explicit read.
+There is **no automatic surfacing** — no menu marker, no resume flag, no poke,
+no poll. A note simply waits in the recipient's durable `## Inbox` until **you
+go to that chat and tell it to check**. That is the whole point of the feature:
+you decide when each agent reads what was left for it.
 
-A note simply waits in the durable doc until the recipient looks.
+So the flow is just two steps, on your cue each time:
+1. In one chat: `/rapid inbox <slug> <message>` → the note lands in `<slug>`'s
+   `## Inbox`.
+2. When you're ready, switch to that chat and say `inbox` (or "check your
+   inbox") → it reads, marks read, and offers to queue anything actionable.
+
+Nothing happens in between. The note can sit unread indefinitely; the only
+thing that reads it is you asking the recipient to.
 
 ---
 
