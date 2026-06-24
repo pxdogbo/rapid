@@ -1,5 +1,34 @@
 # Changelog
 
+## 1.12.0 — 2026-06-24
+
+- **`/rapid collab <N>` — spin up a collab set in one command.** A *number*
+  (1–4) means "mint N collab-ready sessions in this repo and print the command to
+  open them." It's a scaffolder: it creates the sessions + worktrees, prints the
+  opener (`rapid-collab <slugs>` for 2+, or a `cd … && claude` + pair hint for 1),
+  and does NOT bind the current chat — you close it and run the printed line. >4
+  is rejected. Disambiguation: a number spins up, the word `setup` enables live
+  mode, a slug messages that peer, bare `collab` checks the room.
+- **Skip `/rapid resume` in collab panes — auto-adopt identity from the
+  directory.** Since the relay already derives a pane's identity from its cwd, a
+  collab pane now auto-adopts the session whose worktree it's in the moment you
+  run `/rapid collab …` — no manual resume. The crossed-identity guard stays for
+  the one failure case (already bound to a *different* slug than the cwd).
+- **Session status after every `push`/`carpool`.** Each ship now ends with the
+  full review (shipped / done-unshipped / in progress / queued / parked /
+  blocked) plus a one-line verdict — `✅ queue clear` or `⚠️ N still open: …` — so
+  you always know whether everything's done or something was deferred.
+- **Live-collab onboarding (`/rapid collab setup`).** One command registers the
+  relay MCP, sets `collabLive: true`, and verifies tmux. When someone uses collab
+  without it configured, rapid now **offers to enable it** instead of silently
+  dropping to doc-mode. First-run onboarding mentions it; `collab-start` caps at
+  4 panes to match `/rapid collab <N>`.
+- Docs: `references/collab.md` (spin-up + auto-adopt + enabling), `setup.md`
+  (Enabling live collab), `push.md` (status step), `collab-live/README.md`,
+  `collab-start` (cap). *(Deferred: a `rapid-collab <dir> <dir>` shell variant
+  that mints from raw directories — doing it well duplicates session-creation in
+  bash; tracked as a follow-up.)*
+
 ## 1.11.3 — 2026-06-24
 
 - **collab live mode: identity-must-match-the-pane guard.** Live mode keys a

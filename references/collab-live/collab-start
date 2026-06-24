@@ -34,6 +34,12 @@ if [ "${#SLUGS[@]}" -lt 2 ]; then
   exit 2
 fi
 
+if [ "${#SLUGS[@]}" -gt 4 ]; then
+  echo "collab-start: max 4 sessions per collab (a tiled tmux gets unreadable past" >&2
+  echo "  that, and 4 live agents is plenty). Open a subset, or run a second set." >&2
+  exit 2
+fi
+
 # Resolve sessionsRoot the same way the skill does (config.json → default).
 SROOT="$(node -e '
 const fs=require("fs"),os=require("os");
