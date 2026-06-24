@@ -103,6 +103,14 @@ each pane: `/rapid resume <its-slug>`, and from one pane `/rapid collab <peer>`
 to start talking. `--dry-run` prints the slug→worktree plan without touching
 tmux. (Each slug must already be a rapid session with a worktree.)
 
+> ⚠️ **Resume the slug that matches each pane's directory.** Live mode keys
+> identity off the cwd, so the pane sitting in `swift-jet`'s worktree must
+> `/rapid resume swift-jet` — not some other slug. A crossed resume inverts
+> identity and misroutes every poke. `collab-start` prints the exact
+> `/rapid resume <slug>` per pane; run that one. The skill also guards against
+> it: before sending in live mode an agent checks its bound slug against the
+> relay's `self=` (cwd-derived) and refuses on a mismatch.
+
 ---
 
 ## Tools (MCP)
