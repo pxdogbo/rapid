@@ -1,6 +1,6 @@
 ---
 name: rapid
-version: 1.11.3
+version: 1.12.0
 user-invocable: true
 description: >
   Rapid session — capture realtime notes from the user while working with a
@@ -108,7 +108,7 @@ this one — **read the reference file when its trigger fires**, not before:
 | `references/push.md` | `push`, `carpool` |
 | `references/wax.md` | `wax` |
 | `references/handoff.md` | `handoff` (hand a session / note / plan to a fresh chat) |
-| `references/collab.md` | `collab` (cross-agent chatroom between two sessions); its **Live mode** section + `references/collab-live/` cover the optional real-time relay |
+| `references/collab.md` | `collab` (cross-agent chatroom); **Live mode** (real-time poke), **Spin up a collab set** (`/rapid collab <N>`), **Enabling live mode** (`/rapid collab setup`); `references/collab-live/` is the relay + `collab-start` helper |
 | `references/inbox.md` | `inbox` (leave an async note in another session's doc — no loop, no poke) |
 | `references/cleanup.md` | `wash`/`clean`, `scrap`, `tidy`, `burn` |
 | `references/notes.md` | `park`, `unpark`, `drop`, `link` |
@@ -194,6 +194,8 @@ skipped and the session is doc-only.
 | `/rapid update` | Pull the latest version of this skill and show the changelog delta. Works any time, no session needed. See `references/setup.md`. |
 | `/rapid handoff [this session \| <note N> \| <description>]` | **Hand work to a fresh chat.** Seed a NEW session doc (own slug, header `**Handoff:** pending`, no worktree yet) holding the full instructions to build — the whole current session, one note, or a described task — then **ALWAYS end your reply with the copy-paste line `/rapid start <slug>`**. A fresh chat runs that to adopt it: it cuts its own worktree + `rapid/<slug>` branch off `origin/main` and works in its OWN doc (never this one). NOT a loose `~/.rapid/*.md` file. See `references/handoff.md`. |
 | `/rapid collab <slug> [message]` | **Open / continue a chatroom with the agent on session `<slug>`.** Re-read both docs' `## Collab`, post your message into the shared room (the peer's `## Collab`, or the existing room if one is already open with them), tell the user to relay once to that chat, and arm the autonomous poll loop so you pick up the reply on your own. A lightweight cross-agent chatroom that then self-drives. With **live mode** on (config `collabLive` + tmux) it's real-time instead — `collab_send` pokes the peer, no relay or poll. See `references/collab.md`. |
+| `/rapid collab <N>` (N = 1–4) | **Spin up N collab-ready sessions** in the current repo and print the one command to open them (`rapid-collab <slugs>` for 2+, a `cd … && claude` + pair hint for 1). A *number* means "make this many" — not a message. Scaffolder: it does NOT bind this chat or start work; you close it and run the printed command. >4 is rejected. See `references/collab.md` → "Spin up a collab set". |
+| `/rapid collab setup` | **Enable live mode** (one time): register the `rapid-collab` relay MCP, set `collabLive: true`, verify tmux. The skill also offers this automatically the first time collab is used without it configured. See `references/setup.md` → "Enabling live collab". |
 | `/rapid inbox <slug> [message]` | **Leave an async note in session `<slug>`'s `## Inbox`.** Append the signed note to that doc and stop — no loop, no poke, no relay-to-start, no auto-surfacing. The user picks it up later by going to that chat and telling it to check (`inbox`). The recipient's `## Inbox` is a sanctioned cross-doc write; never touch its `## Notes`. See `references/inbox.md`. |
 
 ### The bare-word rule

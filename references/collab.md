@@ -4,8 +4,12 @@ Read this when the user invokes `/rapid collab <slug>` or the bare word `collab`
 
 | Invocation | What it does |
 |---|---|
-| `/rapid collab <slug> [message]` | Open or continue a chatroom with the agent working session `<slug>`. Post a message into the shared room and tell the user to relay. |
+| `/rapid collab <N>` (N = 1–4) | **Spin up N collab-ready sessions** in the current repo and print the one command to open them. A *number* means "make this many" (not a message). See "Spin up a collab set" below. |
+| `/rapid collab setup` | **Enable live mode** (one time): register the relay, set `collabLive: true`, verify tmux. See "Enabling live mode" below + `references/setup.md`. |
+| `/rapid collab <slug> [message]` | Open or continue a chatroom with the agent on session `<slug>`. Live mode pokes them in real time; otherwise post + relay. |
 | `collab` (bare word, mid-session) | Re-read your `## Collab` (and any room you joined); show new messages from the peer; flag anything awaiting your reply. |
+
+> **Disambiguating `/rapid collab <arg>`:** a **number** (1–4) spins up that many sessions; the literal word **`setup`** enables live mode; a **slug** messages that peer; **bare `collab`** checks your room.
 
 `collab` is just a **chatroom**: two agents in two separate chats, each on its
 own session, talking — to coordinate a shared file, settle a decision, or hand
@@ -42,23 +46,24 @@ the default and the fallback):
   (or the `relay.mjs` CLI is), AND
 - both chats run inside **tmux** (Unix only).
 
-**🔴 Identity must match the pane (the #1 live-mode footgun).** Live mode keys
-identity off the **working directory**, not the slug you typed: the relay maps
-each pane's cwd to a slug via the `**Worktree:**` headers, and pokes by pane. But
-`/rapid resume` binds you to *any* slug — so resuming a slug whose worktree ≠
-this pane's cwd silently **inverts your identity** (you think you're A; the relay
-treats this pane as B). Every poke then misroutes and both agents get confused.
+**🟢 Your identity is the directory — auto-adopt it (skip `/rapid resume`).** Live
+mode keys identity off the **working directory**: the relay maps each pane's cwd
+to a slug via the `**Worktree:**` headers and pokes by pane. So in a collab pane
+you don't need to `/rapid resume` first — when you run `/rapid collab …` (or bare
+`collab`) and this chat has **no session bound yet**, **adopt the cwd's session
+automatically**: read `self=<slug>` from `collab_register` (or `node
+…/relay.mjs status`), bind this chat to that slug, and continue. The directory
+already told us who you are, so the resume step is redundant in a collab pane.
 
-So **before you send, reply, or act on a poke in live mode, confirm your bound
-slug matches the relay's cwd-derived slug:**
-- Call `collab_register` (or run `node …/relay.mjs status`) and read `self=<slug>`.
-- If `self` ≠ the slug you resumed, **STOP — do not send.** Tell the user:
-  `This pane is <self> (its worktree), but I'm bound to <resumed>. In live mode
-  that inverts identity and misroutes pokes — run` `/rapid resume <self>` `here
-  (or move to <resumed>'s worktree), then we're aligned.` Re-check after the fix.
-- The directory is ground truth, the resume is not: always make the bound slug
-  equal the cwd-derived `self`. (`collab-start` opens each pane in the right
-  worktree and prints the exact `/rapid resume <slug>` for it — run *that* one.)
+**🔴 But if you're ALREADY bound to a DIFFERENT slug, STOP — don't misroute.** The
+one failure mode is a *crossed* identity: this chat is bound to slug A while its
+cwd is slug B's worktree (e.g. someone explicitly resumed the wrong slug). The
+relay pokes by cwd, so sending would hit the wrong pane. Before you send/reply/act
+on a poke, confirm your bound slug == the cwd's `self`; on a mismatch, **do not
+send** — tell the user: `This pane is <self> (its worktree) but I'm bound to
+<bound>. That inverts identity in live mode — run` `/rapid resume <self>` `here
+(or move to <bound>'s worktree).` Re-check after the fix. The directory is ground
+truth; when in doubt, trust `self`.
 
 **What changes when live mode is on:**
 - **Sending** — instead of hand-editing the peer's `## Collab` and telling the
@@ -80,6 +85,60 @@ Because the room is the durable record and you read every unread line on each
 `collab`, a missed poke only *delays* a message — it is never lost. So live mode
 needs no fallback poll; the next poke (or your next natural-pause check) catches
 up.
+
+### Enabling live mode (don't silently degrade)
+
+If the user reaches for live collab (`/rapid collab <N>`, or messaging a peer)
+and live mode is **not** configured — no `collabLive: true`, relay not
+registered, or not in tmux — do **not** just quietly drop to doc-mode. **Surface
+it and offer to fix it:** `Live collab isn't set up yet. Want me to enable it?
+(\`/rapid collab setup\` — registers the relay + flips collabLive; needs tmux on
+macOS/Linux.)` If they say yes, run the setup (see `references/setup.md` →
+"Enabling live collab"), then continue. If they decline, or the platform can't
+support it (no tmux / not Unix), fall back to doc-mode and say so in one line.
+The bare `/rapid collab setup` verb runs the same setup on demand, any time.
+
+---
+
+## Spin up a collab set — `/rapid collab <N>` (N = 1–4)
+
+A **number** (not a slug) means "create this many collab-ready sessions in the
+current repo and hand me the command to open them." It's a **scaffolder**: it
+mints sessions and prints how to open them — it does **not** bind this chat or
+start working (close this chat after; the work happens in the opened panes).
+
+1. **Cap at 4.** If N > 4, do nothing and reply: `Max 4 per spin-up (tmux gets
+   cramped past that, and 4 live agents is plenty). Run \`/rapid collab\` again
+   for more, or add one at a time with \`/rapid collab 1\`.` If N < 1 or
+   non-numeric, treat as a slug/other (see the other rows).
+2. **Resolve the repo** from cwd (`git rev-parse --show-toplevel`). Not in a repo
+   → reply that spin-up needs a git repo and stop.
+3. **Mint N fresh sessions** — run Step 2b (SKILL.md) N times: a unique
+   `<adjective>-<vehicle>` slug, a worktree at `~/worktrees/<repo>/<slug>/` on
+   `rapid/<slug>` off `origin/main`, and a session doc each. Do **not** bind this
+   chat to any of them.
+4. **Live-mode readiness.** If live mode isn't set up, append a one-liner to the
+   printout: `(first run \`/rapid collab setup\` to enable real-time mode)`.
+5. **Print the open command** and tell the user to close this chat:
+   - **N = 1** — one session, meant to pair with one you already have running, so
+     also surface the live ones to pair with:
+     ```
+     Created rapid/<slug>.
+     ▶ pair it with a session you've got going:  rapid-collab <slug> <other-slug>
+       (live now for this repo: <list live slugs>)
+     ▶ or open it solo:  cd ~/worktrees/<repo>/<slug> && claude
+     ```
+   - **N ≥ 2** — a fresh set; print one launch line for all of them:
+     ```
+     Created rapid/<slugA> + rapid/<slugB>[ + …].
+     ▶ rapid-collab <slugA> <slugB>[ …]
+       (close this chat — the panes are where you'll work)
+     ```
+6. **Stop.** Don't open tmux yourself, don't bind, don't start work. The user
+   runs the printed command.
+
+Once opened, each pane **auto-adopts its directory's session** (no `/rapid
+resume`), and `/rapid collab <peer> <message>` starts the real-time exchange.
 
 ---
 

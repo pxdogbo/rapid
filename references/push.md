@@ -116,6 +116,16 @@ Behavior:
 10. **Reply with a one-block summary**: combined branch name, PR URL, and
     a bullet list of which notes shipped. Mention that the user merges
     via the GitHub UI when ready.
+11. **Print the session status** right after the summary — every `push` ends
+    with a snapshot so the user knows whether you're done or something was
+    deferred. Re-read the doc and render the Step 6 review (shipped / done-but-
+    unshipped / in progress / queued / parked / blocked — omit empty rows),
+    capped with a one-line verdict:
+    - everything shipped or dropped → `✅ queue clear — all shipped`
+    - anything still open → `⚠️ <N> still open: <breakdown>`, e.g.
+      `⚠️ 3 still open: 2 queued, 1 blocked (note 8 — waiting on token)`
+    This is non-negotiable on every `push`/`carpool` — the verdict line is the
+    proof you re-read the doc and aren't leaving deferred work unflagged.
 
 **Per-note branches stay local** — don't push them as standalone branches
 unless the user explicitly asks (`push <branch-name>` or "push them
@@ -174,7 +184,9 @@ Behavior:
      - + carpooled [<date>]: rapid/<slug>-header-copy, rapid/<slug>-footer-link
    ```
 7. **Reply in one block**: which notes were added, the PR URL, and a
-   reminder that the PR now contains the extra commits.
+   reminder that the PR now contains the extra commits. **Then print the session
+   status** — same as `push` step 11 (Step 6 review + a one-line done/deferred
+   verdict).
 
 Rules:
 - **Carpool never creates a PR.** No open PR in this session → fall back

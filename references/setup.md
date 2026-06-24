@@ -81,6 +81,8 @@ exist. Run this BEFORE creating any directories, docs, or worktrees.
    and **write config.json** with `onboardedAt` set to now.
 4. **Mention updates once**: `When a new version of the skill ships,
    I'll flag it the next time you clean up — /rapid update pulls it.`
+   Optionally add one line about live collab: `And if you ever want two agents
+   working together in real time, \`/rapid collab setup\` turns that on.`
 5. **Continue straight into the normal session start** — don't make the
    user re-type their `/rapid <note>`; carry the first note through.
 
@@ -163,3 +165,37 @@ Worth telling the user if they ask about update safety:
 - The agent never auto-applies an update — the once-daily check only
   *mentions* a new version; applying always goes through the preview +
   confirm flow above.
+
+---
+
+## Enabling live collab (`/rapid collab setup`)
+
+Live `collab` (real-time agent↔agent — see `references/collab.md` → Live mode) is
+**opt-in** and needs a one-time setup. `/rapid collab setup` does all of it, and
+the skill offers to run it automatically the first time someone uses collab
+without it configured (it never silently degrades to doc-mode without saying so).
+Steps:
+
+1. **Check the platform.** Live mode is **macOS/Linux + tmux only**. Verify tmux
+   is on PATH (`command -v tmux`). If missing, tell the user to install it
+   (`brew install tmux`, or their package manager) and stop — set nothing yet.
+   On Windows / no tmux, say live mode isn't available there; doc-mode collab
+   still works unchanged.
+2. **Register the relay as a user-scoped MCP server** so every chat — including
+   each per-session worktree — gets the `collab_send` / `collab_register` tools:
+   ```sh
+   claude mcp add rapid-collab -s user -- \
+     node ~/.claude/skills/rapid/references/collab-live/relay.mjs
+   ```
+   (Use the actual skill dir if it isn't the default `~/.claude/skills/rapid` —
+   it's the directory this SKILL.md lives in.) If `rapid-collab` is already
+   registered, skip this — don't double-add.
+3. **Flip the flag:** set `collabLive: true` in `~/.rapid/config.json` (add the
+   key if it's absent).
+4. **Confirm in one line:** `Live collab enabled — relay registered + collabLive
+   on. Restart your chats to load the new tools, then \`/rapid collab <N>\` to
+   spin up a set.` (A running chat must restart to pick up the new MCP server.)
+
+That's the whole setup. Afterwards `/rapid collab <N>` and `/rapid collab <slug>`
+take the real-time path; nothing changes for doc-mode users. Re-running
+`/rapid collab setup` is safe — it just verifies each piece is in place.

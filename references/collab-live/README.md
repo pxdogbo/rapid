@@ -52,6 +52,11 @@ If any are missing, `collab` uses doc-mode and tells the user to relay once.
 
 ## Install (one time)
 
+**Easiest — run `/rapid collab setup`** in any rapid chat. It registers the
+relay, sets `collabLive: true`, and checks tmux for you (and rapid offers to run
+it automatically the first time you use collab without it set up). Prefer to do
+it by hand? The manual steps:
+
 Register the relay as a **user-scoped** MCP server so every chat — including
 each per-session worktree — gets the `collab_send` / `collab_register` tools:
 
@@ -87,6 +92,10 @@ everywhere.
 ---
 
 ## Quick start: `collab-start`
+
+Don't have the sessions yet? **`/rapid collab <N>`** (N up to 4) mints a set of
+collab-ready sessions in one shot and prints this exact `rapid-collab` line for
+you to run. `collab-start` itself caps at **4** panes.
 
 `collab-start` opens the whole tmux setup in one command — a pane per session,
 each started in its worktree (so the relay registers it), with `claude` launched
