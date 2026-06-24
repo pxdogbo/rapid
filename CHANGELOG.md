@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.11.1 — 2026-06-24
+
+- **`collab-start` helper for live mode.** One command —
+  `references/collab-live/collab-start <slugA> <slugB> …` — resolves each
+  session's worktree, opens a tiled tmux session with a pane per slug (each
+  started *in its worktree* so the relay auto-registers it), and launches
+  `claude` in every pane. You then `/rapid resume <slug>` in each and
+  `/rapid collab <peer>` to talk. `--dry-run` prints the plan without touching
+  tmux. Removes the manual tmux fiddling from collab live-mode setup; documented
+  in `references/collab-live/README.md`.
+
 ## 1.11.0 — 2026-06-24
 
 - **New `inbox` verb — leave an async note for another session.** The async
