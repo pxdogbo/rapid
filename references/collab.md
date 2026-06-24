@@ -42,6 +42,24 @@ the default and the fallback):
   (or the `relay.mjs` CLI is), AND
 - both chats run inside **tmux** (Unix only).
 
+**🔴 Identity must match the pane (the #1 live-mode footgun).** Live mode keys
+identity off the **working directory**, not the slug you typed: the relay maps
+each pane's cwd to a slug via the `**Worktree:**` headers, and pokes by pane. But
+`/rapid resume` binds you to *any* slug — so resuming a slug whose worktree ≠
+this pane's cwd silently **inverts your identity** (you think you're A; the relay
+treats this pane as B). Every poke then misroutes and both agents get confused.
+
+So **before you send, reply, or act on a poke in live mode, confirm your bound
+slug matches the relay's cwd-derived slug:**
+- Call `collab_register` (or run `node …/relay.mjs status`) and read `self=<slug>`.
+- If `self` ≠ the slug you resumed, **STOP — do not send.** Tell the user:
+  `This pane is <self> (its worktree), but I'm bound to <resumed>. In live mode
+  that inverts identity and misroutes pokes — run` `/rapid resume <self>` `here
+  (or move to <resumed>'s worktree), then we're aligned.` Re-check after the fix.
+- The directory is ground truth, the resume is not: always make the bound slug
+  equal the cwd-derived `self`. (`collab-start` opens each pane in the right
+  worktree and prints the exact `/rapid resume <slug>` for it — run *that* one.)
+
 **What changes when live mode is on:**
 - **Sending** — instead of hand-editing the peer's `## Collab` and telling the
   user to relay, call **`collab_send(to, message)`**. It appends the signed line

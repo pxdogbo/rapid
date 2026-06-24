@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.11.3 — 2026-06-24
+
+- **collab live mode: identity-must-match-the-pane guard.** Live mode keys a
+  pane's identity off its working directory (cwd → `**Worktree:**` → slug), but
+  `/rapid resume` can bind an agent to *any* slug — so resuming a slug whose
+  worktree ≠ the pane's cwd silently inverts identity and misroutes every poke.
+  (Found while testing: two collab panes resumed each other's slugs; one agent
+  ended up "waiting on itself.") Fixes:
+  - **Agent guard** (`references/collab.md`): before sending/replying/acting on a
+    poke in live mode, compare the bound slug to the relay's cwd-derived `self=`
+    (`collab_register` / `relay.mjs status`); on a mismatch, STOP and tell the
+    user to `/rapid resume <self>` instead of misrouting.
+  - **`collab-start`** now prints the exact `/rapid resume <slug>` per pane
+    (paired to that pane's directory) instead of a generic "resume <slug>", so
+    the slugs can't be crossed; header/usage/dry-run text updated to match.
+  - `references/collab-live/README.md` gains a matching ⚠️ note.
+
 ## 1.11.2 — 2026-06-24
 
 - **`inbox`: dropped the auto-surfacing — reading is purely manual.** 1.11.0

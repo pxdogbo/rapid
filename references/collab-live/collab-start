@@ -7,8 +7,9 @@
 # header in its session doc), then opens a tmux session "rapid-collab" with one
 # pane per slug — each pane STARTED IN that session's worktree (so the collab
 # relay can identify which session the pane is) — and launches `claude` in each.
-# Tile the panes and attach. You then run `/rapid resume <slug>` in each pane and
-# `/rapid collab <peer>` to start talking in real time. See ./README.md.
+# Tile the panes and attach. You then run `/rapid resume <slug>` in each pane —
+# the slug matching THAT pane's worktree (a crossed resume inverts identity in
+# live mode) — and `/rapid collab <peer>` to start talking. See ./README.md.
 #
 # --dry-run prints the resolved slug→worktree map and the plan without touching
 # tmux. Requires: bash, tmux, node (for config parsing), and `claude` on PATH.
@@ -66,7 +67,7 @@ if [ "$DRY" = "1" ]; then
   for i in "${!SLUGS[@]}"; do
     echo "  pane $i: ${SLUGS[$i]}  →  cd ${WTS[$i]} && claude"
   done
-  echo "then: run '/rapid resume <slug>' in each pane, '/rapid collab <peer>' to talk."
+  echo "then: in each pane run '/rapid resume <that pane's slug>' (must match its dir), '/rapid collab <peer>' to talk."
   exit 0
 fi
 
@@ -97,8 +98,11 @@ done
 echo "Opened tmux '$SESS' with ${#SLUGS[@]} panes:"
 for i in "${!SLUGS[@]}"; do echo "  ${PANES[$i]}  ${SLUGS[$i]}  (${WTS[$i]})"; done
 echo
-echo "Next: in EACH pane run  /rapid resume <its-slug>  — then from one pane:"
-echo "  /rapid collab ${SLUGS[1]} \"you there?\""
+echo "Next — resume the slug that MATCHES each pane's directory. Resuming a"
+echo "different slug inverts identity in live mode (the relay keys off the dir):"
+for i in "${!SLUGS[@]}"; do echo "  pane ${PANES[$i]}  →  /rapid resume ${SLUGS[$i]}"; done
+echo
+echo "Then from one pane:  /rapid collab ${SLUGS[1]} \"you there?\""
 echo
 
 if [ -n "${TMUX:-}" ]; then
