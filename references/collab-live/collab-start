@@ -1,0 +1,108 @@
+#!/usr/bin/env bash
+# rapid · collab-start — open a tmux collab session in one command.
+#
+#   collab-start [--dry-run] <slugA> <slugB> [slugC ...]
+#
+# For each rapid session slug, resolves its worktree (from the `**Worktree:**`
+# header in its session doc), then opens a tmux session "rapid-collab" with one
+# pane per slug — each pane STARTED IN that session's worktree (so the collab
+# relay can identify which session the pane is) — and launches `claude` in each.
+# Tile the panes and attach. You then run `/rapid resume <slug>` in each pane and
+# `/rapid collab <peer>` to start talking in real time. See ./README.md.
+#
+# --dry-run prints the resolved slug→worktree map and the plan without touching
+# tmux. Requires: bash, tmux, node (for config parsing), and `claude` on PATH.
+set -euo pipefail
+
+SESS="rapid-collab"
+DRY=0
+SLUGS=()
+for a in "$@"; do
+  case "$a" in
+    --dry-run) DRY=1 ;;
+    -h|--help)
+      echo "usage: collab-start [--dry-run] <slugA> <slugB> [slugC ...]"; exit 0 ;;
+    -*) echo "collab-start: unknown flag '$a'" >&2; exit 2 ;;
+    *) SLUGS+=("$a") ;;
+  esac
+done
+
+if [ "${#SLUGS[@]}" -lt 2 ]; then
+  echo "collab-start: need at least two session slugs." >&2
+  echo "usage: collab-start [--dry-run] <slugA> <slugB> [slugC ...]" >&2
+  exit 2
+fi
+
+# Resolve sessionsRoot the same way the skill does (config.json → default).
+SROOT="$(node -e '
+const fs=require("fs"),os=require("os");
+let s=os.homedir()+"/.rapid/sessions";
+try{const c=JSON.parse(fs.readFileSync(os.homedir()+"/.rapid/config.json","utf8"));
+  if(c.sessionsRoot) s=c.sessionsRoot;}catch{}
+process.stdout.write(s.replace(/^~(?=$|\/)/, os.homedir()));
+')"
+
+expand_tilde() { case "$1" in "~"|"~/"*) printf '%s' "${HOME}${1#\~}";; *) printf '%s' "$1";; esac; }
+
+# Resolve each slug → worktree dir (doc may be live or archived).
+WTS=()
+for slug in "${SLUGS[@]}"; do
+  doc="$SROOT/$slug.md"
+  [ -f "$doc" ] || doc="$SROOT/archive/$slug.md"
+  if [ ! -f "$doc" ]; then
+    echo "collab-start: no session doc for '$slug' under $SROOT" >&2; exit 1
+  fi
+  wt="$(grep -m1 '^\*\*Worktree:\*\*' "$doc" | sed -E 's/^\*\*Worktree:\*\*[[:space:]]*//; s/[[:space:]]*$//')"
+  wt="$(expand_tilde "$wt")"
+  if [ -z "$wt" ] || [ "$wt" = "n/a" ] || [ ! -d "$wt" ]; then
+    echo "collab-start: '$slug' has no usable worktree (got: '${wt:-<empty>}'). Live collab needs a worktree." >&2
+    exit 1
+  fi
+  WTS+=("$wt")
+done
+
+if [ "$DRY" = "1" ]; then
+  echo "collab-start (dry run) — would open tmux session '$SESS':"
+  for i in "${!SLUGS[@]}"; do
+    echo "  pane $i: ${SLUGS[$i]}  →  cd ${WTS[$i]} && claude"
+  done
+  echo "then: run '/rapid resume <slug>' in each pane, '/rapid collab <peer>' to talk."
+  exit 0
+fi
+
+command -v tmux >/dev/null || { echo "collab-start: tmux not found (brew install tmux)." >&2; exit 1; }
+
+if tmux has-session -t "$SESS" 2>/dev/null; then
+  echo "collab-start: a tmux session named '$SESS' already exists." >&2
+  echo "  attach:  tmux attach -t $SESS" >&2
+  echo "  or kill: tmux kill-session -t $SESS" >&2
+  exit 1
+fi
+
+# Build the panes: first pane = new session, the rest = splits. Each pane starts
+# in its slug's worktree (-c) so the relay auto-registers the right session.
+PANES=()
+tmux new-session -d -s "$SESS" -c "${WTS[0]}"
+PANES+=("$(tmux list-panes -t "$SESS" -F '#{pane_id}' | head -1)")
+for i in $(seq 1 $(( ${#SLUGS[@]} - 1 ))); do
+  PANES+=("$(tmux split-window -t "$SESS" -c "${WTS[$i]}" -P -F '#{pane_id}')")
+done
+tmux select-layout -t "$SESS" tiled >/dev/null
+
+# Launch claude in each pane after the layout is settled.
+for p in "${PANES[@]}"; do
+  tmux send-keys -t "$p" 'claude' Enter
+done
+
+echo "Opened tmux '$SESS' with ${#SLUGS[@]} panes:"
+for i in "${!SLUGS[@]}"; do echo "  ${PANES[$i]}  ${SLUGS[$i]}  (${WTS[$i]})"; done
+echo
+echo "Next: in EACH pane run  /rapid resume <its-slug>  — then from one pane:"
+echo "  /rapid collab ${SLUGS[1]} \"you there?\""
+echo
+
+if [ -n "${TMUX:-}" ]; then
+  echo "(already inside tmux) attach with:  tmux switch-client -t $SESS   or   tmux attach -t $SESS"
+else
+  exec tmux attach -t "$SESS"
+fi

@@ -86,6 +86,25 @@ everywhere.
 
 ---
 
+## Quick start: `collab-start`
+
+`collab-start` opens the whole tmux setup in one command — a pane per session,
+each started in its worktree (so the relay registers it), with `claude` launched
+in each:
+
+```sh
+~/.claude/skills/rapid/references/collab-live/collab-start <slugA> <slugB> [slugC ...]
+# tip: alias collab-start=~/.claude/skills/rapid/references/collab-live/collab-start
+```
+
+It resolves each slug's worktree from its session doc, splits a tiled tmux
+session `rapid-collab`, runs `claude` in every pane, and attaches you. Then, in
+each pane: `/rapid resume <its-slug>`, and from one pane `/rapid collab <peer>`
+to start talking. `--dry-run` prints the slug→worktree plan without touching
+tmux. (Each slug must already be a rapid session with a worktree.)
+
+---
+
 ## Tools (MCP)
 
 | Tool | Args | Effect |
