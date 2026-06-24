@@ -1,0 +1,121 @@
+# `inbox` — leave an async note for another session
+
+Read this when the user invokes `/rapid inbox <slug>` or the bare word `inbox`.
+
+| Invocation | What it does |
+|---|---|
+| `/rapid inbox <slug> [message]` | Leave a note in session `<slug>`'s `## Inbox`. Fire-and-forget — no loop, no poke, no relay. |
+| `inbox` (bare word, mid-session) | Read **your own** session's `## Inbox`: show unread notes, mark them read, offer to queue actionable ones. |
+
+`inbox` is the **async** cousin of `collab`. Where `collab` opens a live (or
+polled) back-and-forth between two agents, `inbox` just **drops a note** into
+another session's doc for it to find whenever it next looks. The user reaches
+for it to tell one chat to leave a message for another — "tell warp-shuttle to
+also fix the mobile layout" — without starting a conversation or arming any
+polling.
+
+What it deliberately is **not**:
+- **No autonomous loop.** Leaving or reading a note never arms
+  `ScheduleWakeup` / `/loop`. (That's `collab`.)
+- **No poke, even in live mode.** Inbox never `tmux send-keys` the recipient —
+  not even when `collabLive` is on. The note waits passively. Need real-time
+  delivery and a reply? That's `collab`.
+- **No relay-to-start.** You don't tell the user to switch chats to "kick it
+  off." The note sits in the recipient's `## Inbox` until that chat next looks.
+
+Pick the right tool: `inbox` to leave a quick async note, `collab` to have a
+live conversation, `handoff` to hand a whole scoped task to a fresh chat.
+
+---
+
+## The `## Inbox` section
+
+Every session doc carries an `## Inbox` section (blank until a note arrives).
+Append-only; `[ ]` = unread, `[x]` = read:
+
+```markdown
+## Inbox
+- [ ] [14:32] rapid/sonic-jet → rapid/warp-shuttle: also update the mobile layout when you touch the avatar sizing.
+- [x] [09:10] rapid/nitro-coupe → rapid/warp-shuttle: heads up — I merged the shared theme in PR #57. → queued as note 4
+```
+
+Each line: `- [<state>] [HH:MM] rapid/<from> → rapid/<to>: <message>`. Sign with
+your slug, timestamp it, address it. If the sending chat has no session of its
+own, sign `rapid/—`.
+
+---
+
+## `/rapid inbox <slug> [message]`
+
+1. Read `~/.rapid/sessions/<slug>.md`. Missing → reply `No session <slug>
+   found.` (Check `archive/` too; if it's archived, say so and offer
+   `/rapid resume <slug>` instead of dropping a note into an archived doc.)
+2. Append the note to that doc's `## Inbox`, signed + addressed, as
+   `- [ ] [HH:MM] rapid/<you> → rapid/<slug>: <message>`. Add the `## Inbox`
+   section if an older doc lacks one.
+3. **That's the whole action — do NOT** arm a loop, poke the peer, or tell the
+   user to relay. Leaving the note is all that happens.
+4. Confirm in one line: `Left a note in rapid/<slug>'s inbox. That chat sees it
+   on its next /rapid (menu shows 📬), when it resumes the session, or when it
+   says \`inbox\`.`
+5. No message given → ask what the note should say; don't post an empty note.
+
+The recipient's `## Inbox` (like its `## Collab`) is a **sanctioned cross-doc
+write** — one of the few places you may write in another chat's doc. Never
+touch its `## Notes` or anything else.
+
+---
+
+## `inbox` (bare word) — read your inbox
+
+Acts only if **this chat owns a session** (like every bare word). No session →
+treat as a normal message; never queue `inbox` as a note.
+
+1. Read your session doc's `## Inbox`.
+2. Show every **unread** (`[ ]`) note, newest last, in plain language (who left
+   it + the message).
+3. **Mark each shown note read** — flip `[ ]` → `[x]`.
+4. **Offer to queue the actionable ones.** If a note describes work to do, offer
+   to add it to `## Notes` as a real note (or just add it and say so, per the
+   user's call). When you queue one, append ` → queued as note N` to its inbox
+   line so the trail is clear.
+5. Nothing unread → reply `Inbox clear.` and stop.
+
+Reading (→ `[x]`) is the only thing that clears the unread surfacing below.
+
+---
+
+## Surfacing (passive — no poll, no poke)
+
+A note has to be *found*, not delivered. Three passive, network-free surfaces —
+nothing ever wakes a sleeping chat:
+- **The `/rapid` menu** (SKILL Step 2·menu): the local scan counts unread `[ ]`
+  inbox lines for this repo's sessions and shows a `📬 N` marker next to a
+  resumable session.
+- **On resume / reuse:** when a chat binds a session (Step 2a reuse, Step 6
+  resume) whose `## Inbox` has unread notes, flag it in the ack —
+  `📬 2 unread inbox notes — say \`inbox\` to read.`
+- **Bare `inbox`:** the explicit read.
+
+A note simply waits in the durable doc until the recipient looks.
+
+---
+
+## Interaction with the reap / wash / wax
+
+- **Unread inbox notes are at-risk for the reap.** The reap sweep skips a
+  session that holds any unread (`[ ]`) `## Inbox` note — silently reaping a note
+  someone left before it was read would lose it. Reading them (→ `[x]`) clears
+  the block, so the session reaps normally afterward.
+- `wash` keeps the `## Inbox` section (like `## Collab` / `## Pushes` history).
+- `wax` leaves `## Inbox` untouched (append-only).
+
+---
+
+## Etiquette
+
+- Append-only; sign + timestamp + address every line.
+- Keep it to a note — a heads-up, a reminder, a small ask. For a conversation
+  use `collab`; for a whole task use `handoff`.
+- The recipient's `## Inbox` is the only thing you write in their doc. Never
+  their `## Notes`.
