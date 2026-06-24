@@ -1,5 +1,29 @@
 # Changelog
 
+## 1.10.0 — 2026-06-23
+
+- **`collab` live mode (opt-in, real-time).** A new optional transport for the
+  cross-agent chatroom that swaps the doc-mode poll + one-time manual relay for
+  a real-time **push**: when one agent sends, the peer is poked to read
+  *immediately* — no self-poll loop, no per-message relay. Agents stay ordinary
+  interactive `claude` sessions (your subscription, not API-billed SDK).
+  - Ships a zero-dependency relay, `references/collab-live/relay.mjs`, that runs
+    as **both** a local MCP server (`collab_send` / `collab_register` tools) and
+    a CLI. On send it appends the signed line to the peer's `## Collab` (still
+    the durable source of truth) and `tmux send-keys "collab"` into the peer's
+    pane. Identity is derived (cwd→`**Worktree:**`→slug; pane from `$TMUX_PANE`
+    via `~/.rapid/collab-panes.json`) — nothing hardcoded.
+  - **Opt-in and additive:** gated on `collabLive: true` in `config.json` + the
+    relay installed + both chats in **tmux** (Unix only). When unavailable,
+    `collab` silently falls back to the existing doc-mode poll/relay flow —
+    nothing breaks for anyone.
+  - Runaway exchanges are bounded by the existing `[DONE]`/`[PAUSED]` protocol;
+    a missed poke only *delays* a message (the room is durable), so live mode
+    needs no fallback poll.
+  - Docs: new **Live mode** section in `references/collab.md`, setup in
+    `references/collab-live/README.md`, `collabLive` added to the `config.json`
+    schema in `references/setup.md`.
+
 ## 1.9.1 — 2026-06-23
 
 - **ASCII logo header on the `/rapid` menu.** Bare `/rapid` now prints a small
