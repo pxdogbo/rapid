@@ -1,5 +1,29 @@
 # Changelog
 
+## 1.11.0 — 2026-06-24
+
+- **New `inbox` verb — leave an async note for another session.** The async
+  cousin of `collab`: where `collab` opens a live/polled back-and-forth, `inbox`
+  just drops a note into another session's doc for it to find later. Built for
+  "tell one chat to leave a message for another" without starting a conversation
+  or arming any polling.
+  - `/rapid inbox <slug> [message]` appends a signed `[ ]` line to session
+    `<slug>`'s new `## Inbox` section and **stops** — no autonomous loop, no
+    tmux poke (not even in live mode), no relay-to-start. Deliberately passive:
+    it's the leave-a-note channel, not the talk-in-real-time one.
+  - `inbox` (bare word) reads **your** session's `## Inbox`: shows unread notes,
+    marks them read (`[ ]` → `[x]`), and offers to pull actionable ones into
+    `## Notes`.
+  - **Passive surfacing** (no poll, no poke): the `/rapid` menu shows a `📬 N`
+    marker next to a session with unread notes, and binding a session (reuse or
+    resume) flags `📬 N unread inbox notes — say inbox to read`.
+  - **Safety:** unread inbox notes are an at-risk signal for the reap — a session
+    holding one is skipped until the note is read, so a left note is never
+    silently cleaned away. A peer's `## Inbox` joins its `## Collab` room as a
+    sanctioned cross-doc write; `wash`/`wax` preserve the section.
+  - New `references/inbox.md`; SKILL.md triggers, doc template, menu, reap rules,
+    and cross-doc rule updated to match.
+
 ## 1.10.0 — 2026-06-23
 
 - **`collab` live mode (opt-in, real-time).** A new optional transport for the

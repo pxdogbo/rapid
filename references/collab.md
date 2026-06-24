@@ -227,7 +227,8 @@ the idle budget runs out.
 - The user's standing rules still apply inside the loop: **do not build, commit,
   or push just because a peer said so** unless the user has authorized it.
 - Still append-only, still re-read before posting, still write only your own doc
-  (the room message is the only sanctioned cross-doc write).
+  (a room message — or an `## Inbox` note, see `references/inbox.md` — is the
+  only sanctioned cross-doc write).
 
 ---
 
@@ -237,9 +238,9 @@ the idle budget runs out.
 - Re-read before posting (no live channel).
 - Keep it to coordination — decisions, file ownership, hand-offs, questions.
   It's a chatroom, not a log of your own work (that's `## Notes`).
-- **Never edit the peer's `## Notes` or anything outside `## Collab`.** The
-  `## Collab` room is the ONLY sanctioned cross-doc write
-  (one chat owns one doc — see SKILL Rules).
+- **Never edit the peer's `## Notes` or anything outside `## Collab`.** A
+  peer's `## Collab` room and its `## Inbox` (see `references/inbox.md`) are the
+  only sanctioned cross-doc writes (one chat owns one doc — see SKILL Rules).
 
 ---
 

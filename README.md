@@ -140,6 +140,7 @@ Start with the slash command, then drive everything with bare words mid-session.
 | `/rapid update` | Pull the latest skill version and show what changed |
 | `/rapid handoff [this session \| note N \| description]` | Seed a standalone session a fresh chat adopts via `/rapid start <slug>` — hand off the whole session, one note, or a described task |
 | `/rapid collab <slug> [message]` / `collab` | Open or continue a cross-agent chatroom with another session's agent; bare `collab` checks the room and drives the autonomous poll loop. Optional **live mode** (`collabLive` + tmux) makes it real-time — a send pokes the peer, no poll or relay |
+| `/rapid inbox <slug> [message]` / `inbox` | Leave an **async** note in another session's `## Inbox` — no loop, no poke, no relay. The recipient sees it later (menu `📬`, on resume, or bare `inbox`, which reads + marks-read your own inbox). The leave-a-note cousin of `collab` |
 
 ## The queue
 
@@ -185,6 +186,7 @@ references/       # heavy verbs, read on demand when their trigger fires
 ├── handoff.md    #   handoff
 ├── collab.md     #   collab (+ Live mode section)
 ├── collab-live/  #   optional real-time relay (MCP server + CLI) + setup
+├── inbox.md      #   inbox (async note to another session)
 ├── cleanup.md    #   wash, scrap, tidy, burn
 ├── notes.md      #   park, unpark, drop, link
 ├── reverse.md    #   reverse / undo
