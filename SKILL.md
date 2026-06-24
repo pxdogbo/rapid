@@ -1,6 +1,6 @@
 ---
 name: rapid
-version: 1.11.1
+version: 1.11.2
 user-invocable: true
 description: >
   Rapid session — capture realtime notes from the user while working with a
@@ -184,7 +184,7 @@ skipped and the session is doc-only.
 | `reverse <N>` / `undo <N>` (bare word, mid-session) | **Undo the work done on note N** — discard uncommitted changes, reset committed branches, or close pushed PRs (with confirmation). See `references/reverse.md`. |
 | `wax` (bare word, mid-session) | **Groom** this chat's session doc in place — condense finished notes, group related ones, refresh in-progress state, strip stale sub-bullets. Keeps the whole live queue; doc-only, no git. See `references/wax.md`. |
 | `collab` (bare word, mid-session) | **Check the collab room + drive the loop.** Re-read this chat's `## Collab` (and any room it joined), surface new peer messages since last check (loudly flag any awaiting reply), act on what the peer cleared, then (re-)arm the autonomous poll loop. No live channel: the user relays once per side to start each agent; after that the agents self-poll. On stop it posts an explicit status to the room so the peer knows which happened (and isn't left thinking the work just paused): `[DONE]` (work finished) or `[PAUSED]` (idle after 3 *consecutive* quiet checks ~5 min apart — any new peer note resets that count, NOT finished), echoed in your chat too. **Live mode** (config `collabLive` + tmux): a send pokes the peer in real time — no poll loop, no relay. See `references/collab.md`. |
-| `inbox` (bare word, mid-session) | **Read this chat's `## Inbox`** — async notes other chats left for this session. Show unread (`[ ]`) notes, mark them read (`[x]`), and offer to pull actionable ones into `## Notes`. No loop, no poke. See `references/inbox.md`. |
+| `inbox` (or "check inbox" / "check your inbox" / "read your inbox", mid-session) | **Read this chat's `## Inbox`** — async notes other chats left for this session. Show unread (`[ ]`) notes, mark them read (`[x]`), and offer to pull actionable ones into `## Notes`. The user triggers this manually when they're ready; nothing surfaces a note on its own. No loop, no poke. See `references/inbox.md`. |
 | `wash` / `clean` (bare word, mid-session) | **Empty** this chat's session file in place so it can be reused — keeps slug, worktree, branch, and `## Pushes` history. Confirms first if anything risky is in flight. See `references/cleanup.md`. |
 | `scrap` (bare word, mid-session) | **Delete this chat's session entirely** — doc, worktree, and local branch. Confirms first if anything risky is in flight. See `references/cleanup.md`. |
 | `tidy` / `reap` (bare word, any time) | **Reap finished sessions for the current repo now** — the same sweep the menu's Cleanup option runs: removes worktrees, deletes merged/closed branches, and `rm`s docs for *finished* (shipped/safe) sessions only, leaving live/unshipped/parked/blocked work and other repos untouched. Prints a summary; no confirmation needed (it removes only shipped, safe work). Lighter than `burn`. Cleanup is never automatic — this verb (or the menu) is how it runs. See `references/cleanup.md`. |
@@ -194,7 +194,7 @@ skipped and the session is doc-only.
 | `/rapid update` | Pull the latest version of this skill and show the changelog delta. Works any time, no session needed. See `references/setup.md`. |
 | `/rapid handoff [this session \| <note N> \| <description>]` | **Hand work to a fresh chat.** Seed a NEW session doc (own slug, header `**Handoff:** pending`, no worktree yet) holding the full instructions to build — the whole current session, one note, or a described task — then **ALWAYS end your reply with the copy-paste line `/rapid start <slug>`**. A fresh chat runs that to adopt it: it cuts its own worktree + `rapid/<slug>` branch off `origin/main` and works in its OWN doc (never this one). NOT a loose `~/.rapid/*.md` file. See `references/handoff.md`. |
 | `/rapid collab <slug> [message]` | **Open / continue a chatroom with the agent on session `<slug>`.** Re-read both docs' `## Collab`, post your message into the shared room (the peer's `## Collab`, or the existing room if one is already open with them), tell the user to relay once to that chat, and arm the autonomous poll loop so you pick up the reply on your own. A lightweight cross-agent chatroom that then self-drives. With **live mode** on (config `collabLive` + tmux) it's real-time instead — `collab_send` pokes the peer, no relay or poll. See `references/collab.md`. |
-| `/rapid inbox <slug> [message]` | **Leave an async note in session `<slug>`'s `## Inbox`.** Append the signed note to that doc and stop — no loop, no poke, no relay-to-start. That chat picks it up later (menu `📬`, on resume, or via bare `inbox`). The recipient's `## Inbox` is a sanctioned cross-doc write; never touch its `## Notes`. See `references/inbox.md`. |
+| `/rapid inbox <slug> [message]` | **Leave an async note in session `<slug>`'s `## Inbox`.** Append the signed note to that doc and stop — no loop, no poke, no relay-to-start, no auto-surfacing. The user picks it up later by going to that chat and telling it to check (`inbox`). The recipient's `## Inbox` is a sanctioned cross-doc write; never touch its `## Notes`. See `references/inbox.md`. |
 
 ### The bare-word rule
 
@@ -274,9 +274,7 @@ only work that ever happens is whatever option they then pick.
 - **Local session scan (NO network).** Read `sessions/*.md` headers for docs
   whose `**Repo:**` matches the current repo — doc reads only, **no `gh`, no
   `git fetch`, nothing over the network** — so the menu can show live/finished
-  counts. While reading each doc, also count its unread (`[ ]`) `## Inbox` lines
-  so the menu can flag waiting notes with `📬 N`. This is a glance, not a
-  verification.
+  counts. This is a glance, not a verification.
 
 Render the menu as a numbered list (portable across every tool; a harness with
 a native picker may use that instead). **Print the logo header verbatim** at the
@@ -298,7 +296,6 @@ option counts from the local scan:
 
   1. New session       start fresh, or reuse an empty one, then capture
   2. Resume a session  <N live for this repo: slug, slug, …  |  none yet>
-                       <append 📬 N to any slug with unread inbox notes>
   3. Cleanup           <N finished to clear (tidy)  ·  burn wipes all  |  nothing to clean>
   4. Review / recap    see where a session stands
   5. Handoff           hand a scoped plan to a fresh chat
@@ -357,10 +354,6 @@ If a first note was passed as args, append it as note 1 inside the
 reused doc and start working immediately. Acknowledge in one line:
 - Reuse + first note: `Reusing rapid/<slug> at <worktree>. Picking up note 1: <text> — looking now.`
 - Reuse, no first note: `Reusing rapid/<slug> at <worktree>. Drop notes anytime.`
-
-**Whenever you bind a session** (reuse here, or resume in Step 6), check its
-`## Inbox`: if it has unread (`[ ]`) notes, append one line to the ack —
-`📬 <N> unread inbox notes — say \`inbox\` to read.` (See `references/inbox.md`.)
 
 If no empty session is found, fall through to step 2b and create a fresh
 one.
@@ -547,7 +540,7 @@ this same sweep as a bare-word verb.
 
 ## Inbox
 
-<!-- Async notes other chats left for this session. Blank until one arrives. Append-only; `[ ]` unread, `[x]` read. Each line: `- [ ] [HH:MM] rapid/<from> → rapid/<to>: <message>`. No loop, no poke — picked up when this chat next checks (menu 📬, on resume, or bare `inbox`). Unread notes block the reap until read. See references/inbox.md. -->
+<!-- Async notes other chats left for this session. Blank until one arrives. Append-only; `[ ]` unread, `[x]` read. Each line: `- [ ] [HH:MM] rapid/<from> → rapid/<to>: <message>`. No loop, no poke, no auto-surfacing — the user reads it by telling this chat to check (`inbox` / "check your inbox") when ready. Unread notes block the reap until read. See references/inbox.md. -->
 
 ```
 
@@ -965,13 +958,13 @@ Claude (this chat had no session):
        /        | |   | (_| || |_) || || (_| |
       /         |_|    \__,_|| .__/ |_| \__,_|
      /                       |_|
-     realtime note queue — v1.11.0
+     realtime note queue — v1.11.2
      rapid-skill.vercel.app
 
      pick one (or just type your first note to start a new session):
 
      1. New session       start fresh, or reuse an empty one, then capture
-     2. Resume a session  2 live for this repo: sonic-jet 📬 1, nimble-sub
+     2. Resume a session  2 live for this repo: sonic-jet, nimble-sub
      3. Cleanup           3 finished to clear (tidy) · burn wipes all
      4. Review / recap    see where a session stands
      5. Handoff           hand a scoped plan to a fresh chat
