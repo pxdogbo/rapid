@@ -17,7 +17,8 @@ the first-run onboarding and read at the start of every session. Schema:
   "sessionsRoot": "~/.rapid/sessions",
   "worktreesRoot": "~/worktrees",
   "onboardedAt": "2026-06-05T10:00:00Z",
-  "lastUpdateCheck": "2026-06-05"
+  "lastUpdateCheck": "2026-06-05",
+  "collabLive": false
 }
 ```
 
@@ -27,6 +28,11 @@ the first-run onboarding and read at the start of every session. Schema:
 - `onboardedAt` — set once when onboarding completes; its presence means
   "never ask again."
 - `lastUpdateCheck` — date (YYYY-MM-DD) of the last new-version check.
+- `collabLive` — opt-in real-time `collab` (Unix + tmux only). Default
+  `false` (doc-mode poll/relay). When `true` AND the `rapid-collab` relay is
+  installed AND both chats run in tmux, a `collab` send pokes the peer
+  instantly — no poll loop, no manual relay. Falls back to doc-mode otherwise.
+  Setup: `references/collab-live/README.md`.
 
 > Earlier versions stored a `lastReap` map (repo-root → datetime) to throttle
 > an automatic start-time sweep. As of 1.9.0 cleanup is manual — there is no

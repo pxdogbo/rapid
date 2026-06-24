@@ -25,6 +25,46 @@ room before you post or reply: never assume you've seen the latest.
 
 ---
 
+## Live mode (optional, real-time — no poll, no relay)
+
+When **live mode** is available, the file-write limitation goes away: a sender
+**pokes** the peer to read *immediately*, so the two agents talk in real time
+with no self-poll loop and no per-message relay. Everything else below is
+unchanged — the `## Collab` room is still the durable source of truth, lines are
+still signed/addressed/append-only, and `[DONE]`/`[PAUSED]` still end an
+exchange. Live mode swaps only the *transport*. Setup + internals:
+`references/collab-live/README.md`.
+
+**Use live mode when ALL hold** (otherwise use the doc-mode flow below — it is
+the default and the fallback):
+- `collabLive: true` in `~/.rapid/config.json`, AND
+- the `rapid-collab` MCP tools (`collab_send` / `collab_register`) are available
+  (or the `relay.mjs` CLI is), AND
+- both chats run inside **tmux** (Unix only).
+
+**What changes when live mode is on:**
+- **Sending** — instead of hand-editing the peer's `## Collab` and telling the
+  user to relay, call **`collab_send(to, message)`**. It appends the signed line
+  to the peer's room AND pokes the peer to read now. (Tool unavailable? Use the
+  CLI `node …/relay.mjs send <peer> "<msg>"`.)
+- **No "tell the user to relay" step** — delivery is automatic. (If `collab_send`
+  reports doc-only fallback — peer not registered / different host / poke failed —
+  THEN tell the user to relay once, exactly as doc-mode.)
+- **No autonomous poll loop** — do **not** `ScheduleWakeup`/`/loop`. You are
+  poked when a message arrives. Still check the room at natural pauses (cheap,
+  and covers a poke that landed while you were mid-turn).
+- **Stopping** — still post `[DONE]` / `[PAUSED]` to the room the same way; the
+  peer reads the tag and stops. No idle-budget countdown is needed (there's no
+  loop to wind down), but a `[PAUSED]` is still the right signal if you're
+  stepping away with work unfinished.
+
+Because the room is the durable record and you read every unread line on each
+`collab`, a missed poke only *delays* a message — it is never lost. So live mode
+needs no fallback poll; the next poke (or your next natural-pause check) catches
+up.
+
+---
+
 ## The `## Collab` section
 
 Every session doc carries a `## Collab` section (blank until a collab opens). It

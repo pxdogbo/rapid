@@ -139,7 +139,7 @@ Start with the slash command, then drive everything with bare words mid-session.
 | `/rapid resume <slug>` | Re-activate an archived session in this chat |
 | `/rapid update` | Pull the latest skill version and show what changed |
 | `/rapid handoff [this session \| note N \| description]` | Seed a standalone session a fresh chat adopts via `/rapid start <slug>` — hand off the whole session, one note, or a described task |
-| `/rapid collab <slug> [message]` / `collab` | Open or continue a cross-agent chatroom with another session's agent; bare `collab` checks the room and drives the autonomous poll loop |
+| `/rapid collab <slug> [message]` / `collab` | Open or continue a cross-agent chatroom with another session's agent; bare `collab` checks the room and drives the autonomous poll loop. Optional **live mode** (`collabLive` + tmux) makes it real-time — a send pokes the peer, no poll or relay |
 
 ## The queue
 
@@ -183,7 +183,8 @@ references/       # heavy verbs, read on demand when their trigger fires
 ├── push.md       #   push, carpool
 ├── wax.md        #   wax
 ├── handoff.md    #   handoff
-├── collab.md     #   collab
+├── collab.md     #   collab (+ Live mode section)
+├── collab-live/  #   optional real-time relay (MCP server + CLI) + setup
 ├── cleanup.md    #   wash, scrap, tidy, burn
 ├── notes.md      #   park, unpark, drop, link
 ├── reverse.md    #   reverse / undo
