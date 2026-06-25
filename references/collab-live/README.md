@@ -19,18 +19,21 @@ back to the doc-mode poll/relay flow — nothing breaks.
 
 `relay.mjs` (zero-dependency Node) is the bridge. On `collab_send` it:
 
-1. **Appends** the signed line to the peer's `## Collab` block — the room stays
-   the durable source of truth, exactly as doc-mode.
-2. **Pokes** the peer with `tmux send-keys "collab"` into its pane, so it
-   re-reads the room and acts now.
+1. **Types the message itself into the peer's pane** with `tmux send-keys`,
+   tagged `[collab from rapid/<sender>]` for reply routing — so the peer sees
+   your message land in its chat and answers directly, no "go read the room"
+   hop. (Newlines are flattened to ⏎ for the injected copy, since send-keys
+   submits on each newline.)
+2. **Appends** the full signed line to the peer's `## Collab` block — the room
+   stays the durable record + recovery log, exactly as doc-mode.
 
 There is no `claude inject` yet, so **tmux is the injector** — hence live mode is
 **Unix + tmux only**, and each collab chat must run inside a tmux pane.
 
-Nothing loops or polls. Agents act only when poked; the relay runs only when an
-agent sends. A missed poke (peer mid-turn) just **delays** a message — never
-loses it — because the line is already in the room and the peer reads every
-unread line on its next `collab`.
+Nothing loops or polls. Agents act only when a message arrives; the relay runs
+only when an agent sends. A garbled/missed inject (peer mid-turn) just **delays**
+a message — never loses it — because the full line is already in the room and
+the peer reads every unread line on its next `collab`.
 
 **Identity is derived, never hardcoded:** a session's slug comes from matching
 the process cwd against the `**Worktree:**` header in `~/.rapid/sessions/*.md`;

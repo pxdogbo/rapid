@@ -1,5 +1,28 @@
 # Changelog
 
+## 1.13.0 — 2026-06-24
+
+- **Live collab now delivers the message directly — no "collab" doorbell.**
+  Previously a live send appended to the peer's room and typed the *word*
+  `collab` into its pane, so the peer had to go *read* the room to find what you
+  said. Now the relay types **your message itself** into the peer's pane (tagged
+  `[collab from rapid/<sender>]` for reply routing only — not an attribution), so
+  the two agents converse directly: the peer sees the message land and answers
+  with `collab_send`, which types the reply into *your* pane. The `## Collab`
+  room is still written as the durable record + recovery log (a garbled/mid-turn
+  inject only delays, never loses — the peer catches it on its next `collab`).
+  Also fixes double-signing: pass the **raw** message to `collab_send`; the relay
+  does all signing/tagging. `relay.mjs`, `collab.md`, `collab-live/README.md`.
+- **Version check fires at session start again.** v1.9.0 moved it off start
+  (network-free start), leaving it only on the reap — so users who never ran
+  cleanup never saw update pings. Restored: runs once/day right *after* the
+  session-start ack (non-blocking, fail-silent; the bare menu stays
+  network-free). Still throttled across start + reap + `/rapid update`.
+- **`/rapid collab setup` offers the `rapid-collab` shell alias.** After enabling
+  live mode it offers (with consent) to add the alias to your shell rc
+  (zsh/bash/fish-aware, idempotent, real path); same offer on first
+  `/rapid collab <N>` if unset. No more manual `~/.zshrc` paste.
+
 ## 1.12.0 — 2026-06-24
 
 - **`/rapid collab <N>` — spin up a collab set in one command.** A *number*

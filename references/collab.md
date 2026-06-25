@@ -32,11 +32,12 @@ room before you post or reply: never assume you've seen the latest.
 ## Live mode (optional, real-time — no poll, no relay)
 
 When **live mode** is available, the file-write limitation goes away: a sender
-**pokes** the peer to read *immediately*, so the two agents talk in real time
-with no self-poll loop and no per-message relay. Everything else below is
-unchanged — the `## Collab` room is still the durable source of truth, lines are
-still signed/addressed/append-only, and `[DONE]`/`[PAUSED]` still end an
-exchange. Live mode swaps only the *transport*. Setup + internals:
+types the **message itself straight into the peer's chat**, so the two agents
+talk in real time — the peer sees your message land and answers directly, no
+"go read the room" hop, no self-poll loop, no per-message relay. The `## Collab`
+room is still written as the durable record (and `[DONE]`/`[PAUSED]` still end
+an exchange) — but the peer doesn't have to *read* it to get your message; it's
+already in their chat. Live mode swaps only the *transport*. Setup + internals:
 `references/collab-live/README.md`.
 
 **Use live mode when ALL hold** (otherwise use the doc-mode flow below — it is
@@ -66,25 +67,37 @@ send** — tell the user: `This pane is <self> (its worktree) but I'm bound to
 truth; when in doubt, trust `self`.
 
 **What changes when live mode is on:**
-- **Sending** — instead of hand-editing the peer's `## Collab` and telling the
-  user to relay, call **`collab_send(to, message)`**. It appends the signed line
-  to the peer's room AND pokes the peer to read now. (Tool unavailable? Use the
-  CLI `node …/relay.mjs send <peer> "<msg>"`.)
+- **Sending** — call **`collab_send(to, message)`** with the **raw message
+  only** (no `rapid/x → rapid/y:` prefix — the relay signs the room copy and
+  tags the injected copy; if you prefix it yourself the line double-signs). The
+  relay types your message straight into the peer's pane AND records it in the
+  peer's room. (Tool unavailable? CLI: `node …/relay.mjs send <peer> "<msg>"`.)
+- **Receiving** — a turn that arrives as **`[collab from rapid/<peer>] <message>`**
+  is a live message from that peer agent. Just answer it: reply with
+  `collab_send(<peer>, <your reply>)`, which types your reply into *their* pane.
+  You do **not** need to read the `## Collab` room — the message is already in
+  front of you. (Read the room only to catch up after a gap, or if a tagged line
+  looks truncated/garbled.)
+  - **The `[collab from rapid/<peer>]` tag is how you tell a peer from the user.**
+    A turn **with** that tag is the peer agent → answer via `collab_send`. A turn
+    with **no** such tag is the **user** (the human) → respond to them normally in
+    this chat; do **not** `collab_send` it to a peer. The tag is the only
+    signal — when it's absent, it's the user.
 - **No "tell the user to relay" step** — delivery is automatic. (If `collab_send`
-  reports doc-only fallback — peer not registered / different host / poke failed —
-  THEN tell the user to relay once, exactly as doc-mode.)
-- **No autonomous poll loop** — do **not** `ScheduleWakeup`/`/loop`. You are
-  poked when a message arrives. Still check the room at natural pauses (cheap,
-  and covers a poke that landed while you were mid-turn).
-- **Stopping** — still post `[DONE]` / `[PAUSED]` to the room the same way; the
-  peer reads the tag and stops. No idle-budget countdown is needed (there's no
-  loop to wind down), but a `[PAUSED]` is still the right signal if you're
-  stepping away with work unfinished.
+  reports a doc-only fallback — peer not registered / different host / inject
+  failed — THEN tell the user to relay once, exactly as doc-mode.)
+- **No autonomous poll loop** — do **not** `ScheduleWakeup`/`/loop`. You get the
+  message directly. Still glance at the room at natural pauses (cheap; covers a
+  message that landed while you were mid-turn).
+- **Stopping** — still post `[DONE]` / `[PAUSED]` via `collab_send` the same way;
+  the peer reads the tag and stops. No idle-budget countdown is needed (there's
+  no loop to wind down), but `[PAUSED]` is still the right signal if you step
+  away with work unfinished.
 
-Because the room is the durable record and you read every unread line on each
-`collab`, a missed poke only *delays* a message — it is never lost. So live mode
-needs no fallback poll; the next poke (or your next natural-pause check) catches
-up.
+Because the relay also records every message in the room, a delivery that
+garbles or lands while the peer is mid-turn only *delays* the message — it is
+never lost: the full line is in the room, and the peer picks it up on its next
+natural-pause `collab` check. So live mode needs no fallback poll.
 
 ### Enabling live mode (don't silently degrade)
 
