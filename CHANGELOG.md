@@ -18,6 +18,12 @@
     checks in with the lead, who assigns it a non-overlapping lane and rewrites
     the roster. No re-explaining; the durable room is the source of truth.
   - `references/collab.md` (new "Roles & roster" section).
+- **One-command mid-session add.** `/rapid collab 1` now notices a running
+  `rapid-collab` tmux and **adds the new agent as a pane to it** (via
+  `collab-start --add`) + auto-nudges it to join the lead — no more
+  `tmux split-window` / `Ctrl-b %` by hand. New `--add` mode in
+  `collab-start` (splits the live session instead of erroring; caps total panes
+  at 4); the spin-up flow branches on whether a collab is already running.
 
 ## 1.13.0 — 2026-06-24
 

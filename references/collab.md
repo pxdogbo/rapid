@@ -132,23 +132,41 @@ start working (close this chat after; the work happens in the opened panes).
    chat to any of them.
 4. **Live-mode readiness.** If live mode isn't set up, append a one-liner to the
    printout: `(first run \`/rapid collab setup\` to enable real-time mode)`.
-5. **Print the open command** and tell the user to close this chat:
-   - **N = 1** — one session, meant to pair with one you already have running, so
-     also surface the live ones to pair with:
+5. **Already mid-collab? Add to it — don't make the user fiddle with tmux.**
+   Check `tmux has-session -t rapid-collab`:
+   - **Running → mid-session add** (the usual reason for `/rapid collab 1`: "I've
+     got a collab going and need one more"). Do NOT print a fresh-launch line.
+     Drop the new session(s) into the live collab as panes — run the helper with
+     `--add` (it splits the running `rapid-collab` tmux, opens a pane per new
+     session in its worktree, launches claude, re-tiles; refuses past 4 panes
+     total):
      ```
-     Created rapid/<slug>.
-     ▶ pair it with a session you've got going:  rapid-collab <slug> <other-slug>
-       (live now for this repo: <list live slugs>)
-     ▶ or open it solo:  cd ~/worktrees/<repo>/<slug> && claude
+     <skill-dir>/references/collab-live/collab-start --add <newslug> [<newslug2> …]
      ```
-   - **N ≥ 2** — a fresh set; print one launch line for all of them:
-     ```
-     Created rapid/<slugA> + rapid/<slugB>[ + …].
-     ▶ rapid-collab <slugA> <slugB>[ …]
-       (close this chat — the panes are where you'll work)
-     ```
-6. **Stop.** Don't open tmux yourself, don't bind, don't start work. The user
-   runs the printed command.
+     Then **auto-join** each newcomer so the user types nothing: poll
+     `~/.rapid/collab-panes.json` (a few times, ~30s) until the new slug appears
+     — that means its claude + relay booted — then read its pane id from there and
+     `tmux send-keys -t <pane> '/rapid collab <lead> joining — what should I take?' Enter`.
+     Find `<lead>` from the room's roster line (the collab opener). If it hasn't
+     registered in time, tell the user to type that line in the new pane. Report:
+     `Added rapid/<slug> to the live collab — joining <lead> now.`
+   - **Not running → fresh start.** Print the open command and tell the user to
+     close this chat:
+     - **N = 1** — one session, to pair with one you already have:
+       ```
+       Created rapid/<slug>.
+       ▶ pair it with a session you've got going:  rapid-collab <slug> <other-slug>
+         (live now for this repo: <list live slugs>)
+       ▶ or open it solo:  cd ~/worktrees/<repo>/<slug> && claude
+       ```
+     - **N ≥ 2** — a fresh set; one launch line:
+       ```
+       Created rapid/<slugA> + rapid/<slugB>[ + …].
+       ▶ rapid-collab <slugA> <slugB>[ …]
+         (close this chat — the panes are where you'll work)
+       ```
+6. **Stop** (fresh-start path) — don't open tmux yourself or bind; the user runs
+   the printed command. (The mid-session-add path already opened the pane above.)
 
 Once opened, each pane **auto-adopts its directory's session** (no `/rapid
 resume`), and `/rapid collab <peer> <message>` starts the real-time exchange.
@@ -234,8 +252,10 @@ the lead, nothing is lost behind a blocked chat, and workers pause cleanly.
 
 ### Bringing in a new agent mid-session
 
-When the user adds an agent to a collab already in flight (a fresh pane/session
-told to join):
+The user adds an agent mid-collab with **`/rapid collab 1`** — when a
+`rapid-collab` tmux is already running it drops the new session in as a pane and
+nudges it to join (see "Spin up a collab set" above), so no tmux fiddling. The
+newcomer then:
 1. **The newcomer reads the room first.** Before doing anything it reads the
    lead's `## Collab` — the **roster line** tells it who's lead and who's already
    here; the exchange tells it what's owned / in flight. That's how it learns
