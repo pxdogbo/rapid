@@ -17,26 +17,37 @@ set -euo pipefail
 
 SESS="rapid-collab"
 DRY=0
+ADD=0
 SLUGS=()
 for a in "$@"; do
   case "$a" in
     --dry-run) DRY=1 ;;
+    --add) ADD=1 ;;
     -h|--help)
-      echo "usage: collab-start [--dry-run] <slugA> <slugB> [slugC ...]"; exit 0 ;;
+      echo "usage: collab-start [--dry-run] <slugA> <slugB> [...]   start a new collab tmux"
+      echo "       collab-start --add [--dry-run] <slug> [...]      add agent(s) to the running one"
+      exit 0 ;;
     -*) echo "collab-start: unknown flag '$a'" >&2; exit 2 ;;
     *) SLUGS+=("$a") ;;
   esac
 done
 
-if [ "${#SLUGS[@]}" -lt 2 ]; then
-  echo "collab-start: need at least two session slugs." >&2
-  echo "usage: collab-start [--dry-run] <slugA> <slugB> [slugC ...]" >&2
+# Fresh start needs ≥2; --add needs ≥1 (adding a single agent is the point).
+MIN=2; [ "$ADD" = "1" ] && MIN=1
+if [ "${#SLUGS[@]}" -lt "$MIN" ]; then
+  echo "collab-start: need at least $MIN session slug(s)." >&2
+  echo "usage: collab-start [--dry-run] <a> <b> [...]   |   collab-start --add <slug> [...]" >&2
   exit 2
 fi
 
-if [ "${#SLUGS[@]}" -gt 4 ]; then
-  echo "collab-start: max 4 sessions per collab (a tiled tmux gets unreadable past" >&2
-  echo "  that, and 4 live agents is plenty). Open a subset, or run a second set." >&2
+# Cap total panes at 4. In --add mode, count the panes already in the session.
+EXIST=0
+if [ "$ADD" = "1" ] && tmux has-session -t "$SESS" 2>/dev/null; then
+  EXIST=$(tmux list-panes -t "$SESS" 2>/dev/null | wc -l | tr -d ' ')
+fi
+if [ "$(( EXIST + ${#SLUGS[@]} ))" -gt 4 ]; then
+  echo "collab-start: max 4 panes per collab (have $EXIST, adding ${#SLUGS[@]}). A tiled" >&2
+  echo "  tmux gets unreadable past that, and 4 live agents is plenty." >&2
   exit 2
 fi
 
@@ -68,6 +79,33 @@ for slug in "${SLUGS[@]}"; do
   WTS+=("$wt")
 done
 
+# ── --add mode: drop the slug(s) into the ALREADY-running collab as new panes ──
+if [ "$ADD" = "1" ]; then
+  if ! tmux has-session -t "$SESS" 2>/dev/null; then
+    echo "collab-start: no '$SESS' tmux session to add to. Start one first:" >&2
+    echo "  collab-start <slugA> <slugB>" >&2
+    exit 1
+  fi
+  if [ "$DRY" = "1" ]; then
+    echo "collab-start --add (dry run) — would add to tmux '$SESS' (has $EXIST pane(s)):"
+    for i in "${!SLUGS[@]}"; do echo "  + ${SLUGS[$i]}  →  cd ${WTS[$i]} && claude"; done
+    exit 0
+  fi
+  command -v tmux >/dev/null || { echo "collab-start: tmux not found." >&2; exit 1; }
+  NEW=()
+  for i in "${!SLUGS[@]}"; do
+    NEW+=("$(tmux split-window -t "$SESS" -c "${WTS[$i]}" -P -F '#{pane_id}')")
+  done
+  tmux select-layout -t "$SESS" tiled >/dev/null
+  for p in "${NEW[@]}"; do tmux send-keys -t "$p" 'claude' Enter; done
+  echo "Added ${#SLUGS[@]} pane(s) to tmux '$SESS':"
+  for i in "${!SLUGS[@]}"; do echo "  ${NEW[$i]}  ${SLUGS[$i]}  (${WTS[$i]})"; done
+  echo
+  echo "Each new pane auto-adopts its directory's session. Once its claude is up,"
+  echo "have it join:  /rapid collab <lead-slug> joining — what should I take?"
+  exit 0
+fi
+
 if [ "$DRY" = "1" ]; then
   echo "collab-start (dry run) — would open tmux session '$SESS':"
   for i in "${!SLUGS[@]}"; do
@@ -81,8 +119,8 @@ command -v tmux >/dev/null || { echo "collab-start: tmux not found (brew install
 
 if tmux has-session -t "$SESS" 2>/dev/null; then
   echo "collab-start: a tmux session named '$SESS' already exists." >&2
-  echo "  attach:  tmux attach -t $SESS" >&2
-  echo "  or kill: tmux kill-session -t $SESS" >&2
+  echo "  to ADD agents to it:  collab-start --add <slug> [...]" >&2
+  echo "  attach:  tmux attach -t $SESS   ·   or kill: tmux kill-session -t $SESS" >&2
   exit 1
 fi
 

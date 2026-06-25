@@ -1,5 +1,30 @@
 # Changelog
 
+## 1.14.0 — 2026-06-25
+
+- **Collab roles & roster — one agent fronts the user.** Multi-agent collab now
+  has a **lead** (whoever opens the collab): the single point of contact with
+  the user. Fixes a real race — a question could be lost behind a chat blocked
+  waiting on the user, or two agents could ask at once and split attention.
+  - **Workers route user-questions through the lead.** A worker that needs the
+    user's decision sends `[Q→user] …` to the lead, marks that item `[!]` blocked,
+    and keeps doing other independent work; the lead surfaces it to the user
+    (stacking multiples, numbered), gets the answer, and relays it back so the
+    worker unblocks. The user becomes one ordered queue.
+  - **The roster lives in the room.** The lead maintains a roster line at the top
+    of the `## Collab` room — `lead: … · members: … · owns: …` — the one mutable
+    line, the authoritative "who's lead / who's here / who owns what."
+  - **A new agent joining mid-session reads the room to learn who's who**, then
+    checks in with the lead, who assigns it a non-overlapping lane and rewrites
+    the roster. No re-explaining; the durable room is the source of truth.
+  - `references/collab.md` (new "Roles & roster" section).
+- **One-command mid-session add.** `/rapid collab 1` now notices a running
+  `rapid-collab` tmux and **adds the new agent as a pane to it** (via
+  `collab-start --add`) + auto-nudges it to join the lead — no more
+  `tmux split-window` / `Ctrl-b %` by hand. New `--add` mode in
+  `collab-start` (splits the live session instead of erroring; caps total panes
+  at 4); the spin-up flow branches on whether a collab is already running.
+
 ## 1.13.0 — 2026-06-24
 
 - **Live collab now delivers the message directly — no "collab" doorbell.**

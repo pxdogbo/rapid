@@ -132,23 +132,41 @@ start working (close this chat after; the work happens in the opened panes).
    chat to any of them.
 4. **Live-mode readiness.** If live mode isn't set up, append a one-liner to the
    printout: `(first run \`/rapid collab setup\` to enable real-time mode)`.
-5. **Print the open command** and tell the user to close this chat:
-   - **N = 1** — one session, meant to pair with one you already have running, so
-     also surface the live ones to pair with:
+5. **Already mid-collab? Add to it — don't make the user fiddle with tmux.**
+   Check `tmux has-session -t rapid-collab`:
+   - **Running → mid-session add** (the usual reason for `/rapid collab 1`: "I've
+     got a collab going and need one more"). Do NOT print a fresh-launch line.
+     Drop the new session(s) into the live collab as panes — run the helper with
+     `--add` (it splits the running `rapid-collab` tmux, opens a pane per new
+     session in its worktree, launches claude, re-tiles; refuses past 4 panes
+     total):
      ```
-     Created rapid/<slug>.
-     ▶ pair it with a session you've got going:  rapid-collab <slug> <other-slug>
-       (live now for this repo: <list live slugs>)
-     ▶ or open it solo:  cd ~/worktrees/<repo>/<slug> && claude
+     <skill-dir>/references/collab-live/collab-start --add <newslug> [<newslug2> …]
      ```
-   - **N ≥ 2** — a fresh set; print one launch line for all of them:
-     ```
-     Created rapid/<slugA> + rapid/<slugB>[ + …].
-     ▶ rapid-collab <slugA> <slugB>[ …]
-       (close this chat — the panes are where you'll work)
-     ```
-6. **Stop.** Don't open tmux yourself, don't bind, don't start work. The user
-   runs the printed command.
+     Then **auto-join** each newcomer so the user types nothing: poll
+     `~/.rapid/collab-panes.json` (a few times, ~30s) until the new slug appears
+     — that means its claude + relay booted — then read its pane id from there and
+     `tmux send-keys -t <pane> '/rapid collab <lead> joining — what should I take?' Enter`.
+     Find `<lead>` from the room's roster line (the collab opener). If it hasn't
+     registered in time, tell the user to type that line in the new pane. Report:
+     `Added rapid/<slug> to the live collab — joining <lead> now.`
+   - **Not running → fresh start.** Print the open command and tell the user to
+     close this chat:
+     - **N = 1** — one session, to pair with one you already have:
+       ```
+       Created rapid/<slug>.
+       ▶ pair it with a session you've got going:  rapid-collab <slug> <other-slug>
+         (live now for this repo: <list live slugs>)
+       ▶ or open it solo:  cd ~/worktrees/<repo>/<slug> && claude
+       ```
+     - **N ≥ 2** — a fresh set; one launch line:
+       ```
+       Created rapid/<slugA> + rapid/<slugB>[ + …].
+       ▶ rapid-collab <slugA> <slugB>[ …]
+         (close this chat — the panes are where you'll work)
+       ```
+6. **Stop** (fresh-start path) — don't open tmux yourself or bind; the user runs
+   the printed command. (The mid-session-add path already opened the pane above.)
 
 Once opened, each pane **auto-adopts its directory's session** (no `/rapid
 resume`), and `/rapid collab <peer> <message>` starts the real-time exchange.
@@ -185,6 +203,71 @@ When you `/rapid collab <peer>`:
 The peer owns that doc, so its `## Collab` **is** the room — it reads and replies
 in place. You (the visitor) post into the room and read it on `collab`. If the
 peer's doc has no `## Collab` yet (older doc), add the section when you first post.
+
+---
+
+## Roles & roster — one agent fronts the user; the room says who's who
+
+The **user is a shared, serial resource.** In a multi-agent collab only ONE chat
+should take questions to them — otherwise a question gets missed behind a chat
+that's blocked waiting on the user, two agents ask at once and split their
+attention, or an incoming peer message interrupts an agent mid-decision. So:
+
+**The opener is the lead.** Whoever opens the collab (the first `/rapid collab …`,
+or the first agent to start talking in a `/rapid collab <N>` set) is the **lead**
+— the single point of contact with the user. Everyone else is a **worker**. (If
+the user names a different lead, honor that.)
+
+**The roster lives in the room — that's how anyone, including a late joiner,
+learns who's who.** The lead maintains a roster line at the top of the room (it
+replaces the simple `**Room** · …` line once there are roles):
+```
+**Room** · lead: rapid/<lead> · members: rapid/<lead>, rapid/<w1>, rapid/<w2> · owns: <w1>=engine, <w2>=UI
+```
+This is the **one mutable line** in an otherwise append-only room — the
+authoritative "who's lead, who's here, who owns what." The lead rewrites it
+whenever membership or ownership changes (kickoff, a join, a reassignment).
+
+**At kickoff** the lead posts that roster line AND `collab_send`s each peer a
+roles note, so every agent records: *lead = rapid/<slug>* + its own lane.
+
+### Routing a question to the user
+
+**Worker** that hits something only the user can decide:
+1. **Don't ask the user yourself.** Send it to the lead:
+   `collab_send(<lead>, "[Q→user] <question + context> (blocks: <what it holds up>)")`.
+2. **Pause just that item** — mark the note `[!] blocked: awaiting user via <lead>`
+   — and keep doing any *other* independent work.
+3. Resume when the lead relays the answer back.
+
+**Lead:**
+- Your *own* user-questions → ask the user directly (you're the front).
+- A worker's `[Q→user]` → **surface it to the user prominently**, naming the
+  worker; if several stack up, list them numbered. When the user answers, relay
+  it: `collab_send(<worker>, "<answer>")` so they unblock. Don't sit on it — a
+  worker is paused waiting.
+
+The user becomes one ordered queue: every cross-agent question funnels through
+the lead, nothing is lost behind a blocked chat, and workers pause cleanly.
+
+### Bringing in a new agent mid-session
+
+The user adds an agent mid-collab with **`/rapid collab 1`** — when a
+`rapid-collab` tmux is already running it drops the new session in as a pane and
+nudges it to join (see "Spin up a collab set" above), so no tmux fiddling. The
+newcomer then:
+1. **The newcomer reads the room first.** Before doing anything it reads the
+   lead's `## Collab` — the **roster line** tells it who's lead and who's already
+   here; the exchange tells it what's owned / in flight. That's how it learns
+   "who's who" with nobody re-explaining. (No roster line? Older room → ask the
+   lead "who's lead / what's mine?"; never guess.)
+2. **It checks in with the lead** (not a worker):
+   `collab_send(<lead>, "rapid/<me> joining — what should I take?")`.
+3. **The lead onboards it:** assign a lane that doesn't overlap existing owners
+   (Step 5 overlap rules), **rewrite the roster line** to add the newcomer + its
+   ownership, and re-announce so everyone — including the newcomer — shares the
+   updated map.
+4. The newcomer routes its user-questions through the lead, same as any worker.
 
 ---
 
