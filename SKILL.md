@@ -1,6 +1,6 @@
 ---
 name: rapid
-version: 1.12.0
+version: 1.13.0
 user-invocable: true
 description: >
   Rapid session — capture realtime notes from the user while working with a
@@ -183,7 +183,7 @@ skipped and the session is doc-only.
 | `link` / `link <N>` (bare word, mid-session) | Print the URL(s) of recent PRs opened from **this chat's** session, newest first. See `references/notes.md`. |
 | `reverse <N>` / `undo <N>` (bare word, mid-session) | **Undo the work done on note N** — discard uncommitted changes, reset committed branches, or close pushed PRs (with confirmation). See `references/reverse.md`. |
 | `wax` (bare word, mid-session) | **Groom** this chat's session doc in place — condense finished notes, group related ones, refresh in-progress state, strip stale sub-bullets. Keeps the whole live queue; doc-only, no git. See `references/wax.md`. |
-| `collab` (bare word, mid-session) | **Check the collab room + drive the loop.** Re-read this chat's `## Collab` (and any room it joined), surface new peer messages since last check (loudly flag any awaiting reply), act on what the peer cleared, then (re-)arm the autonomous poll loop. No live channel: the user relays once per side to start each agent; after that the agents self-poll. On stop it posts an explicit status to the room so the peer knows which happened (and isn't left thinking the work just paused): `[DONE]` (work finished) or `[PAUSED]` (idle after 3 *consecutive* quiet checks ~5 min apart — any new peer note resets that count, NOT finished), echoed in your chat too. **Live mode** (config `collabLive` + tmux): a send pokes the peer in real time — no poll loop, no relay. See `references/collab.md`. |
+| `collab` (bare word, mid-session) | **Check the collab room + drive the loop.** Re-read this chat's `## Collab` (and any room it joined), surface new peer messages since last check (loudly flag any awaiting reply), act on what the peer cleared, then (re-)arm the autonomous poll loop. No live channel: the user relays once per side to start each agent; after that the agents self-poll. On stop it posts an explicit status to the room so the peer knows which happened (and isn't left thinking the work just paused): `[DONE]` (work finished) or `[PAUSED]` (idle after 3 *consecutive* quiet checks ~5 min apart — any new peer note resets that count, NOT finished), echoed in your chat too. **Live mode** (config `collabLive` + tmux): a send types your message straight into the peer's chat in real time — no poll loop, no relay, no "go read the room". See `references/collab.md`. |
 | `inbox` (or "check inbox" / "check your inbox" / "read your inbox", mid-session) | **Read this chat's `## Inbox`** — async notes other chats left for this session. Show unread (`[ ]`) notes, mark them read (`[x]`), and offer to pull actionable ones into `## Notes`. The user triggers this manually when they're ready; nothing surfaces a note on its own. No loop, no poke. See `references/inbox.md`. |
 | `wash` / `clean` (bare word, mid-session) | **Empty** this chat's session file in place so it can be reused — keeps slug, worktree, branch, and `## Pushes` history. Confirms first if anything risky is in flight. See `references/cleanup.md`. |
 | `scrap` (bare word, mid-session) | **Delete this chat's session entirely** — doc, worktree, and local branch. Confirms first if anything risky is in flight. See `references/cleanup.md`. |
@@ -193,7 +193,7 @@ skipped and the session is doc-only.
 | `/rapid resume <slug>` / `/rapid start <slug>` | Re-activate an archived session in this chat, OR **adopt a seeded hand-off session** (`**Handoff:** pending`): read its plan, flip the header to `adopted`, and cut its worktree + `rapid/<slug>` branch off `origin/main` (it has none yet). `start` and `resume` are aliases. `/rapid start` alone (no slug) behaves like bare `/rapid` — it opens the menu (Step 2·menu). |
 | `/rapid update` | Pull the latest version of this skill and show the changelog delta. Works any time, no session needed. See `references/setup.md`. |
 | `/rapid handoff [this session \| <note N> \| <description>]` | **Hand work to a fresh chat.** Seed a NEW session doc (own slug, header `**Handoff:** pending`, no worktree yet) holding the full instructions to build — the whole current session, one note, or a described task — then **ALWAYS end your reply with the copy-paste line `/rapid start <slug>`**. A fresh chat runs that to adopt it: it cuts its own worktree + `rapid/<slug>` branch off `origin/main` and works in its OWN doc (never this one). NOT a loose `~/.rapid/*.md` file. See `references/handoff.md`. |
-| `/rapid collab <slug> [message]` | **Open / continue a chatroom with the agent on session `<slug>`.** Re-read both docs' `## Collab`, post your message into the shared room (the peer's `## Collab`, or the existing room if one is already open with them), tell the user to relay once to that chat, and arm the autonomous poll loop so you pick up the reply on your own. A lightweight cross-agent chatroom that then self-drives. With **live mode** on (config `collabLive` + tmux) it's real-time instead — `collab_send` pokes the peer, no relay or poll. See `references/collab.md`. |
+| `/rapid collab <slug> [message]` | **Open / continue a chatroom with the agent on session `<slug>`.** Re-read both docs' `## Collab`, post your message into the shared room (the peer's `## Collab`, or the existing room if one is already open with them), tell the user to relay once to that chat, and arm the autonomous poll loop so you pick up the reply on your own. A lightweight cross-agent chatroom that then self-drives. With **live mode** on (config `collabLive` + tmux) it's real-time instead — `collab_send` types your message straight into the peer's chat (it answers directly), no relay or poll. See `references/collab.md`. |
 | `/rapid collab <N>` (N = 1–4) | **Spin up N collab-ready sessions** in the current repo and print the one command to open them (`rapid-collab <slugs>` for 2+, a `cd … && claude` + pair hint for 1). A *number* means "make this many" — not a message. Scaffolder: it does NOT bind this chat or start work; you close it and run the printed command. >4 is rejected. See `references/collab.md` → "Spin up a collab set". |
 | `/rapid collab setup` | **Enable live mode** (one time): register the `rapid-collab` relay MCP, set `collabLive: true`, verify tmux. The skill also offers this automatically the first time collab is used without it configured. See `references/setup.md` → "Enabling live collab". |
 | `/rapid inbox <slug> [message]` | **Leave an async note in session `<slug>`'s `## Inbox`.** Append the signed note to that doc and stop — no loop, no poke, no relay-to-start, no auto-surfacing. The user picks it up later by going to that chat and telling it to check (`inbox`). The recipient's `## Inbox` is a sanctioned cross-doc write; never touch its `## Notes`. See `references/inbox.md`. |
@@ -336,10 +336,15 @@ missing and it wasn't already handled above) runs first; everything else is the
 reuse-or-create below.
 
 > Cleanup of finished sessions does **not** run on this path. It only runs when
-> the user picks Cleanup from the menu or types `tidy` / `burn`. The
-> once-daily version check likewise no longer rides session start — it runs on
-> Cleanup and `/rapid update`. Starting a session never goes to the network for
-> housekeeping.
+> the user picks Cleanup from the menu or types `tidy` / `burn`.
+>
+> The **once-daily version check** DOES run here, though — right *after* the
+> acknowledgement, non-blocking and fail-silent (never before; the bare menu
+> stays network-free). If an update is due and available, append the one-line
+> `rapid v<latest> available … — /rapid update` ping to/after the ack. Throttled
+> to once a day via `lastUpdateCheck`, so only the first session of the day
+> checks. This is the only network a session start touches — and only to tell
+> you about updates, never for cleanup. See `references/setup.md`.
 
 **Step 2a — Try to reuse an empty session first.** Scan
 `~/.rapid/sessions/` (NOT the archive) for any `.md` file
@@ -507,9 +512,9 @@ not in a repo, skip entirely):
    abort the rest.
 5. **Version check.** A reap is a natural housekeeping moment, so run the
    once-daily version check here too (see `references/setup.md`) and append the
-   one-line "new version available" ping if one is due. This is the only
-   automatic place it runs besides explicit `/rapid update` — session start
-   never checks.
+   one-line "new version available" ping if one is due. It also runs post-ack at
+   session start and on `/rapid update`; the `lastUpdateCheck` throttle means
+   only the first of those each day actually checks.
 
 The user never has to remember `done`: a repo gets garbage-collected whenever
 they pick Cleanup or type `tidy`, keeping only live/unshipped sessions plus a

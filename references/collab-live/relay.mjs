@@ -12,17 +12,22 @@
 //   • CLI (`send` / `register` / `status`): the same actions for users who'd
 //     rather shell out from the Bash tool than wire up MCP.
 //
-// Delivery = append + poke:
+// Delivery = append + direct inject:
 //   1. append the signed line to the PEER's `## Collab` (durable; the room is
-//      still the source of truth, exactly as doc-mode collab),
-//   2. `tmux send-keys "collab"` into the peer's pane so it re-reads the room
-//      and acts immediately. (There is no `claude inject` yet, so tmux is the
-//      injector — hence live mode is Unix + tmux only.)
+//      still the record + recovery log, exactly as doc-mode collab),
+//   2. `tmux send-keys` the MESSAGE ITSELF into the peer's pane — tagged
+//      `[collab from rapid/<sender>]` for reply routing — so the peer sees your
+//      message land in its chat and answers directly, with no "go read the
+//      room" hop. (There is no `claude inject` yet, so tmux is the injector —
+//      hence live mode is Unix + tmux only. Newlines are flattened to ⏎ for the
+//      injected copy since send-keys submits on each newline; the room copy
+//      keeps the full text.)
 //
-// Nothing here loops or polls. The agents only act when poked; the relay only
-// runs when an agent sends. A missed poke (peer mid-turn) merely DELAYS a
-// message — never loses it — because the line is already durably in the room
-// and the peer reads every unread line on its next `collab`.
+// Nothing here loops or polls. The agents only act when a message lands; the
+// relay only runs when an agent sends. A garbled/missed inject (peer mid-turn)
+// merely DELAYS a message — never loses it — because the full line is already
+// durably in the room, and the peer reads every unread line on its next
+// `collab`.
 //
 // Identity is derived, never hardcoded: a session's slug comes from matching
 // the process cwd against the `**Worktree:**` header in ~/.rapid/sessions/*.md,
@@ -226,16 +231,30 @@ function doSend(to, message) {
       msg: `Posted to rapid/${to}'s room, but its pane is on a different host (${peer.host}); can't poke across machines — ask the user to relay once.`,
     };
   }
+  // Live delivery: type the MESSAGE ITSELF into the peer's pane (not the word
+  // "collab"), so the two agents converse directly — the peer sees your message
+  // land in its chat and answers, with no "go read the room" hop. The minimal
+  // `[collab from rapid/<from>]` tag is routing only: it tells the receiver who
+  // to reply to (via collab_send back to <from>), not an attribution. Newlines
+  // are flattened to ⏎ because send-keys submits on each newline; the full,
+  // unflattened text is already durably in the room (appended above) for the
+  // record and for recovery if this injection garbles.
+  const oneLine = String(message).replace(/\s*\r?\n\s*/g, ' ⏎ ').trim();
+  const payload = `[collab from rapid/${from}] ${oneLine}`;
   try {
-    tmuxPoke(peer.pane);
+    tmuxPoke(peer.pane, payload);
   } catch (e) {
     return {
       ok: true,
       delivered: 'doc-only',
-      msg: `Posted to rapid/${to}'s room, but poking pane ${peer.pane} failed (${e.message}). The peer will see it on its next \`collab\`.`,
+      msg: `Posted to rapid/${to}'s room, but typing into pane ${peer.pane} failed (${e.message}). The peer will see it on its next \`collab\`.`,
     };
   }
-  return { ok: true, delivered: 'live', msg: `Delivered to rapid/${to} (poked pane ${peer.pane}).` };
+  return {
+    ok: true,
+    delivered: 'live',
+    msg: `Delivered live — your message is now in rapid/${to}'s chat (pane ${peer.pane}); it will answer directly.`,
+  };
 }
 
 function doStatus() {
@@ -280,12 +299,12 @@ const TOOLS = [
   {
     name: 'collab_send',
     description:
-      "Send a message to a peer rapid session's collab room and poke it to read immediately (real-time). Appends a signed line to the peer's `## Collab` and injects `collab` into its tmux pane. Falls back to doc-only delivery (asks the user to relay) if the peer isn't registered for live mode.",
+      "Send a message to a peer rapid session in real time: types your message directly into the peer's tmux pane (tagged `[collab from rapid/<you>]` for reply routing) so it sees and answers immediately — no 'go read the room' step — and also appends a signed line to the peer's `## Collab` as the durable record. Pass the RAW message only; the relay does the signing/tagging (do NOT prefix it yourself). Falls back to doc-only delivery (asks the user to relay) if the peer isn't registered for live mode.",
     inputSchema: {
       type: 'object',
       properties: {
         to: { type: 'string', description: 'Peer session slug (e.g. "sonic-jet").' },
-        message: { type: 'string', description: 'The message to post into the room.' },
+        message: { type: 'string', description: 'The raw message text — no `rapid/x → rapid/y:` prefix; the relay adds signing/tagging.' },
       },
       required: ['to', 'message'],
     },
