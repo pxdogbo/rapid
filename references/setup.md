@@ -200,10 +200,29 @@ Steps:
    registered, skip this — don't double-add.
 3. **Flip the flag:** set `collabLive: true` in `~/.rapid/config.json` (add the
    key if it's absent).
-4. **Confirm in one line:** `Live collab enabled — relay registered + collabLive
-   on. Restart your chats to load the new tools, then \`/rapid collab <N>\` to
-   spin up a set.` (A running chat must restart to pick up the new MCP server.)
+4. **Offer the `rapid-collab` shortcut.** The launcher (`/rapid collab <N>`
+   prints it) lives at a long path — `…/references/collab-live/collab-start` — so
+   offer a shell alias. **Ask first** (it edits the user's shell profile):
+   `Add a \`rapid-collab\` shortcut so you can type \`rapid-collab <a> <b>\`
+   instead of the full path?` On yes:
+   - **Pick the rc file from `$SHELL`:** zsh → `~/.zshrc`; bash → `~/.bashrc`
+     (or `~/.bash_profile` if that's what's sourced); fish →
+     `~/.config/fish/config.fish`. If unsure which, ask.
+   - **Idempotent:** grep the rc for an existing `rapid-collab` alias first; if
+     it's already there, say so and skip.
+   - **Append** the alias with the REAL collab-start path (the skill dir this
+     SKILL.md lives in, not a hardcoded default):
+     - zsh/bash: `alias rapid-collab=<skill-dir>/references/collab-live/collab-start`
+     - fish: `alias rapid-collab '<skill-dir>/references/collab-live/collab-start'`
+   - Tell them to `source <rc>` (or open a new terminal) to use it now.
+   Declined → skip silently; the full path always works. (The same offer fires
+   on the first `/rapid collab <N>` if the alias isn't set and live mode is on.)
+5. **Confirm in one line:** `Live collab enabled — relay registered + collabLive
+   on[ + rapid-collab alias added]. Restart your chats to load the new tools,
+   then \`/rapid collab <N>\` to spin up a set.` (A running chat must restart to
+   pick up the new MCP server.)
 
 That's the whole setup. Afterwards `/rapid collab <N>` and `/rapid collab <slug>`
 take the real-time path; nothing changes for doc-mode users. Re-running
-`/rapid collab setup` is safe — it just verifies each piece is in place.
+`/rapid collab setup` is safe — it just verifies each piece (relay, flag, alias)
+is in place.
