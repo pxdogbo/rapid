@@ -188,6 +188,69 @@ peer's doc has no `## Collab` yet (older doc), add the section when you first po
 
 ---
 
+## Roles & roster — one agent fronts the user; the room says who's who
+
+The **user is a shared, serial resource.** In a multi-agent collab only ONE chat
+should take questions to them — otherwise a question gets missed behind a chat
+that's blocked waiting on the user, two agents ask at once and split their
+attention, or an incoming peer message interrupts an agent mid-decision. So:
+
+**The opener is the lead.** Whoever opens the collab (the first `/rapid collab …`,
+or the first agent to start talking in a `/rapid collab <N>` set) is the **lead**
+— the single point of contact with the user. Everyone else is a **worker**. (If
+the user names a different lead, honor that.)
+
+**The roster lives in the room — that's how anyone, including a late joiner,
+learns who's who.** The lead maintains a roster line at the top of the room (it
+replaces the simple `**Room** · …` line once there are roles):
+```
+**Room** · lead: rapid/<lead> · members: rapid/<lead>, rapid/<w1>, rapid/<w2> · owns: <w1>=engine, <w2>=UI
+```
+This is the **one mutable line** in an otherwise append-only room — the
+authoritative "who's lead, who's here, who owns what." The lead rewrites it
+whenever membership or ownership changes (kickoff, a join, a reassignment).
+
+**At kickoff** the lead posts that roster line AND `collab_send`s each peer a
+roles note, so every agent records: *lead = rapid/<slug>* + its own lane.
+
+### Routing a question to the user
+
+**Worker** that hits something only the user can decide:
+1. **Don't ask the user yourself.** Send it to the lead:
+   `collab_send(<lead>, "[Q→user] <question + context> (blocks: <what it holds up>)")`.
+2. **Pause just that item** — mark the note `[!] blocked: awaiting user via <lead>`
+   — and keep doing any *other* independent work.
+3. Resume when the lead relays the answer back.
+
+**Lead:**
+- Your *own* user-questions → ask the user directly (you're the front).
+- A worker's `[Q→user]` → **surface it to the user prominently**, naming the
+  worker; if several stack up, list them numbered. When the user answers, relay
+  it: `collab_send(<worker>, "<answer>")` so they unblock. Don't sit on it — a
+  worker is paused waiting.
+
+The user becomes one ordered queue: every cross-agent question funnels through
+the lead, nothing is lost behind a blocked chat, and workers pause cleanly.
+
+### Bringing in a new agent mid-session
+
+When the user adds an agent to a collab already in flight (a fresh pane/session
+told to join):
+1. **The newcomer reads the room first.** Before doing anything it reads the
+   lead's `## Collab` — the **roster line** tells it who's lead and who's already
+   here; the exchange tells it what's owned / in flight. That's how it learns
+   "who's who" with nobody re-explaining. (No roster line? Older room → ask the
+   lead "who's lead / what's mine?"; never guess.)
+2. **It checks in with the lead** (not a worker):
+   `collab_send(<lead>, "rapid/<me> joining — what should I take?")`.
+3. **The lead onboards it:** assign a lane that doesn't overlap existing owners
+   (Step 5 overlap rules), **rewrite the roster line** to add the newcomer + its
+   ownership, and re-announce so everyone — including the newcomer — shares the
+   updated map.
+4. The newcomer routes its user-questions through the lead, same as any worker.
+
+---
+
 ## `/rapid collab <slug> [message]`
 
 1. Read `~/.rapid/sessions/<slug>.md`. Missing → reply `No session <slug> found.`
