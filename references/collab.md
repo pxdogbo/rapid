@@ -95,9 +95,12 @@ truth; when in doubt, trust `self`.
 - **No "tell the user to relay" step** — delivery is automatic. (If `collab_send`
   reports a doc-only fallback — peer not registered / different host / inject
   failed — THEN tell the user to relay once, exactly as doc-mode.)
-- **No autonomous poll loop** — do **not** `ScheduleWakeup`/`/loop`. You get the
-  message directly. Still glance at the room at natural pauses (cheap; covers a
-  message that landed while you were mid-turn).
+- **No autonomous poll loop for receiving** — delivery is push, so do **not**
+  `ScheduleWakeup`/`/loop` just to check for messages. Still glance at the room
+  at natural pauses (cheap; covers a message that landed while you were
+  mid-turn). **One sanctioned self-wake: the waiting watchdog** — when you are
+  BLOCKED on something you asked a peer for, arm the nudge cycle in "Waiting on
+  a peer" below so a silently-finished (or stuck) peer can't strand you.
 - **Stopping** — still post `[DONE]` / `[PAUSED]` via `collab_send` the same way;
   the peer reads the tag and stops. No idle-budget countdown is needed (there's
   no loop to wind down), but `[PAUSED]` is still the right signal if you step
@@ -308,6 +311,46 @@ newcomer then:
    ownership, and re-announce so everyone — including the newcomer — shares the
    updated map.
 4. The newcomer routes its user-questions through the lead, same as any worker.
+
+---
+
+## Waiting on a peer — close the loop (both modes)
+
+**Agents cannot see each other working.** There is no shared screen, no
+process list, no progress signal — the ONLY thing that crosses between two
+chats is a message (a live inject or a room line). A peer that finished
+silently looks *identical* to a peer that is stuck, so a requester left
+waiting has no way to tell "done, forgot to say" from "still going" from
+"dead". Completing a request and moving on without messaging is the #1 way a
+collab stalls. Two duties close the loop:
+
+**If a peer's message asks you for something — or says they're blocked on
+you — you owe them TWO messages:**
+1. **Ack now**, before starting: one line saying what you'll do and roughly
+   when ("taking it — after my current note", "starting now, ~10 min").
+2. **Report the moment it lands**: message the requester the RESULT — what
+   changed and where (branch, PR, file), not a bare "done". If you stall,
+   park it, or hit a blocker instead, say that. Never let the requester
+   discover completion by accident; assume they are sitting blocked on you.
+   A worker finishing its assigned lane reports to the lead the same way —
+   the lead is by definition waiting on every lane.
+
+**If you're the one waiting, don't wait silently either:**
+- Ask explicitly: name the deliverable and say you're blocked on it
+  ("blocked on you for X — message me when it's in").
+- Mark the item `[!] blocked: waiting on rapid/<peer> for <thing>` and pick
+  up any independent work meanwhile.
+- **Arm the waiting watchdog** (the one sanctioned live-mode self-wake):
+  `ScheduleWakeup(delaySeconds: 270, prompt: "collab")`. On each wake with
+  still no word, nudge once — `collab_send(<peer>, "status on <thing>? still
+  blocked on it")`. Any peer message resets the count, exactly like the
+  doc-mode idle budget. After **3 consecutive quiet nudge-cycles** (~15 min),
+  stop nudging: surface it to the user (the lead directly; a worker as
+  `[Q→user]` via the lead) and leave the item `[!]`.
+- The watchdog also rescues a lost ask: if your original message garbled or
+  the peer never really registered it, the nudge itself lands in their chat
+  and wakes them. (In doc mode the normal poll loop already plays this role —
+  add the nudge line on its checks when you're blocked.)
 
 ---
 

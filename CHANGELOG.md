@@ -1,5 +1,25 @@
 # Changelog
 
+## 1.16.0 — 2026-07-04
+
+- **Close the loop — no more silent finishes while a peer waits.** Agents
+  cannot see each other working; the only cross-chat signal is a message. A
+  peer that completed a request and moved on without saying so looked
+  identical to a stuck one, so leads sat blocked indefinitely. New
+  `collab.md` section "Waiting on a peer" (both modes):
+  - **A request obligates two messages**: an ack before starting (what +
+    roughly when), and a result report the moment it lands (what changed +
+    where — branch/PR/file, not a bare "done"). Stalls and parks get reported
+    too. Workers report lane completion to the lead unprompted — the lead is
+    by definition waiting on every lane.
+  - **The waiting side arms a watchdog** — the one sanctioned live-mode
+    self-wake (`ScheduleWakeup` ~270s): each quiet wake sends one status
+    nudge to the peer; any peer message resets the count; 3 consecutive quiet
+    nudge-cycles (~15 min) → escalate to the user and leave the item `[!]`.
+    The nudge doubles as recovery for a lost/garbled original ask.
+  - Live mode's "no poll loop" rule is now scoped to *receiving* — the
+    blocked-waiting watchdog is the explicit exception.
+
 ## 1.15.0 — 2026-07-04
 
 - **`rapid-collab open` / `rapid-collab kill` — collab tmux lifecycle.** Closing
