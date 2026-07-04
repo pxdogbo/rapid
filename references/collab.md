@@ -173,6 +173,29 @@ resume`), and `/rapid collab <peer> <message>` starts the real-time exchange.
 
 ---
 
+## Reopen / shut down the collab tmux — `rapid-collab open` / `rapid-collab kill`
+
+**Closing the terminal window only DETACHES tmux** — the panes and their agents
+keep running invisibly in the background (and a later `/rapid collab <N>` piles
+new panes onto the ghosts). The lifecycle verbs, both subcommands of
+`collab-start` / the `rapid-collab` alias:
+
+- **`rapid-collab open`** — reattach to the running collab (from inside tmux it
+  switches clients instead). Nothing running → says so and points at the start
+  command.
+- **`rapid-collab kill`** — shut the whole thing down: kills the tmux session
+  and every agent pane in it, and prunes those panes from the relay registry
+  (`~/.rapid/collab-panes.json`) so a stale entry can't misroute a future live
+  send. Session docs, worktrees, and branches are untouched — it ends the
+  *processes*, not the work.
+
+**When the user says they're done with the collab** ("close the agents", "kill
+the panes", "shut it down"), run `rapid-collab kill` for them — don't hand back
+raw tmux commands. Same for reopening: `rapid-collab open`, not
+`tmux attach -t rapid-collab`.
+
+---
+
 ## The `## Collab` section
 
 Every session doc carries a `## Collab` section (blank until a collab opens). It
