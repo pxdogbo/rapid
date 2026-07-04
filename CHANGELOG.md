@@ -19,6 +19,17 @@
   - Docs: lifecycle section in `collab.md`; "Manage the running collab" in
     `collab-live/README.md` (which also now documents `--add`); `collab-start`
     header + `-h` usage.
+- **Live mode means CHAT — the doc room is the non-live fallback, stated
+  explicitly.** Agents in live mode were still corresponding through the doc:
+  hand-appending `## Collab` lines as their way of "sending", or messaging
+  "check the room" instead of the content. The rules now say it outright: in
+  live mode the conversation happens in the chats via `collab_send` (which
+  auto-writes the room line as a transcript); never hand-append chat lines,
+  never reply by editing a doc, never send a bare "go read the room". Every
+  doc-room section in `collab.md` (manual append, relay-once, autonomous poll
+  loop, the `/rapid collab <slug>` numbered flow) is now explicitly labeled
+  doc-mode-only, with the live-mode shortcut up top. Roster line + loop-state
+  comment stay hand-maintained in both modes.
 
 ## 1.14.0 — 2026-06-25
 
