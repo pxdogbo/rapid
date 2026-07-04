@@ -1,5 +1,36 @@
 # Changelog
 
+## 1.15.0 — 2026-07-04
+
+- **`rapid-collab open` / `rapid-collab kill` — collab tmux lifecycle.** Closing
+  the terminal window only *detaches* tmux: the panes and their agents keep
+  running invisibly, and a later `/rapid collab <N>` piles new panes onto the
+  ghosts. Two new `collab-start` subcommands close the loop:
+  - **`open`** — reattach to the running collab (switches clients when already
+    inside tmux); says so if nothing is running.
+  - **`kill`** — shut it down: kills the tmux session and every agent pane in
+    it, and prunes those panes from the relay registry
+    (`~/.rapid/collab-panes.json`) so a stale entry can't misroute a later live
+    send. Session docs, worktrees, and branches are untouched — it ends the
+    processes, not the work.
+  - The skill now runs `rapid-collab kill` / `rapid-collab open` itself when the
+    user says they're done with the collab or wants it back on screen — no more
+    handing back raw tmux commands.
+  - Docs: lifecycle section in `collab.md`; "Manage the running collab" in
+    `collab-live/README.md` (which also now documents `--add`); `collab-start`
+    header + `-h` usage.
+- **Live mode means CHAT — the doc room is the non-live fallback, stated
+  explicitly.** Agents in live mode were still corresponding through the doc:
+  hand-appending `## Collab` lines as their way of "sending", or messaging
+  "check the room" instead of the content. The rules now say it outright: in
+  live mode the conversation happens in the chats via `collab_send` (which
+  auto-writes the room line as a transcript); never hand-append chat lines,
+  never reply by editing a doc, never send a bare "go read the room". Every
+  doc-room section in `collab.md` (manual append, relay-once, autonomous poll
+  loop, the `/rapid collab <slug>` numbered flow) is now explicitly labeled
+  doc-mode-only, with the live-mode shortcut up top. Roster line + loop-state
+  comment stay hand-maintained in both modes.
+
 ## 1.14.0 — 2026-06-25
 
 - **Collab roles & roster — one agent fronts the user.** Multi-agent collab now

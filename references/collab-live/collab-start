@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 # rapid · collab-start — open a tmux collab session in one command.
 #
-#   collab-start [--dry-run] <slugA> <slugB> [slugC ...]
+#   collab-start [--dry-run] <slugA> <slugB> [slugC ...]   start a new collab
+#   collab-start --add <slug> [...]                        add agent(s) to it
+#   collab-start open                                      reattach to it
+#   collab-start kill                                      shut it down
 #
 # For each rapid session slug, resolves its worktree (from the `**Worktree:**`
 # header in its session doc), then opens a tmux session "rapid-collab" with one
@@ -16,6 +19,50 @@
 set -euo pipefail
 
 SESS="rapid-collab"
+
+# ── open / kill: manage the running collab (closing the terminal window only
+# DETACHES tmux — the panes and their agents keep running until `kill`) ──────
+case "${1:-}" in
+  open)
+    command -v tmux >/dev/null || { echo "collab-start: tmux not found." >&2; exit 1; }
+    if ! tmux has-session -t "$SESS" 2>/dev/null; then
+      echo "collab-start: no '$SESS' tmux session running. Start one:" >&2
+      echo "  collab-start <slugA> <slugB>   (or /rapid collab <N> in a chat)" >&2
+      exit 1
+    fi
+    if [ -n "${TMUX:-}" ]; then exec tmux switch-client -t "$SESS"; else exec tmux attach -t "$SESS"; fi
+    ;;
+  kill)
+    command -v tmux >/dev/null || { echo "collab-start: tmux not found." >&2; exit 1; }
+    if ! tmux has-session -t "$SESS" 2>/dev/null; then
+      echo "collab-start: no '$SESS' tmux session running — nothing to kill."
+      exit 0
+    fi
+    KILLED_PANES="$(tmux list-panes -s -t "$SESS" -F '#{pane_id}' | tr '\n' ' ')"
+    N="$(echo "$KILLED_PANES" | wc -w | tr -d ' ')"
+    # Name the slugs going down (registry pane → slug), then prune them from
+    # the relay registry so a stale entry can't misroute a future live send.
+    KILLED_SLUGS="$(node -e '
+const fs=require("fs"),os=require("os");
+const killed=new Set((process.argv[1]||"").split(/\s+/).filter(Boolean));
+try{const d=JSON.parse(fs.readFileSync(os.homedir()+"/.rapid/collab-panes.json","utf8"));
+  process.stdout.write(Object.keys(d).filter(k=>killed.has(d[k].pane)).join(", "));}catch{}' "$KILLED_PANES")"
+    tmux kill-session -t "$SESS"
+    node -e '
+const fs=require("fs"),os=require("os");
+const f=os.homedir()+"/.rapid/collab-panes.json";
+const killed=new Set((process.argv[1]||"").split(/\s+/).filter(Boolean));
+try{const d=JSON.parse(fs.readFileSync(f,"utf8"));
+  let changed=false;
+  for(const k of Object.keys(d)) if(killed.has(d[k].pane)){delete d[k];changed=true;}
+  if(changed) fs.writeFileSync(f,JSON.stringify(d,null,2)+"\n");}catch{}' "$KILLED_PANES"
+    echo "Killed tmux '$SESS' — $N agent pane(s) closed${KILLED_SLUGS:+ ($KILLED_SLUGS)}."
+    echo "Session docs, worktrees, and branches are untouched — this ends the"
+    echo "processes, not the work. Reopen anytime:  collab-start <slugA> <slugB>"
+    exit 0
+    ;;
+esac
+
 DRY=0
 ADD=0
 SLUGS=()
@@ -26,6 +73,8 @@ for a in "$@"; do
     -h|--help)
       echo "usage: collab-start [--dry-run] <slugA> <slugB> [...]   start a new collab tmux"
       echo "       collab-start --add [--dry-run] <slug> [...]      add agent(s) to the running one"
+      echo "       collab-start open                                reattach to the running collab"
+      echo "       collab-start kill                                shut it down (panes + agents; docs/worktrees kept)"
       exit 0 ;;
     -*) echo "collab-start: unknown flag '$a'" >&2; exit 2 ;;
     *) SLUGS+=("$a") ;;
@@ -120,7 +169,7 @@ command -v tmux >/dev/null || { echo "collab-start: tmux not found (brew install
 if tmux has-session -t "$SESS" 2>/dev/null; then
   echo "collab-start: a tmux session named '$SESS' already exists." >&2
   echo "  to ADD agents to it:  collab-start --add <slug> [...]" >&2
-  echo "  attach:  tmux attach -t $SESS   ·   or kill: tmux kill-session -t $SESS" >&2
+  echo "  reattach:  collab-start open   ·   or shut it down:  collab-start kill" >&2
   exit 1
 fi
 

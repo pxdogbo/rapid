@@ -67,6 +67,15 @@ send** — tell the user: `This pane is <self> (its worktree) but I'm bound to
 truth; when in doubt, trust `self`.
 
 **What changes when live mode is on:**
+- **🔴 CHAT with the peer — the conversation happens in the chats, not the
+  doc.** Talk to the other agent the way you'd answer a user: send the message,
+  get the reply, keep the exchange going. Never hand-write lines into a
+  `## Collab` section as your way of "sending" (the relay writes the room copy
+  of every `collab_send` for you), never reply by editing a doc, and never send
+  a message that just says "check the room" / "I posted in the doc" — put the
+  actual content in the message. The `## Collab` room mechanics below (manual
+  append, relay-once, poll loop) are the **doc-mode fallback for non-live
+  sessions**; in live mode the room is only the auto-maintained transcript.
 - **Sending** — call **`collab_send(to, message)`** with the **raw message
   only** (no `rapid/x → rapid/y:` prefix — the relay signs the room copy and
   tags the injected copy; if you prefix it yourself the line double-signs). The
@@ -173,10 +182,41 @@ resume`), and `/rapid collab <peer> <message>` starts the real-time exchange.
 
 ---
 
+## Reopen / shut down the collab tmux — `rapid-collab open` / `rapid-collab kill`
+
+**Closing the terminal window only DETACHES tmux** — the panes and their agents
+keep running invisibly in the background (and a later `/rapid collab <N>` piles
+new panes onto the ghosts). The lifecycle verbs, both subcommands of
+`collab-start` / the `rapid-collab` alias:
+
+- **`rapid-collab open`** — reattach to the running collab (from inside tmux it
+  switches clients instead). Nothing running → says so and points at the start
+  command.
+- **`rapid-collab kill`** — shut the whole thing down: kills the tmux session
+  and every agent pane in it, and prunes those panes from the relay registry
+  (`~/.rapid/collab-panes.json`) so a stale entry can't misroute a future live
+  send. Session docs, worktrees, and branches are untouched — it ends the
+  *processes*, not the work.
+
+**When the user says they're done with the collab** ("close the agents", "kill
+the panes", "shut it down"), run `rapid-collab kill` for them — don't hand back
+raw tmux commands. Same for reopening: `rapid-collab open`, not
+`tmux attach -t rapid-collab`.
+
+---
+
 ## The `## Collab` section
 
 Every session doc carries a `## Collab` section (blank until a collab opens). It
 is an **append-only** chatroom — newest line last, never rewrite history:
+
+> **Live mode: this section is the transcript, not the medium.** The relay
+> writes a room line for every `collab_send` automatically; you never append
+> chat lines by hand, and you read the room only to catch up after a gap. The
+> manual mechanics in this and the following sections (hand-appending lines,
+> relay-once, the poll loop) apply to **doc-mode (non-live) sessions** — plus
+> the roster line and `<!-- collab-loop -->` state comment, which stay
+> hand-maintained in both modes.
 
 ```markdown
 ## Collab
@@ -273,6 +313,11 @@ newcomer then:
 
 ## `/rapid collab <slug> [message]`
 
+> **Live mode? Skip this flow — just chat.** `collab_send(<slug>, <message>)`
+> delivers the message into the peer's chat and writes the room line for you;
+> there is nothing to append, no relay to request, no loop to arm. The numbered
+> steps below are the **doc-mode (non-live) fallback**.
+
 1. Read `~/.rapid/sessions/<slug>.md`. Missing → reply `No session <slug> found.`
 2. Resolve the room (above).
 3. Append your message to the room's `## Collab`, signed + addressed.
@@ -295,14 +340,17 @@ to you since your last check (compare against the `collab-loop … last-seen`
 marker); **loudly flag** any question awaiting your reply, and handle anything the
 peer cleared. Then reply via `/rapid collab <peer> <reply>` (or append to the
 room) and **(re-)arm the autonomous loop** (below). No session → normal message;
-never queue `collab` as a note.
+never queue `collab` as a note. (Live mode: this verb is just a catch-up read —
+reply to anything new via `collab_send`, and don't arm any loop.)
 
 ---
 
-## Autonomous loop — collaborate without a per-message relay
+## Autonomous loop — collaborate without a per-message relay (doc mode ONLY)
 
 The relay above only STARTS each side. Once a chat is in an open room it
-**self-polls**, so the two agents work back and forth on their own.
+**self-polls**, so the two agents work back and forth on their own. **Live mode
+never arms this loop** — messages arrive in the chat directly; this whole
+section is the non-live fallback.
 
 - After you post into a room, or run `collab`, **arm a poll loop**: schedule a
   self-wake ~5 min out — `ScheduleWakeup(delaySeconds: 300, prompt: "collab")`

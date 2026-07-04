@@ -123,6 +123,19 @@ tmux. (Each slug must already be a rapid session with a worktree.)
 > it: before sending in live mode an agent checks its bound slug against the
 > relay's `self=` (cwd-derived) and refuses on a mismatch.
 
+### Manage the running collab
+
+```sh
+collab-start --add <slug> [...]   # drop more agents into the running collab (≤4 panes total)
+collab-start open                 # reattach — closing the terminal window only DETACHES tmux
+collab-start kill                 # shut it down: panes + agents killed, relay registry pruned
+```
+
+`kill` ends the *processes*, not the work: session docs, worktrees, and
+branches are untouched, and it removes the killed panes from
+`~/.rapid/collab-panes.json` so a stale entry can't misroute a later live send.
+Reopen anytime with `collab-start <slugA> <slugB>`.
+
 ---
 
 ## Tools (MCP)
