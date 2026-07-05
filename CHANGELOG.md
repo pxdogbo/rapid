@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.16.1 — 2026-07-04
+
+- **Fix: live sends could land in the peer's composer WITHOUT submitting.** The
+  relay typed the message and fired Enter immediately; an Enter arriving while
+  the TUI is still ingesting the pasted text gets swallowed, leaving the
+  message sitting unsent in the peer's textfield — indistinguishable from
+  silence, and the direct cause of leads waiting on peers who had "replied".
+  `tmuxPoke` now settles briefly after typing, then **verifies the composer
+  actually cleared** after Enter (capture-pane, text gone after the `❯`
+  prompt) and re-sends Enter with backoff up to 4 times; if it still won't
+  submit it throws, so `collab_send` reports the doc-only fallback instead of
+  claiming live delivery. Running agents pick the fix up on their next claude
+  restart (the relay is spawned per chat).
+- The mid-session auto-join instructions in `collab.md` get the same rule for
+  hand-typed `tmux send-keys`: always capture-pane and confirm the line left
+  the composer; re-send Enter (or the text) if it's still sitting there.
+
 ## 1.16.0 — 2026-07-04
 
 - **Close the loop — no more silent finishes while a peer waits.** Agents

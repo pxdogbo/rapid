@@ -159,6 +159,12 @@ start working (close this chat after; the work happens in the opened panes).
      `~/.rapid/collab-panes.json` (a few times, ~30s) until the new slug appears
      — that means its claude + relay booted — then read its pane id from there and
      `tmux send-keys -t <pane> '/rapid collab <lead> joining — what should I take?' Enter`.
+     **Then VERIFY it submitted** — any hand-typed `send-keys` can lose the text
+     (pane still booting) or have its Enter eaten (TUI mid-render), leaving the
+     line sitting in the composer unsent: `tmux capture-pane -t <pane> -p`, and
+     if the line is still visible after the `❯` prompt, send Enter again (text
+     never landed → re-send text with `-l`, pause, then Enter). Never assume a
+     `send-keys` arrived — check the pane.
      Find `<lead>` from the room's roster line (the collab opener). If it hasn't
      registered in time, tell the user to type that line in the new pane. Report:
      `Added rapid/<slug> to the live collab — joining <lead> now.`

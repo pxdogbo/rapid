@@ -153,12 +153,35 @@ function appendCollabLine(slug, line) {
 }
 
 // ── tmux poke ────────────────────────────────────────────────────────────────
+// Synchronous sleep (the relay is fully sync; no event loop to yield to).
+const settle = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+
 function tmuxPoke(pane, word = 'collab') {
   // Literal text, then a separate Enter so it submits as one prompt turn.
   // stdio:'pipe' keeps tmux's own stderr out of our stream (it surfaces in the
   // thrown error's message instead, where the caller already reports it).
   execFileSync('tmux', ['send-keys', '-t', pane, '-l', word], { stdio: 'pipe' });
-  execFileSync('tmux', ['send-keys', '-t', pane, 'Enter'], { stdio: 'pipe' });
+  // An Enter that arrives while the TUI is still ingesting the pasted text can
+  // be swallowed — the message then sits in the composer UNSUBMITTED, which the
+  // peer cannot tell from silence. Give the paste a beat, then verify the
+  // composer actually cleared after Enter and re-send it until it does.
+  settle(150);
+  const tail = word.slice(-24);
+  for (let attempt = 1; attempt <= 4; attempt++) {
+    execFileSync('tmux', ['send-keys', '-t', pane, 'Enter'], { stdio: 'pipe' });
+    settle(300 * attempt);
+    let screen;
+    try {
+      screen = execFileSync('tmux', ['capture-pane', '-t', pane, '-p'], { stdio: 'pipe' }).toString();
+    } catch {
+      return; // pane gone / capture failed — nothing more to verify
+    }
+    // Everything from the last composer prompt down: if our text is still
+    // there, Enter was eaten. (No prompt found → can't verify; assume sent.)
+    const promptAt = screen.lastIndexOf('❯');
+    if (promptAt === -1 || !screen.slice(promptAt).includes(tail)) return;
+  }
+  throw new Error('typed into the pane but Enter never submitted — message left sitting in the composer');
 }
 function inTmux() {
   return !!process.env.TMUX_PANE;
