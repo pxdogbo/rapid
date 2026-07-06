@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.16.2 — 2026-07-06
+
+- **CLI copy: every suggested command now says `rapid-collab`.** `collab-start`
+  printed its own filename in hints ("Reopen anytime: collab-start …"), but the
+  documented way to invoke it is the `rapid-collab` alias — a user who typed
+  `rapid-collab kill` was told to reopen with a command that may not exist in
+  their shell. All user-facing suggestions (kill/open hints, usage, README
+  manage block + alias tip) now use `rapid-collab`; the `collab-start:` error
+  prefix stays as the program identity.
+
 ## 1.16.1 — 2026-07-04
 
 - **Fix: live sends could land in the peer's composer WITHOUT submitting.** The
