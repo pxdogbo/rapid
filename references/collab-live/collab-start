@@ -27,7 +27,7 @@ case "${1:-}" in
     command -v tmux >/dev/null || { echo "collab-start: tmux not found." >&2; exit 1; }
     if ! tmux has-session -t "$SESS" 2>/dev/null; then
       echo "collab-start: no '$SESS' tmux session running. Start one:" >&2
-      echo "  collab-start <slugA> <slugB>   (or /rapid collab <N> in a chat)" >&2
+      echo "  rapid-collab <slugA> <slugB>   (or /rapid collab <N> in a chat)" >&2
       exit 1
     fi
     if [ -n "${TMUX:-}" ]; then exec tmux switch-client -t "$SESS"; else exec tmux attach -t "$SESS"; fi
@@ -58,7 +58,7 @@ try{const d=JSON.parse(fs.readFileSync(f,"utf8"));
   if(changed) fs.writeFileSync(f,JSON.stringify(d,null,2)+"\n");}catch{}' "$KILLED_PANES"
     echo "Killed tmux '$SESS' — $N agent pane(s) closed${KILLED_SLUGS:+ ($KILLED_SLUGS)}."
     echo "Session docs, worktrees, and branches are untouched — this ends the"
-    echo "processes, not the work. Reopen anytime:  collab-start <slugA> <slugB>"
+    echo "processes, not the work. Reopen anytime:  rapid-collab <slugA> <slugB>"
     exit 0
     ;;
 esac
@@ -71,10 +71,10 @@ for a in "$@"; do
     --dry-run) DRY=1 ;;
     --add) ADD=1 ;;
     -h|--help)
-      echo "usage: collab-start [--dry-run] <slugA> <slugB> [...]   start a new collab tmux"
-      echo "       collab-start --add [--dry-run] <slug> [...]      add agent(s) to the running one"
-      echo "       collab-start open                                reattach to the running collab"
-      echo "       collab-start kill                                shut it down (panes + agents; docs/worktrees kept)"
+      echo "usage: rapid-collab [--dry-run] <slugA> <slugB> [...]   start a new collab tmux"
+      echo "       rapid-collab --add [--dry-run] <slug> [...]      add agent(s) to the running one"
+      echo "       rapid-collab open                                reattach to the running collab"
+      echo "       rapid-collab kill                                shut it down (panes + agents; docs/worktrees kept)"
       exit 0 ;;
     -*) echo "collab-start: unknown flag '$a'" >&2; exit 2 ;;
     *) SLUGS+=("$a") ;;
@@ -85,7 +85,7 @@ done
 MIN=2; [ "$ADD" = "1" ] && MIN=1
 if [ "${#SLUGS[@]}" -lt "$MIN" ]; then
   echo "collab-start: need at least $MIN session slug(s)." >&2
-  echo "usage: collab-start [--dry-run] <a> <b> [...]   |   collab-start --add <slug> [...]" >&2
+  echo "usage: rapid-collab [--dry-run] <a> <b> [...]   |   rapid-collab --add <slug> [...]" >&2
   exit 2
 fi
 
@@ -132,7 +132,7 @@ done
 if [ "$ADD" = "1" ]; then
   if ! tmux has-session -t "$SESS" 2>/dev/null; then
     echo "collab-start: no '$SESS' tmux session to add to. Start one first:" >&2
-    echo "  collab-start <slugA> <slugB>" >&2
+    echo "  rapid-collab <slugA> <slugB>" >&2
     exit 1
   fi
   if [ "$DRY" = "1" ]; then
@@ -168,8 +168,8 @@ command -v tmux >/dev/null || { echo "collab-start: tmux not found (brew install
 
 if tmux has-session -t "$SESS" 2>/dev/null; then
   echo "collab-start: a tmux session named '$SESS' already exists." >&2
-  echo "  to ADD agents to it:  collab-start --add <slug> [...]" >&2
-  echo "  reattach:  collab-start open   ·   or shut it down:  collab-start kill" >&2
+  echo "  to ADD agents to it:  rapid-collab --add <slug> [...]" >&2
+  echo "  reattach:  rapid-collab open   ·   or shut it down:  rapid-collab kill" >&2
   exit 1
 fi
 
@@ -199,7 +199,7 @@ echo "Then from one pane:  /rapid collab ${SLUGS[1]} \"you there?\""
 echo
 
 if [ -n "${TMUX:-}" ]; then
-  echo "(already inside tmux) attach with:  tmux switch-client -t $SESS   or   tmux attach -t $SESS"
+  echo "(already inside tmux) attach with:  rapid-collab open"
 else
   exec tmux attach -t "$SESS"
 fi

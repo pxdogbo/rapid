@@ -106,7 +106,7 @@ in each:
 
 ```sh
 ~/.claude/skills/rapid/references/collab-live/collab-start <slugA> <slugB> [slugC ...]
-# tip: alias collab-start=~/.claude/skills/rapid/references/collab-live/collab-start
+# tip: alias rapid-collab=~/.claude/skills/rapid/references/collab-live/collab-start
 ```
 
 It resolves each slug's worktree from its session doc, splits a tiled tmux
@@ -126,15 +126,15 @@ tmux. (Each slug must already be a rapid session with a worktree.)
 ### Manage the running collab
 
 ```sh
-collab-start --add <slug> [...]   # drop more agents into the running collab (≤4 panes total)
-collab-start open                 # reattach — closing the terminal window only DETACHES tmux
-collab-start kill                 # shut it down: panes + agents killed, relay registry pruned
+rapid-collab --add <slug> [...]   # drop more agents into the running collab (≤4 panes total)
+rapid-collab open                 # reattach — closing the terminal window only DETACHES tmux
+rapid-collab kill                 # shut it down: panes + agents killed, relay registry pruned
 ```
 
 `kill` ends the *processes*, not the work: session docs, worktrees, and
 branches are untouched, and it removes the killed panes from
 `~/.rapid/collab-panes.json` so a stale entry can't misroute a later live send.
-Reopen anytime with `collab-start <slugA> <slugB>`.
+Reopen anytime with `rapid-collab <slugA> <slugB>`.
 
 ---
 
