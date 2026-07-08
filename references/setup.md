@@ -226,3 +226,56 @@ That's the whole setup. Afterwards `/rapid collab <N>` and `/rapid collab <slug>
 take the real-time path; nothing changes for doc-mode users. Re-running
 `/rapid collab setup` is safe — it just verifies each piece (relay, flag, alias)
 is in place.
+
+---
+
+## Reliability hooks (`references/hooks/`)
+
+Several of the skill's rules are things the agent is *supposed* to do but can
+skip — marking a pushed session, not committing the node_modules symlink, not
+pushing to a sealed PR. These four `PostToolUse` / `PreToolUse` Bash hooks make
+those rules **deterministic** instead of remembered. All are Node 18+, zero
+dependencies, resolve the session by cwd via the `**Worktree:**` header (like
+the collab relay), read the same `sessionsRoot`/`RAPID_HOME` config, and **fail
+open** — a hook bug can never block your shell. Each no-ops outside a rapid
+worktree, so they're safe to leave on globally.
+
+| Hook | Event | What it does |
+|---|---|---|
+| `mark-pushed.mjs` | PostToolUse | After a `gh pr create` that opened a PR from a rapid worktree, flips the doc's `**Pushed:**` header to the PR ref and appends a `## Pushes` entry — the durable record cleanup keys on. Idempotent; never flips notes `[c]`→`[x]` (that stays the agent's job). |
+| `guard-git-add.mjs` | PreToolUse | **Blocks** `git add -A` / `--all` / `.` inside a rapid worktree — node_modules is symlinked there and a blanket add commits the symlink (repos ignore `node_modules/` as a dir, not as a symlink). Explicit-path staging passes. |
+| `exclude-node-modules.mjs` | PostToolUse | After `git worktree add`, appends `/node_modules` to the new worktree's `.git/info/exclude` — belt-and-suspenders for the same trap. Idempotent. |
+| `guard-sealed-pr.mjs` | PreToolUse | **Blocks** a `git push` to a `rapid/*` branch whose PR is MERGED/CLOSED (commits to a sealed branch reach no PR). One `gh pr view` per rapid push; fails open if gh/network/PR is unavailable. |
+
+Why these were the picks: `mark-pushed` + the cleanup fetch-first fix (v1.18.0)
+together end the false-"unshipped" pile-up; the two node_modules hooks kill a
+documented commit-the-symlink footgun; `guard-sealed-pr` enforces the standing
+"verify the PR is OPEN before any git write" rule. (Deliberately NOT hooked:
+`SessionStart` — start is meant to be network-free/instant — and a `Stop`-hook
+"unshipped work" nudge, which would fire on every turn end.)
+
+**Install** (one time) — merge into `~/.claude/settings.json` (use the real
+skill dir if not the default `~/.claude/skills/rapid`). Merge into any existing
+`hooks` block rather than replacing it; restart chats to load them.
+
+```json
+{
+  "hooks": {
+    "PreToolUse": [
+      { "matcher": "Bash", "hooks": [
+        { "type": "command", "command": "node ~/.claude/skills/rapid/references/hooks/guard-git-add.mjs" },
+        { "type": "command", "command": "node ~/.claude/skills/rapid/references/hooks/guard-sealed-pr.mjs" }
+      ] }
+    ],
+    "PostToolUse": [
+      { "matcher": "Bash", "hooks": [
+        { "type": "command", "command": "node ~/.claude/skills/rapid/references/hooks/mark-pushed.mjs" },
+        { "type": "command", "command": "node ~/.claude/skills/rapid/references/hooks/exclude-node-modules.mjs" }
+      ] }
+    ]
+  }
+}
+```
+
+Drop `guard-sealed-pr` from the `PreToolUse` list if you'd rather not spend a
+`gh` call per push — the other three are pure-local.

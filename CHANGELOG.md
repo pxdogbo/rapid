@@ -1,5 +1,46 @@
 # Changelog
 
+## 1.20.0 — 2026-07-08
+
+- **Three more reliability hooks** (`references/hooks/`), joining `mark-pushed`
+  to make skill rules deterministic instead of agent-remembered. All Node 18+,
+  zero-dep, resolve the session by cwd, and **fail open** (a hook bug never
+  blocks your shell); each no-ops outside a rapid worktree.
+  - **`guard-git-add`** (PreToolUse) — blocks `git add -A` / `--all` / `.`
+    inside a rapid worktree. node_modules is symlinked there, and repos ignore
+    `node_modules/` as a directory, not as a symlink — so a blanket add commits
+    the symlink. Explicit-path staging still passes.
+  - **`exclude-node-modules`** (PostToolUse) — after `git worktree add`, appends
+    `/node_modules` to the new worktree's `.git/info/exclude` (belt-and-
+    suspenders for the same trap; previously a manual step). Idempotent.
+  - **`guard-sealed-pr`** (PreToolUse) — blocks a `git push` to a `rapid/*`
+    branch whose PR is MERGED/CLOSED, enforcing "verify the PR is OPEN before any
+    git write." One `gh pr view` per rapid push; fails open if unavailable.
+  - `references/setup.md` gains a "Reliability hooks" section with the combined
+    `~/.claude/settings.json` install block and the rationale for what was (and
+    wasn't) hooked. Shared helpers live in `references/hooks/_shared.mjs`.
+
+## 1.19.0 — 2026-07-08
+
+- **Push now stamps the session doc automatically — no more hand-marking after
+  every push.** New `mark-pushed` hook (`references/hooks/mark-pushed.mjs`): a
+  `PostToolUse(Bash)` hook that, after any `gh pr create` that opened a PR from
+  inside a rapid worktree, flips the doc's `**Pushed:**` header to the PR ref and
+  appends a `## Pushes` entry — the durable "this session shipped, on THIS
+  branch, via THIS PR" record that cleanup keys on. Previously this was a manual
+  push-flow step (push.md 8–9) the agent could skip, and when work squash-merged
+  under a `-batch-N` branch the doc never captured, cleanup couldn't trace it and
+  flagged the worktree as unshipped forever (the pile-up this pairs with the
+  v1.18.0 fetch-first fix to eliminate).
+  - Idempotent (skips a PR # already recorded); no-ops on non-PR commands and
+    non-rapid dirs; wrapped so it can never throw or block a push. Node 18+, zero
+    deps. Reads the same `sessionsRoot`/`RAPID_HOME` config as the relay.
+  - Does **not** flip notes `[c]`→`[x]` — which notes shipped is semantic and
+    stays the agent's job; the hook only guarantees the header + branch record.
+  - Install is one `PostToolUse` entry in `~/.claude/settings.json` (see
+    `references/setup.md` → "Auto-mark pushed sessions"); `push.md` notes the two
+    coexist.
+
 ## 1.18.0 — 2026-07-08
 
 - **Cleanup now judges against the CURRENT `origin/main` — merged, live
