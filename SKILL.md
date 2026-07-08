@@ -1,6 +1,6 @@
 ---
 name: rapid
-version: 1.17.0
+version: 1.18.0
 user-invocable: true
 description: >
   Rapid session — capture realtime notes from the user while working with a
@@ -464,18 +464,36 @@ sequential network I/O that used to make start slow — don't.
 Run this sweep, scoped to the current repo (`git rev-parse --show-toplevel`; if
 not in a repo, skip entirely):
 
+0. **Refresh `origin/main` FIRST — the sweep is only as correct as your remote
+   refs.** Run `git -C <repo-root> fetch --prune origin main` before evaluating
+   anything. Every "shipped / ahead / has-remote-ref" test below compares
+   against `origin/main` and the remote-tracking refs; a stale local copy makes
+   already-merged work look *ahead* and makes deleted-on-merge branches look
+   still-present. **A stale `origin/main` is the #1 cause of merged, live
+   worktrees being flagged as unshipped** — always fetch, always `--prune`.
 1. For each session doc in `sessions/` (NOT archive) whose `**Repo:**` header
    matches the current repo root, AND which is **not** the session this chat
    currently owns (if any — Cleanup/`tidy` can run with no live session):
-   - **Determine "shipped" by PR state, NOT ancestry.** A squash- or
-     rebase-merged branch still reads as *ahead* of `origin/main` even though
-     its work is fully merged. **Never** use ancestry / `rev-list` /
-     `--is-ancestor` to decide if a branch shipped — that false-positive is the
-     #1 cause of worktrees piling up. Instead look each recorded branch
-     (`branch: <name>` lines + `rapid/<slug>*`) up in the prefetched PR-state
-     map: **MERGED or CLOSED → shipped.** A branch is **unshipped** only if it
-     has NO merged/closed PR AND has unpushed commits (no `origin/<branch>`
-     ref, or local commits beyond it).
+   - **Determine "shipped" against the FRESH `origin/main` from step 0.** A
+     branch is **shipped** if ANY of these hold:
+     1. its tip is an ancestor of `origin/main`
+        (`git merge-base --is-ancestor <branch> origin/main`) — the ordinary
+        merge-commit case, and any branch whose commits are fully contained in
+        main;
+     2. a recorded branch (`branch: <name>` lines + `rapid/<slug>*`) is
+        **MERGED or CLOSED** in the prefetched PR-state map — this catches
+        squash/rebase merges, which read as *ahead* of main even though shipped;
+     3. `git cherry origin/main <branch>` reports no `+` lines — every commit is
+        already in main by patch-id (cherry-picks / clean rebases).
+
+     A branch is **unshipped** only if NONE of 1–3 hold AND it still has commits
+     beyond fresh `origin/main` (or was never pushed). **"Ahead of `origin/main`"
+     is NOT proof of unshipped** — rule 2 exists precisely because squash merges
+     look ahead. Ancestry is a valid ONE-WAY *confirm* of shipped (ancestor ⇒
+     shipped); never use it to conclude the negative (not-an-ancestor does NOT
+     mean unshipped — a squash merge isn't an ancestor). That one-way use is why
+     the old "never use ancestry" rule is now "ancestry can only clear, never
+     condemn."
    - **Skip (leave it) ONLY if something is genuinely at risk:** uncommitted
      changes in its worktree (`git -C <worktree> status --porcelain` non-empty),
      a `[p]` parked or `[!]` blocked note, an **unshipped** branch (per the test
