@@ -5,26 +5,110 @@
 #   collab-start --add <slug> [...]                        add agent(s) to it
 #   collab-start open                                      reattach to it
 #   collab-start kill                                      shut it down
+#   any verb + [-n <name>]                                 target a NAMED collab
 #
 # For each rapid session slug, resolves its worktree (from the `**Worktree:**`
-# header in its session doc), then opens a tmux session "rapid-collab" with one
-# pane per slug — each pane STARTED IN that session's worktree (so the collab
-# relay can identify which session the pane is) — and launches `claude` in each.
-# Tile the panes and attach. You then run `/rapid resume <slug>` in each pane —
-# the slug matching THAT pane's worktree (a crossed resume inverts identity in
-# live mode) — and `/rapid collab <peer>` to start talking. See ./README.md.
+# header in its session doc), then opens a tmux session with one pane per slug —
+# each pane STARTED IN that session's worktree (so the collab relay can identify
+# which session the pane is) — and launches `claude` in each. Tile the panes and
+# attach. Each pane auto-adopts its worktree's session (no /rapid resume needed);
+# then `/rapid collab <peer>` starts talking. See ./README.md.
+#
+# The tmux session is named PER REPO — `rapid-collab-<repo>` — so a collab in a
+# different repo automatically gets its own session and every verb (open / kill /
+# --add) targets the right one with no extra typing. Starting: the repo is read
+# off the slugs' worktrees. Managing (open/kill with no slugs): the repo is read
+# off your cwd (so run those from inside a collab pane, or anywhere in the repo).
+# `-n <name>` overrides the derived name — use it to run TWO collabs in one repo
+# (`rapid-collab-<name>`); pass the SAME `-n <name>` to that collab's open/kill.
 #
 # --dry-run prints the resolved slug→worktree map and the plan without touching
 # tmux. Requires: bash, tmux, node (for config parsing), and `claude` on PATH.
 set -euo pipefail
 
-SESS="rapid-collab"
+# tmux session names can't contain '.' or ':', so map anything outside
+# [A-Za-z0-9_-] to '-' and collapse/trim. Keeps `rapid-collab-<repo>` valid.
+sanitize() {
+  local s
+  s="$(printf '%s' "${1:-}" | LC_ALL=C tr -c 'A-Za-z0-9_-' '-')"
+  printf '%s' "$s" | sed -E 's/-+/-/g; s/^-+//; s/-+$//'
+}
+
+# Repo (main-working-tree) name for a directory inside a git repo/worktree.
+# `--git-common-dir` points at the MAIN repo's .git even from a linked worktree,
+# so the repo name is the same for every per-session worktree of that repo.
+repo_name() {
+  local dir="$1" common
+  command -v git >/dev/null 2>&1 || return 1
+  common="$(git -C "$dir" rev-parse --git-common-dir 2>/dev/null)" || return 1
+  case "$common" in /*) ;; *) common="$dir/$common" ;; esac  # resolve if relative
+  local root
+  root="$(cd "$common/.." 2>/dev/null && pwd)" || return 1
+  basename "$root"
+}
+
+# Session name for a derived-or-overridden collab name (NAME may be empty).
+sess_for() { printf 'rapid-collab-%s' "$(sanitize "$1")"; }
+
+# List running tmux sessions whose name is a rapid collab (`rapid-collab*`).
+running_collabs() {
+  tmux list-sessions -F '#{session_name}' 2>/dev/null \
+    | grep -E '^rapid-collab(-.*)?$' || true
+}
+
+# ── Parse -n/--name early so the lifecycle verbs (open/kill) can see it.
+# We do a first pass ONLY for the name flag; the main arg loop below re-parses
+# the rest (slugs, --dry-run, --add). This keeps `-n <name> open` working.
+NAME=""
+_args=("$@")
+i=0
+while [ "$i" -lt "${#_args[@]}" ]; do
+  case "${_args[$i]}" in
+    -n|--name)
+      i=$((i+1))
+      [ "$i" -lt "${#_args[@]}" ] || { echo "collab-start: -n needs a name." >&2; exit 2; }
+      NAME="${_args[$i]}"
+      ;;
+  esac
+  i=$((i+1))
+done
+
+# Resolve the target session for a LIFECYCLE verb (open/kill — no slugs given):
+#   1. -n <name>                  → rapid-collab-<name>            (explicit)
+#   2. cwd's repo has a session   → rapid-collab-<repo>           (the common case)
+#   3. exactly one collab running → that one  (covers a legacy plain `rapid-collab`)
+#   4. none running               → the cwd-derived candidate     (for a sane message)
+#   5. several running, no match  → list them and ask for -n      (ambiguous)
+# Prints the chosen session name on stdout; on ambiguity prints guidance to
+# stderr and returns 2.
+resolve_lifecycle_sess() {
+  local running; running="$(running_collabs)"
+  if [ -n "$NAME" ]; then sess_for "$NAME"; return 0; fi
+  local repo cand=""
+  if repo="$(repo_name "$PWD" 2>/dev/null)" && [ -n "$repo" ]; then
+    cand="$(sess_for "$repo")"
+    if printf '%s\n' "$running" | grep -qxF "$cand"; then printf '%s' "$cand"; return 0; fi
+  fi
+  local n; n="$(printf '%s\n' "$running" | grep -c . || true)"
+  if [ "$n" = "1" ]; then printf '%s' "$running"; return 0; fi
+  if [ "$n" = "0" ]; then printf '%s' "${cand:-rapid-collab}"; return 0; fi
+  echo "collab-start: several collabs are running and none matches this repo:" >&2
+  printf '%s\n' "$running" | sed 's/^/    /' >&2
+  echo "  Say which with -n:  rapid-collab -n <name> ${VERB:-open}" >&2
+  echo "  (the name is the part after 'rapid-collab-')" >&2
+  return 2
+}
 
 # ── open / kill: manage the running collab (closing the terminal window only
-# DETACHES tmux — the panes and their agents keep running until `kill`) ──────
-case "${1:-}" in
+# DETACHES tmux — the panes and their agents keep running until `kill`). The
+# target session is resolved from -n / cwd's repo / the sole running collab. ──
+# (The verb may sit after `-n <name>`, so scan all args, not just $1.)
+VERB=""
+for a in "$@"; do case "$a" in open|kill) VERB="$a"; break ;; esac; done
+case "$VERB" in
   open)
     command -v tmux >/dev/null || { echo "collab-start: tmux not found." >&2; exit 1; }
+    SESS="$(resolve_lifecycle_sess)" || exit 2
     if ! tmux has-session -t "$SESS" 2>/dev/null; then
       echo "collab-start: no '$SESS' tmux session running. Start one:" >&2
       echo "  rapid-collab <slugA> <slugB>   (or /rapid collab <N> in a chat)" >&2
@@ -34,6 +118,7 @@ case "${1:-}" in
     ;;
   kill)
     command -v tmux >/dev/null || { echo "collab-start: tmux not found." >&2; exit 1; }
+    SESS="$(resolve_lifecycle_sess)" || exit 2
     if ! tmux has-session -t "$SESS" 2>/dev/null; then
       echo "collab-start: no '$SESS' tmux session running — nothing to kill."
       exit 0
@@ -66,19 +151,25 @@ esac
 DRY=0
 ADD=0
 SLUGS=()
-for a in "$@"; do
+args=("$@")
+i=0
+while [ "$i" -lt "${#args[@]}" ]; do
+  a="${args[$i]}"
   case "$a" in
     --dry-run) DRY=1 ;;
     --add) ADD=1 ;;
+    -n|--name) i=$((i+1)) ;;  # value already captured into NAME in the early pass
     -h|--help)
-      echo "usage: rapid-collab [--dry-run] <slugA> <slugB> [...]   start a new collab tmux"
+      echo "usage: rapid-collab [--dry-run] <slugA> <slugB> [...]   start a new collab tmux (rapid-collab-<repo>)"
       echo "       rapid-collab --add [--dry-run] <slug> [...]      add agent(s) to the running one"
       echo "       rapid-collab open                                reattach to the running collab"
       echo "       rapid-collab kill                                shut it down (panes + agents; docs/worktrees kept)"
+      echo "       ... -n <name>                                    target rapid-collab-<name> (2nd collab in a repo)"
       exit 0 ;;
     -*) echo "collab-start: unknown flag '$a'" >&2; exit 2 ;;
     *) SLUGS+=("$a") ;;
   esac
+  i=$((i+1))
 done
 
 # Fresh start needs ≥2; --add needs ≥1 (adding a single agent is the point).
@@ -86,17 +177,6 @@ MIN=2; [ "$ADD" = "1" ] && MIN=1
 if [ "${#SLUGS[@]}" -lt "$MIN" ]; then
   echo "collab-start: need at least $MIN session slug(s)." >&2
   echo "usage: rapid-collab [--dry-run] <a> <b> [...]   |   rapid-collab --add <slug> [...]" >&2
-  exit 2
-fi
-
-# Cap total panes at 4. In --add mode, count the panes already in the session.
-EXIST=0
-if [ "$ADD" = "1" ] && tmux has-session -t "$SESS" 2>/dev/null; then
-  EXIST=$(tmux list-panes -t "$SESS" 2>/dev/null | wc -l | tr -d ' ')
-fi
-if [ "$(( EXIST + ${#SLUGS[@]} ))" -gt 4 ]; then
-  echo "collab-start: max 4 panes per collab (have $EXIST, adding ${#SLUGS[@]}). A tiled" >&2
-  echo "  tmux gets unreadable past that, and 4 live agents is plenty." >&2
   exit 2
 fi
 
@@ -127,6 +207,32 @@ for slug in "${SLUGS[@]}"; do
   fi
   WTS+=("$wt")
 done
+
+# Derive the tmux session name. `-n <name>` wins; otherwise it's the repo the
+# slugs' worktrees belong to (all slugs in a collab share one repo), so a collab
+# in a different repo lands in its own session automatically.
+if [ -n "$NAME" ]; then
+  SESS="$(sess_for "$NAME")"
+else
+  REPO="$(repo_name "${WTS[0]}" 2>/dev/null || true)"
+  if [ -z "$REPO" ]; then
+    echo "collab-start: couldn't read the repo for '${SLUGS[0]}' (worktree ${WTS[0]})." >&2
+    echo "  Pass an explicit name instead:  rapid-collab -n <name> ${SLUGS[*]}" >&2
+    exit 1
+  fi
+  SESS="$(sess_for "$REPO")"
+fi
+
+# Cap total panes at 4. In --add mode, count the panes already in the session.
+EXIST=0
+if [ "$ADD" = "1" ] && tmux has-session -t "$SESS" 2>/dev/null; then
+  EXIST=$(tmux list-panes -t "$SESS" 2>/dev/null | wc -l | tr -d ' ')
+fi
+if [ "$(( EXIST + ${#SLUGS[@]} ))" -gt 4 ]; then
+  echo "collab-start: max 4 panes per collab (have $EXIST, adding ${#SLUGS[@]}). A tiled" >&2
+  echo "  tmux gets unreadable past that, and 4 live agents is plenty." >&2
+  exit 2
+fi
 
 # ── --add mode: drop the slug(s) into the ALREADY-running collab as new panes ──
 if [ "$ADD" = "1" ]; then
@@ -160,7 +266,7 @@ if [ "$DRY" = "1" ]; then
   for i in "${!SLUGS[@]}"; do
     echo "  pane $i: ${SLUGS[$i]}  →  cd ${WTS[$i]} && claude"
   done
-  echo "then: in each pane run '/rapid resume <that pane's slug>' (must match its dir), '/rapid collab <peer>' to talk."
+  echo "then: each pane auto-adopts its dir's session (no /rapid resume); '/rapid collab <peer>' to talk."
   exit 0
 fi
 
@@ -191,11 +297,10 @@ done
 echo "Opened tmux '$SESS' with ${#SLUGS[@]} panes:"
 for i in "${!SLUGS[@]}"; do echo "  ${PANES[$i]}  ${SLUGS[$i]}  (${WTS[$i]})"; done
 echo
-echo "Next — resume the slug that MATCHES each pane's directory. Resuming a"
-echo "different slug inverts identity in live mode (the relay keys off the dir):"
-for i in "${!SLUGS[@]}"; do echo "  pane ${PANES[$i]}  →  /rapid resume ${SLUGS[$i]}"; done
-echo
-echo "Then from one pane:  /rapid collab ${SLUGS[1]} \"you there?\""
+echo "Each pane auto-adopts its worktree's session (identity keys off the dir —"
+echo "no /rapid resume needed). Once claude is up, kick off the exchange:"
+echo "  in the ${SLUGS[0]} pane:  /rapid collab ${SLUGS[1]} \"you there?\""
+for i in $(seq 1 $(( ${#SLUGS[@]} - 1 ))); do echo "  in the ${SLUGS[$i]} pane:  /rapid collab ${SLUGS[0]}"; done
 echo
 
 if [ -n "${TMUX:-}" ]; then
