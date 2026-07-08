@@ -1,5 +1,25 @@
 # Changelog
 
+## 1.20.0 — 2026-07-08
+
+- **Three more reliability hooks** (`references/hooks/`), joining `mark-pushed`
+  to make skill rules deterministic instead of agent-remembered. All Node 18+,
+  zero-dep, resolve the session by cwd, and **fail open** (a hook bug never
+  blocks your shell); each no-ops outside a rapid worktree.
+  - **`guard-git-add`** (PreToolUse) — blocks `git add -A` / `--all` / `.`
+    inside a rapid worktree. node_modules is symlinked there, and repos ignore
+    `node_modules/` as a directory, not as a symlink — so a blanket add commits
+    the symlink. Explicit-path staging still passes.
+  - **`exclude-node-modules`** (PostToolUse) — after `git worktree add`, appends
+    `/node_modules` to the new worktree's `.git/info/exclude` (belt-and-
+    suspenders for the same trap; previously a manual step). Idempotent.
+  - **`guard-sealed-pr`** (PreToolUse) — blocks a `git push` to a `rapid/*`
+    branch whose PR is MERGED/CLOSED, enforcing "verify the PR is OPEN before any
+    git write." One `gh pr view` per rapid push; fails open if unavailable.
+  - `references/setup.md` gains a "Reliability hooks" section with the combined
+    `~/.claude/settings.json` install block and the rationale for what was (and
+    wasn't) hooked. Shared helpers live in `references/hooks/_shared.mjs`.
+
 ## 1.19.0 — 2026-07-08
 
 - **Push now stamps the session doc automatically — no more hand-marking after

@@ -229,46 +229,53 @@ is in place.
 
 ---
 
-## Auto-mark pushed sessions (the `mark-pushed` hook)
+## Reliability hooks (`references/hooks/`)
 
-The push flow is supposed to stamp the session doc when work ships — flip
-`**Pushed:**` to the PR ref and add a `## Pushes` entry (push.md steps 8–9).
-That stamp is the durable "this session shipped, on THIS branch, via THIS PR"
-record that cleanup (`burn` / `tidy` / reap) keys on. When it's missing — the
-agent skipped it, or work squash-merged under a `-batch-N` branch the doc never
-captured — cleanup can't trace the work to its merged PR and flags the worktree
-as unshipped forever. (That's the pile-up Pierre kept hitting.)
+Several of the skill's rules are things the agent is *supposed* to do but can
+skip — marking a pushed session, not committing the node_modules symlink, not
+pushing to a sealed PR. These four `PostToolUse` / `PreToolUse` Bash hooks make
+those rules **deterministic** instead of remembered. All are Node 18+, zero
+dependencies, resolve the session by cwd via the `**Worktree:**` header (like
+the collab relay), read the same `sessionsRoot`/`RAPID_HOME` config, and **fail
+open** — a hook bug can never block your shell. Each no-ops outside a rapid
+worktree, so they're safe to leave on globally.
 
-The **`mark-pushed` hook** makes that stamp automatic and deterministic instead
-of a step the agent might forget. It's a `PostToolUse(Bash)` hook: after any
-Bash call that opened a PR (`gh pr create …` whose output has a pull URL) from
-inside a rapid worktree, it flips the doc's `**Pushed:**` header and appends the
-`## Pushes` entry itself. It's idempotent (skips a PR # already recorded),
-no-ops everywhere else (non-PR commands, non-rapid dirs), and is wrapped so it
-can never throw or block a push. It does **not** flip individual notes
-(`[c]`→`[x]`) — which notes shipped is semantic and stays the agent's job; the
-hook only guarantees the header + branch record cleanup relies on.
+| Hook | Event | What it does |
+|---|---|---|
+| `mark-pushed.mjs` | PostToolUse | After a `gh pr create` that opened a PR from a rapid worktree, flips the doc's `**Pushed:**` header to the PR ref and appends a `## Pushes` entry — the durable record cleanup keys on. Idempotent; never flips notes `[c]`→`[x]` (that stays the agent's job). |
+| `guard-git-add.mjs` | PreToolUse | **Blocks** `git add -A` / `--all` / `.` inside a rapid worktree — node_modules is symlinked there and a blanket add commits the symlink (repos ignore `node_modules/` as a dir, not as a symlink). Explicit-path staging passes. |
+| `exclude-node-modules.mjs` | PostToolUse | After `git worktree add`, appends `/node_modules` to the new worktree's `.git/info/exclude` — belt-and-suspenders for the same trap. Idempotent. |
+| `guard-sealed-pr.mjs` | PreToolUse | **Blocks** a `git push` to a `rapid/*` branch whose PR is MERGED/CLOSED (commits to a sealed branch reach no PR). One `gh pr view` per rapid push; fails open if gh/network/PR is unavailable. |
 
-**Install** (one time) — add a `PostToolUse` hook to `~/.claude/settings.json`
-pointing at the shipped script (use the real skill dir if not the default):
+Why these were the picks: `mark-pushed` + the cleanup fetch-first fix (v1.18.0)
+together end the false-"unshipped" pile-up; the two node_modules hooks kill a
+documented commit-the-symlink footgun; `guard-sealed-pr` enforces the standing
+"verify the PR is OPEN before any git write" rule. (Deliberately NOT hooked:
+`SessionStart` — start is meant to be network-free/instant — and a `Stop`-hook
+"unshipped work" nudge, which would fire on every turn end.)
+
+**Install** (one time) — merge into `~/.claude/settings.json` (use the real
+skill dir if not the default `~/.claude/skills/rapid`). Merge into any existing
+`hooks` block rather than replacing it; restart chats to load them.
 
 ```json
 {
   "hooks": {
+    "PreToolUse": [
+      { "matcher": "Bash", "hooks": [
+        { "type": "command", "command": "node ~/.claude/skills/rapid/references/hooks/guard-git-add.mjs" },
+        { "type": "command", "command": "node ~/.claude/skills/rapid/references/hooks/guard-sealed-pr.mjs" }
+      ] }
+    ],
     "PostToolUse": [
-      {
-        "matcher": "Bash",
-        "hooks": [
-          { "type": "command",
-            "command": "node ~/.claude/skills/rapid/references/hooks/mark-pushed.mjs" }
-        ]
-      }
+      { "matcher": "Bash", "hooks": [
+        { "type": "command", "command": "node ~/.claude/skills/rapid/references/hooks/mark-pushed.mjs" },
+        { "type": "command", "command": "node ~/.claude/skills/rapid/references/hooks/exclude-node-modules.mjs" }
+      ] }
     ]
   }
 }
 ```
 
-Merge into any existing `hooks` block rather than replacing it. Restart chats to
-load the hook. Node 18+ only; zero dependencies. (Override the sessions root via
-`RAPID_HOME` if `config.json` sets a custom `sessionsRoot` — the hook reads the
-same config.)
+Drop `guard-sealed-pr` from the `PreToolUse` list if you'd rather not spend a
+`gh` call per push — the other three are pure-local.
