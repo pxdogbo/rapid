@@ -145,13 +145,15 @@ start working (close this chat after; the work happens in the opened panes).
 4. **Live-mode readiness.** If live mode isn't set up, append a one-liner to the
    printout: `(first run \`/rapid collab setup\` to enable real-time mode)`.
 5. **Already mid-collab? Add to it — don't make the user fiddle with tmux.**
-   Check `tmux has-session -t rapid-collab`:
+   The collab tmux is named **per repo** — `rapid-collab-<repo>` (repo =
+   `basename` of `git rev-parse --show-toplevel` for the current repo). Check
+   `tmux has-session -t rapid-collab-<repo>`:
    - **Running → mid-session add** (the usual reason for `/rapid collab 1`: "I've
      got a collab going and need one more"). Do NOT print a fresh-launch line.
      Drop the new session(s) into the live collab as panes — run the helper with
-     `--add` (it splits the running `rapid-collab` tmux, opens a pane per new
-     session in its worktree, launches claude, re-tiles; refuses past 4 panes
-     total):
+     `--add` (it resolves the running `rapid-collab-<repo>` tmux from the new
+     slug's own repo, opens a pane per new session in its worktree, launches
+     claude, re-tiles; refuses past 4 panes total):
      ```
      <skill-dir>/references/collab-live/collab-start --add <newslug> [<newslug2> …]
      ```
@@ -207,10 +209,23 @@ new panes onto the ghosts). The lifecycle verbs, both subcommands of
   send. Session docs, worktrees, and branches are untouched — it ends the
   *processes*, not the work.
 
+**Which collab do open/kill act on? The one for your repo — automatically.**
+Each repo gets its own `rapid-collab-<repo>` tmux, so you can run several collabs
+side by side (one per repo) with no bookkeeping. `open`/`kill` figure out the
+target from where you run them:
+- Run from inside a collab pane (or anywhere in the repo) → the current repo's
+  collab. This is the normal case; nothing extra to type.
+- Two collabs in the **same** repo? Start the second with `-n <name>`
+  (`rapid-collab -n <name> <a> <b>` → `rapid-collab-<name>`), and pass the SAME
+  `-n <name>` to that collab's `open`/`kill`.
+- If a lifecycle verb can't tell which one (you're outside any repo and several
+  are running), it lists the running collabs and asks you to add `-n <name>`.
+
 **When the user says they're done with the collab** ("close the agents", "kill
 the panes", "shut it down"), run `rapid-collab kill` for them — don't hand back
 raw tmux commands. Same for reopening: `rapid-collab open`, not
-`tmux attach -t rapid-collab`.
+`tmux attach -t rapid-collab-<repo>`. (If this chat is a collab pane, running
+`kill`/`open` from it targets the right session on its own.)
 
 ---
 
@@ -301,10 +316,10 @@ the lead, nothing is lost behind a blocked chat, and workers pause cleanly.
 
 ### Bringing in a new agent mid-session
 
-The user adds an agent mid-collab with **`/rapid collab 1`** — when a
-`rapid-collab` tmux is already running it drops the new session in as a pane and
-nudges it to join (see "Spin up a collab set" above), so no tmux fiddling. The
-newcomer then:
+The user adds an agent mid-collab with **`/rapid collab 1`** — when this repo's
+`rapid-collab-<repo>` tmux is already running it drops the new session in as a
+pane and nudges it to join (see "Spin up a collab set" above), so no tmux
+fiddling. The newcomer then:
 1. **The newcomer reads the room first.** Before doing anything it reads the
    lead's `## Collab` — the **roster line** tells it who's lead and who's already
    here; the exchange tells it what's owned / in flight. That's how it learns
