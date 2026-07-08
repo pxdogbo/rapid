@@ -1,5 +1,26 @@
 # Changelog
 
+## 1.19.0 — 2026-07-08
+
+- **Push now stamps the session doc automatically — no more hand-marking after
+  every push.** New `mark-pushed` hook (`references/hooks/mark-pushed.mjs`): a
+  `PostToolUse(Bash)` hook that, after any `gh pr create` that opened a PR from
+  inside a rapid worktree, flips the doc's `**Pushed:**` header to the PR ref and
+  appends a `## Pushes` entry — the durable "this session shipped, on THIS
+  branch, via THIS PR" record that cleanup keys on. Previously this was a manual
+  push-flow step (push.md 8–9) the agent could skip, and when work squash-merged
+  under a `-batch-N` branch the doc never captured, cleanup couldn't trace it and
+  flagged the worktree as unshipped forever (the pile-up this pairs with the
+  v1.18.0 fetch-first fix to eliminate).
+  - Idempotent (skips a PR # already recorded); no-ops on non-PR commands and
+    non-rapid dirs; wrapped so it can never throw or block a push. Node 18+, zero
+    deps. Reads the same `sessionsRoot`/`RAPID_HOME` config as the relay.
+  - Does **not** flip notes `[c]`→`[x]` — which notes shipped is semantic and
+    stays the agent's job; the hook only guarantees the header + branch record.
+  - Install is one `PostToolUse` entry in `~/.claude/settings.json` (see
+    `references/setup.md` → "Auto-mark pushed sessions"); `push.md` notes the two
+    coexist.
+
 ## 1.18.0 — 2026-07-08
 
 - **Cleanup now judges against the CURRENT `origin/main` — merged, live

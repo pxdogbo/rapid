@@ -226,3 +226,49 @@ That's the whole setup. Afterwards `/rapid collab <N>` and `/rapid collab <slug>
 take the real-time path; nothing changes for doc-mode users. Re-running
 `/rapid collab setup` is safe — it just verifies each piece (relay, flag, alias)
 is in place.
+
+---
+
+## Auto-mark pushed sessions (the `mark-pushed` hook)
+
+The push flow is supposed to stamp the session doc when work ships — flip
+`**Pushed:**` to the PR ref and add a `## Pushes` entry (push.md steps 8–9).
+That stamp is the durable "this session shipped, on THIS branch, via THIS PR"
+record that cleanup (`burn` / `tidy` / reap) keys on. When it's missing — the
+agent skipped it, or work squash-merged under a `-batch-N` branch the doc never
+captured — cleanup can't trace the work to its merged PR and flags the worktree
+as unshipped forever. (That's the pile-up Pierre kept hitting.)
+
+The **`mark-pushed` hook** makes that stamp automatic and deterministic instead
+of a step the agent might forget. It's a `PostToolUse(Bash)` hook: after any
+Bash call that opened a PR (`gh pr create …` whose output has a pull URL) from
+inside a rapid worktree, it flips the doc's `**Pushed:**` header and appends the
+`## Pushes` entry itself. It's idempotent (skips a PR # already recorded),
+no-ops everywhere else (non-PR commands, non-rapid dirs), and is wrapped so it
+can never throw or block a push. It does **not** flip individual notes
+(`[c]`→`[x]`) — which notes shipped is semantic and stays the agent's job; the
+hook only guarantees the header + branch record cleanup relies on.
+
+**Install** (one time) — add a `PostToolUse` hook to `~/.claude/settings.json`
+pointing at the shipped script (use the real skill dir if not the default):
+
+```json
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          { "type": "command",
+            "command": "node ~/.claude/skills/rapid/references/hooks/mark-pushed.mjs" }
+        ]
+      }
+    ]
+  }
+}
+```
+
+Merge into any existing `hooks` block rather than replacing it. Restart chats to
+load the hook. Node 18+ only; zero dependencies. (Override the sessions root via
+`RAPID_HOME` if `config.json` sets a custom `sessionsRoot` — the hook reads the
+same config.)
