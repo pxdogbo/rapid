@@ -106,6 +106,12 @@ Behavior:
    ref (`PR #<N> <url>`; comma-append if the session has opened more than one PR
    over its life). That header is the at-a-glance "this session reached a PR"
    flag a later scan or cleanup keys on before it deletes anything.
+
+   > The **`mark-pushed` hook** (if installed — see `references/setup.md`) already
+   > stamps the `**Pushed:**` header and a `## Pushes` entry automatically the
+   > moment `gh pr create` succeeds, so this may be done before you get here.
+   > It's idempotent — still flip the notes to `[x]` (the hook never touches
+   > notes), and if the header/`## Pushes` are already stamped, leave them.
 9. **Record the push** in the session doc under a `## Pushes` heading
    (one entry per `push` invocation, listing the rolled-up notes):
    ```
