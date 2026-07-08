@@ -1,5 +1,29 @@
 # Changelog
 
+## 1.18.0 — 2026-07-08
+
+- **Cleanup now judges against the CURRENT `origin/main` — merged, live
+  worktrees stop getting flagged as unshipped.** `burn`, `tidy`, and the reap
+  sweep evaluated "shipped / ahead / has-remote-ref" against whatever stale
+  `origin/main` the local clone happened to have, so a worktree whose work had
+  long since merged read as *ahead of main* and got flagged to keep — every
+  time. All three now **`git fetch --prune origin main` first**, before any
+  evaluation. Stale-main was the #1 cause of the pile-up.
+- **The "shipped" test got a correct, non-contradictory definition.** The old
+  rule was an absolute "never use ancestry" (to avoid squash-merge
+  false-positives), which left only same-name PR lookup — and that misses work
+  that merged under a reworked or renamed branch. A branch is now **shipped** if
+  ANY of: (1) its tip is an ancestor of fresh `origin/main`; (2) a recorded
+  branch is MERGED/CLOSED in the batched PR-state map (covers squash/rebase,
+  which read as ahead); (3) `git cherry origin/main <branch>` shows no `+`
+  commits (patch-id contained). Ancestry/patch-id only ever *clear* a branch,
+  never condemn it; PR-state covers the squash case they miss. "Ahead of main"
+  alone is no longer treated as unshipped.
+- **Orphaned rapid worktrees (no session doc) are handled in `burn`.** They're
+  inventoried and run through the same shipped test; one that no signal can
+  clear (no doc, no merged PR, not in main by ancestry or patch-id) is **kept
+  and flagged**, never auto-deleted on a guess.
+
 ## 1.17.0 — 2026-07-07
 
 - **A second (third, …) live collab is now as easy as the first — one per repo,

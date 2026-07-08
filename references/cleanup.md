@@ -132,16 +132,19 @@ Behavior:
 1. **Read this chat's session doc** to capture its slug, worktree
    path, and the branches it tracks (the session branch
    `rapid/<slug>` plus every `branch: <name>` recorded under notes).
-2. **Risk pass — same checks as `wash`, plus the worktree:**
+2. **Risk pass — same checks as `wash`, plus the worktree** (first
+   `git -C <worktree> fetch --prune origin main` so `origin/main` is current):
    - **Uncommitted changes** in the worktree (`git -C <worktree>
      status --porcelain`).
-   - **Unshipped commits** on session-owned branches — decide by **PR
-     state, NOT ancestry.** A squash/rebase-merged branch reads as ahead
-     of `origin/main` (`rev-list origin/main..HEAD` non-zero) yet is fully
-     shipped, so never use `rev-list` / `merge-base --is-ancestor` here. A
-     branch is unshipped only when `gh pr list --head <branch> --state all
-     --json state --jq '.[0].state'` is empty or OPEN **and** it has
-     commits beyond its `origin/<branch>` tip (or no remote ref at all).
+   - **Unshipped commits** on session-owned branches, judged against the fresh
+     `origin/main`. A branch is **shipped** if ANY of: (1) its tip is an
+     ancestor of `origin/main` (`git merge-base --is-ancestor <branch>
+     origin/main`); (2) `gh pr list --head <branch> --state all` shows
+     MERGED/CLOSED (covers squash/rebase merges, which read as *ahead* of main);
+     (3) `git cherry origin/main <branch>` shows no `+` commits. It is
+     **unshipped** only if none hold AND it has commits beyond fresh
+     `origin/main` (or no remote ref at all). Ahead-of-main alone is not
+     unshipped; ancestry only ever *clears* a branch, never condemns it.
    - **In-progress `[~]`, committed-unshipped `[c]`, parked `[p]`,
      blocked `[!]`** notes.
 
@@ -216,14 +219,18 @@ Behavior:
 
 1. **Resolve the current repo** (`git rev-parse --show-toplevel`). Not in a
    repo → reply `tidy needs a git repo — cd into one first.` and stop.
-2. **Run the reap sweep** (SKILL.md "The reap sweep"): batch all PR states in
-   one `gh pr list --state all --limit 300 --json number,headRefName,state`,
-   then for each in-scope **finished** doc remove its worktree, delete its
-   merged/closed branches (by EXACT ref name), and `rm` the doc. Decide
-   "shipped" by PR state, never ancestry; skip anything at risk (uncommitted,
-   parked, blocked, unshipped, or hand-off-pending). Then `git worktree prune`
-   and fast-forward a clean local `main`. The once-daily version check rides
-   along (see `references/setup.md`).
+2. **Run the reap sweep** (SKILL.md "The reap sweep"): **`git fetch --prune
+   origin main` first** (step 0 — merged work looks unshipped against a stale
+   `origin/main`), then batch all PR states in one `gh pr list --state all
+   --limit 300 --json number,headRefName,state`, then for each in-scope
+   **finished** doc remove its worktree, delete its merged/closed branches (by
+   EXACT ref name), and `rm` the doc. Decide "shipped" against the fresh
+   `origin/main`: ancestor-of-main OR MERGED/CLOSED PR OR no `+` from
+   `git cherry` = shipped (ancestry/patch-id only ever *clear*, PR-state covers
+   squash merges); skip anything at risk (uncommitted, parked, blocked,
+   genuinely unshipped, or hand-off-pending). Then `git worktree prune` and
+   fast-forward a clean local `main`. The once-daily version check rides along
+   (see `references/setup.md`).
 3. **Reply with a one-line summary**:
    - Reaped something: `Tidied <repo>: reaped 3 finished sessions (sonic-jet,
      nimble-sub, brisk-tram), deleted 5 branches; fast-forwarded main.`
@@ -261,7 +268,11 @@ Behavior:
 
 1. **Resolve the current repo** from cwd (`git rev-parse --show-toplevel`).
    If cwd is not in a git repo, reply `burn requires a git repo — cd
-   into one first.` and stop.
+   into one first.` and stop. Then **`git -C <repo-root> fetch --prune origin
+   main` FIRST** — every shipped/ahead/remote-ref test below is judged against
+   `origin/main`, and a stale local copy makes already-merged, live worktrees
+   look unshipped (the #1 false-flag). Always fetch + `--prune` before
+   inventorying.
 2. **Inventory everything that would be deleted**, scoped to this repo:
    - **Session docs** in `~/.rapid/sessions/` and
      `~/.rapid/sessions/archive/` whose `**Repo:**` header
@@ -270,21 +281,36 @@ Behavior:
      checked out to a `rapid/*` branch or recorded as a session worktree
      in an in-scope doc. **Do NOT remove worktrees parked there on a
      non-rapid branch** (e.g. a `feat/*` / `fix/*` feature branch someone
-     is using); leave those and their branches alone.
+     is using); leave those and their branches alone. **Orphaned rapid
+     worktrees** (a `rapid/*` worktree with no session doc — its doc was
+     already reaped) are in scope: apply the same shipped test below, and if
+     it's shipped, reap it too.
    - **Local branches** matching `rapid/*` plus every `branch: <name>`
      recorded under `## Notes` in the in-scope session docs.
    - **Remote branches** matching the same set that have an upstream.
-3. **Risk pass — collect anything at risk before deleting**:
+3. **Risk pass — collect anything at risk before deleting**, judged against the
+   FRESH `origin/main` from step 1:
    - **Uncommitted changes** in any in-scope worktree.
-   - **Unshipped commits** on in-scope branches — judged by **PR state,
-     not ancestry** (squash/rebase merges read as ahead of `main` but are
-     shipped; check `gh pr list --head <branch>` for MERGED/CLOSED). Flag a
-     branch only if it has no merged/closed PR AND has commits beyond its
-     remote tip. When deleting remote branches, exclude any keep-list by
-     EXACT fully-qualified ref name, never a bare suffix.
+   - **Unshipped commits** on in-scope branches. A branch is **shipped** (safe)
+     if ANY of: (1) its tip is an ancestor of `origin/main`
+     (`git merge-base --is-ancestor <branch> origin/main`); (2) a recorded
+     branch is MERGED/CLOSED in the batched `gh pr list --state all` map
+     (covers squash/rebase merges, which read as *ahead* of main); (3)
+     `git cherry origin/main <branch>` shows no `+` commits (all present by
+     patch-id). Flag a branch as unshipped ONLY if none hold AND it still has
+     commits beyond fresh `origin/main`. **Being ahead of `origin/main` is not
+     itself unshipped** (squash merges look ahead); ancestry only ever *clears*
+     a branch, never condemns it (a squash merge isn't an ancestor yet is
+     shipped). When deleting remote branches, exclude any keep-list by EXACT
+     fully-qualified ref name, never a bare suffix.
    - **Parked notes** (`[p]`) in any active or archived in-scope doc.
    - **Open PRs** on in-scope remote branches (via `gh pr list --head
      <branch> --state open --json number,title,url`).
+   - **Orphaned worktree that no signal can clear** — a `rapid/*` worktree with
+     no doc, no merged/closed PR, not an ancestor of fresh main, and commits not
+     in main by patch-id: its work may have merged under a reworked / renamed
+     branch that nothing can trace. **Keep it and flag it** — never auto-delete
+     on a guess; let the user confirm.
 4. **Confirm before doing anything destructive.** Reply with the
    inventory + risk summary:
 
