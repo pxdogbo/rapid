@@ -110,26 +110,32 @@ in each:
 ```
 
 It resolves each slug's worktree from its session doc, splits a tiled tmux
-session `rapid-collab`, runs `claude` in every pane, and attaches you. Then, in
-each pane: `/rapid resume <its-slug>`, and from one pane `/rapid collab <peer>`
-to start talking. `--dry-run` prints the slug→worktree plan without touching
-tmux. (Each slug must already be a rapid session with a worktree.)
+session **named per repo** — `rapid-collab-<repo>` — runs `claude` in every
+pane, and attaches you. Each pane **auto-adopts its worktree's session** (live
+mode keys identity off the cwd, so no `/rapid resume` needed); from one pane
+`/rapid collab <peer>` starts talking. `--dry-run` prints the slug→worktree plan
+without touching tmux. (Each slug must already be a rapid session with a
+worktree.)
 
-> ⚠️ **Resume the slug that matches each pane's directory.** Live mode keys
-> identity off the cwd, so the pane sitting in `swift-jet`'s worktree must
-> `/rapid resume swift-jet` — not some other slug. A crossed resume inverts
-> identity and misroutes every poke. `collab-start` prints the exact
-> `/rapid resume <slug>` per pane; run that one. The skill also guards against
-> it: before sending in live mode an agent checks its bound slug against the
-> relay's `self=` (cwd-derived) and refuses on a mismatch.
+### One collab per repo — run several side by side
+
+The tmux session name comes from the repo the slugs belong to, so a collab in a
+different repo automatically lands in its **own** session and the lifecycle verbs
+below target the right one with no bookkeeping. Two collabs in the *same* repo?
+Start the second with `-n <name>` (→ `rapid-collab-<name>`).
 
 ### Manage the running collab
 
 ```sh
-collab-start --add <slug> [...]   # drop more agents into the running collab (≤4 panes total)
+collab-start --add <slug> [...]   # drop more agents in (≤4 panes total); repo resolved from the new slug
 collab-start open                 # reattach — closing the terminal window only DETACHES tmux
 collab-start kill                 # shut it down: panes + agents killed, relay registry pruned
+collab-start -n <name> <verb>     # target a named collab (a 2nd one in the same repo)
 ```
+
+`open`/`kill` resolve **which** collab from where you run them: the current
+repo's (run from inside a pane or anywhere in the repo), or — if you're outside
+any repo and several are running — they list the collabs and ask for `-n <name>`.
 
 `kill` ends the *processes*, not the work: session docs, worktrees, and
 branches are untouched, and it removes the killed panes from

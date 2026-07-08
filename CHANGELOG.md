@@ -1,5 +1,31 @@
 # Changelog
 
+## 1.17.0 — 2026-07-07
+
+- **A second (third, …) live collab is now as easy as the first — one per repo,
+  automatically.** The `collab-start` tmux session used to be a single hardcoded
+  name (`rapid-collab`), so a second concurrent collab had to be driven with raw
+  `tmux` and the `open`/`kill`/`--add` verbs couldn't see it. The session is now
+  named **per repo** — `rapid-collab-<repo>`, derived from the slugs' worktrees
+  (all slugs in a collab share one repo). Start a collab in a different repo and
+  it lands in its own tmux session with zero extra typing.
+  - **Lifecycle verbs resolve their target from context.** `collab-start open` /
+    `kill` figure out which collab from where you run them: the current repo's
+    (run from inside a pane or anywhere in the repo). If you're outside any repo
+    and several are running, they list the collabs and ask you to disambiguate
+    with `-n`. `--add` resolves the session from the *new* slug's own repo.
+  - **`-n <name>` override** runs two collabs in the *same* repo
+    (`rapid-collab-<name>`); pass the same `-n <name>` to that collab's
+    `open`/`kill`. The relay itself was already name-agnostic (it keys off cwd →
+    slug and `$TMUX_PANE`), so nothing else changed — multiple named collabs just
+    coexist.
+  - Repo names with spaces/dots are sanitized into valid tmux session names
+    (e.g. `Dice AI` → `rapid-collab-Dice-AI`).
+  - Docs updated: `references/collab.md` (spin-up add-check + reopen/shutdown),
+    `references/collab-live/README.md`, and the `collab-start` header/help.
+  - Also fixed a stale post-launch hint: `collab-start` no longer tells you to
+    `/rapid resume` each pane — panes auto-adopt their worktree's session.
+
 ## 1.16.1 — 2026-07-04
 
 - **Fix: live sends could land in the peer's composer WITHOUT submitting.** The
