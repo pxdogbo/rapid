@@ -300,6 +300,19 @@ was opened for.
   lands on your session's branch/worktree, and you report it through the room
   like any other work of yours. No side-channel output the lead can't inspect.
 
+### Workers don't plan at the user — a plan goes to the lead first
+
+A worker's default is to just DO its assigned lane; the lead already scoped
+it. As a worker, don't write plan documents, don't enter plan mode (its
+approval prompt grabs the user), and NEVER ask the user to approve a plan or
+"should I proceed?" — that's the same serial-resource violation as asking them
+a question directly. If a lane is genuinely big or ambiguous enough to need a
+plan first, keep it short and send it to the **lead** for review before any
+work: `collab_send(<lead>, "[plan] <lane>: <the plan>")` — start only when the
+lead clears it. The lead reviews plans the way it reviews diffs: it owns
+scope, and it pulls the user in (through its normal question queue) only when
+something actually needs their call.
+
 **The roster lives in the room — that's how anyone, including a late joiner,
 learns who's who.** The lead maintains a roster line at the top of the room (it
 replaces the simple `**Room** · …` line once there are roles):

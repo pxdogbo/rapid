@@ -28,6 +28,12 @@
   assigns lanes, coordinates, and QAs; workers may use background agents
   inside their own lane as long as everything lands on their branch and stays
   reviewable by the lead.
+- **Workers don't plan at the user.** Also in Roles & roster: a worker's
+  default is to just do its assigned lane. If a lane genuinely needs a plan
+  first, the worker sends it to the LEAD for review (`[plan] …` via
+  `collab_send`) and starts only when cleared — it never enters plan mode or
+  asks the user "should I proceed?". User approval, when needed, is the
+  lead's to seek through its normal question queue.
 
 ## 1.20.0 — 2026-07-08
 
