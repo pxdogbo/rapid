@@ -19,6 +19,25 @@ messages. (To hand a whole scoped task to another chat instead of chatting, use
 
 ---
 
+## 🔴 Peers are NOT subagents — a named session routes through collab
+
+A rapid peer is a **live agent in another chat**, with its own session,
+worktree, and (usually cheaper) model. It is not a subagent of yours. When the
+user names one — a slug ("quantum-kart"), "your peer", "the other agent", or
+its worktree path — anything they ask you to send, assign, or request from it
+goes through THIS skill: `collab_send` in live mode (or the doc-mode room),
+`handoff` for a whole task, `inbox` only for a passive note they explicitly
+asked for. **NEVER satisfy it by spawning your own background agent** (Plan,
+general-purpose, or any subagent): "ask quantum-kart for a plan" means MESSAGE
+quantum-kart and let IT write the plan — not "launch a Plan subagent and wait
+for it". A subagent runs on your own model inside your own chat, invisible to
+the user and the peer — the opposite of what was asked, and it double-spends
+the tokens the peer split exists to save. If you catch yourself typing
+`Agent(...)` with a peer's name or worktree in the prompt, stop and
+`collab_send` instead.
+
+---
+
 ## The constraint: no live channel (and how the loop works around it)
 
 A markdown file is the only shared medium, and writing to it cannot wake a

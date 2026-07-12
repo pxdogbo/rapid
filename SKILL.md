@@ -878,6 +878,16 @@ it as bare `/rapid` — open the menu (Step 2·menu).
   (see `references/collab.md`) and leaving a note in a peer's `## Inbox` (see
   `references/inbox.md`). Both are append-only; never touch a peer's `## Notes`
   or anything else in their doc.
+- **A named peer is a LIVE AGENT — route through collab, never the Agent
+  tool.** When the user names another session (a slug, "your peer", "the other
+  agent", or its worktree path) and asks you to send, assign, or request
+  something from it, that goes through this skill: `collab_send` / the room
+  (`references/collab.md`), `handoff` for a whole task, `inbox` only when they
+  explicitly want a passive note. NEVER satisfy it by spawning your own
+  background agent (Plan, general-purpose, or any subagent) — "ask <slug> for
+  a plan" means MESSAGE <slug> and let IT write the plan, not "launch a Plan
+  subagent and wait". A subagent runs on your own (expensive) model inside
+  your own chat, invisible to the peer — the opposite of what was asked.
 - **Append before acting.** Always write the note to the doc before starting
   work, even if work takes one second. The doc must never lag behind.
 - **One source of truth.** If conversation context and the doc disagree,

@@ -34,6 +34,13 @@
   `collab_send`) and starts only when cleared — it never enters plan mode or
   asks the user "should I proceed?". User approval, when needed, is the
   lead's to seek through its normal question queue.
+- **Peers are NOT subagents.** Live incident: told to send a plan request to
+  the peer session by name (worktree path included), an agent instead spawned
+  a background Plan subagent and sat polling it. New 🔴 rule at the top of
+  `references/collab.md` + a SKILL.md Rules bullet: a named session ("your
+  peer", a slug, its worktree path) is a live agent — requests to it route
+  through `collab_send` / `handoff` / `inbox`, never the Agent tool. "Ask
+  <slug> for a plan" means message <slug> and let IT write the plan.
 
 ## 1.20.0 — 2026-07-08
 
