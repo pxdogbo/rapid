@@ -282,6 +282,24 @@ or the first agent to start talking in a `/rapid collab <N>` set) is the **lead*
 — the single point of contact with the user. Everyone else is a **worker**. (If
 the user names a different lead, honor that.)
 
+### The lead delegates — it never spawns its own background agents to do the work
+
+In a live collab the **work belongs to the peers; the lead coordinates and
+QAs.** The peers usually run on a cheaper model — that split is the point of
+the setup. A lead that spawns its own background agents (Agent tool /
+subagents) to implement a lane defeats it twice: the work runs on the lead's
+expensive model anyway (no cost saving), and it bypasses the peers the collab
+was opened for.
+
+- **Lead:** never spawn a background agent to do lane work. Assign the lane to
+  a peer (`collab_send`) and review what comes back — reading diffs, testing,
+  settling merge order is YOUR job, done yourself. (A quick read-only lookup
+  agent for your own QA is fine; anything producing work product is not.)
+- **Workers:** you own your lane and MAY use background agents inside it when
+  they help — as long as the result stays reviewable by the lead: everything
+  lands on your session's branch/worktree, and you report it through the room
+  like any other work of yours. No side-channel output the lead can't inspect.
+
 **The roster lives in the room — that's how anyone, including a late joiner,
 learns who's who.** The lead maintains a roster line at the top of the room (it
 replaces the simple `**Room** · …` line once there are roles):

@@ -1,5 +1,34 @@
 # Changelog
 
+## 1.21.0 — 2026-07-11
+
+- **Inbox now says loudly that it never triggers the recipient.** Live
+  incident: asked to reroute a task to a peer session, an agent dropped the
+  full assignment into the peer's `## Inbox` and considered it delivered — the
+  note sat unread, nothing ever fired. Inbox is passive by design (no loop, no
+  poke), so the sender-side rule is now explicit everywhere a sender looks:
+  - `references/inbox.md` gains a "🔴 Inbox never triggers the recipient" rule:
+    when the agent is choosing the channel and the message assigns work, asks
+    a question, or expects any action/reply, that's `collab` (message the
+    agent directly) or `handoff` — never inbox, unless the user explicitly
+    said "inbox" / "leave a note". Intro example reworded from an actionable
+    ask to a passive FYI to match.
+  - The doc template's `## Inbox` comment now warns the *writing* agent in
+    place (the recipient's doc is exactly what a sender edits), and senders
+    backfill the comment into older docs that lack it.
+  - The `/rapid inbox` verb rows (SKILL.md + README), the frontmatter
+    description, and the send-flow confirmation line all carry the same
+    reminder (`this won't start them working — for that, /rapid collab
+    <slug>`).
+- **Collab roles: the lead delegates, peers do the work.** New rule in
+  `references/collab.md` (Roles & roster) + a clause on the SKILL.md verb row:
+  in a live collab the lead never spawns its own background agents to do lane
+  work — that reruns the work on the lead's expensive model (no cost saving)
+  and bypasses the (usually cheaper) peers the collab was opened for. The lead
+  assigns lanes, coordinates, and QAs; workers may use background agents
+  inside their own lane as long as everything lands on their branch and stays
+  reviewable by the lead.
+
 ## 1.20.0 — 2026-07-08
 
 - **Three more reliability hooks** (`references/hooks/`), joining `mark-pushed`

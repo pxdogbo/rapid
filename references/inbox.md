@@ -10,9 +10,8 @@ Read this when the user invokes `/rapid inbox <slug>` or the bare word `inbox`.
 `inbox` is the **async** cousin of `collab`. Where `collab` opens a live (or
 polled) back-and-forth between two agents, `inbox` just **drops a note** into
 another session's doc for it to find whenever it next looks. The user reaches
-for it to tell one chat to leave a message for another — "tell warp-shuttle to
-also fix the mobile layout" — without starting a conversation or arming any
-polling.
+for it explicitly — "leave a note in warp-shuttle's inbox: I merged the shared
+theme" — when a passive heads-up is enough and nothing should start moving.
 
 What it deliberately is **not**:
 - **No autonomous loop.** Leaving or reading a note never arms
@@ -23,6 +22,20 @@ What it deliberately is **not**:
 - **No auto-surfacing, no relay-to-start.** No menu marker, no resume flag,
   no "tell the user to switch chats." The note sits in the recipient's
   `## Inbox` until **the user goes to that chat and tells it to check**.
+
+---
+
+## 🔴 Inbox never triggers the recipient — don't use it to start work
+
+Leaving a note does NOT make the other agent do anything. Nothing fires,
+nothing wakes, nobody reads it until the user manually goes to that chat and
+says `inbox`. So when YOU are choosing the channel — the user said "tell
+rapid/<slug> to…", "hand this to your peer", "assign this to <slug>" — and the
+message assigns work, asks a question, or expects any action or reply, that is
+**`collab`** (message the agent directly — live mode types it straight into
+its chat) or **`handoff`** (a whole scoped task), **never inbox**. Reach for
+inbox only when the message is a passive FYI that can sit unread indefinitely,
+or the user explicitly said "inbox" / "leave a note".
 
 Pick the right tool: `inbox` to leave a quick async note, `collab` to have a
 live conversation, `handoff` to hand a whole scoped task to a fresh chat.
@@ -53,11 +66,15 @@ own, sign `rapid/—`.
    `/rapid resume <slug>` instead of dropping a note into an archived doc.)
 2. Append the note to that doc's `## Inbox`, signed + addressed, as
    `- [ ] [HH:MM] rapid/<you> → rapid/<slug>: <message>`. Add the `## Inbox`
-   section if an older doc lacks one.
+   section if an older doc lacks one, and if the section is missing the
+   standard template reminder comment (SKILL.md doc template), add it under
+   the heading while you're there — it warns the next sender in place.
 3. **That's the whole action — do NOT** arm a loop, poke the peer, or tell the
    user to relay. Leaving the note is all that happens.
 4. Confirm in one line: `Left a note in rapid/<slug>'s inbox. Go to that chat
-   and tell it to check (\`inbox\`) whenever you're ready.`
+   and tell it to check (\`inbox\`) whenever you're ready.` If the note is
+   actionable (assigns work / expects a reply), append the reminder: `Note:
+   this won't start them working — for that, \`/rapid collab <slug>\`.`
 5. No message given → ask what the note should say; don't post an empty note.
 
 The recipient's `## Inbox` (like its `## Collab`) is a **sanctioned cross-doc

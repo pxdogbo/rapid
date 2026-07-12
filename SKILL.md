@@ -1,6 +1,6 @@
 ---
 name: rapid
-version: 1.20.0
+version: 1.21.0
 user-invocable: true
 description: >
   Rapid session — capture realtime notes from the user while working with a
@@ -20,7 +20,8 @@ description: >
   place (condense + group + de-stale) without emptying the queue. handoff
   seeds a scoped plan as a standalone session a fresh chat adopts; collab is
   a chatroom between two live agents; inbox leaves an async note in another
-  session's doc (no loop, no poke) for it to pick up later. Use
+  session's doc (no loop, no poke — it never triggers the peer; to task or
+  talk to a live agent use collab) for it to pick up later. Use
   whenever the user types /rapid, /rapid <note>, /rapid review, /rapid
   done, /rapid off, /rapid update, /rapid handoff, or says they want
   to "start a rapid session" / "drop a quick note" mid-task.
@@ -193,10 +194,10 @@ skipped and the session is doc-only.
 | `/rapid resume <slug>` / `/rapid start <slug>` | Re-activate an archived session in this chat, OR **adopt a seeded hand-off session** (`**Handoff:** pending`): read its plan, flip the header to `adopted`, and cut its worktree + `rapid/<slug>` branch off `origin/main` (it has none yet). `start` and `resume` are aliases. `/rapid start` alone (no slug) behaves like bare `/rapid` — it opens the menu (Step 2·menu). |
 | `/rapid update` | Pull the latest version of this skill and show the changelog delta. Works any time, no session needed. See `references/setup.md`. |
 | `/rapid handoff [this session \| <note N> \| <description>]` | **Hand work to a fresh chat.** Seed a NEW session doc (own slug, header `**Handoff:** pending`, no worktree yet) holding the full instructions to build — the whole current session, one note, or a described task — then **ALWAYS end your reply with the copy-paste line `/rapid start <slug>`**. A fresh chat runs that to adopt it: it cuts its own worktree + `rapid/<slug>` branch off `origin/main` and works in its OWN doc (never this one). NOT a loose `~/.rapid/*.md` file. See `references/handoff.md`. |
-| `/rapid collab <slug> [message]` | **Open / continue a chatroom with the agent on session `<slug>`.** Re-read both docs' `## Collab`, post your message into the shared room (the peer's `## Collab`, or the existing room if one is already open with them), tell the user to relay once to that chat, and arm the autonomous poll loop so you pick up the reply on your own. A lightweight cross-agent chatroom that then self-drives. With **live mode** on (config `collabLive` + tmux) it's real-time instead — `collab_send` types your message straight into the peer's chat (it answers directly), no relay or poll. See `references/collab.md`. |
+| `/rapid collab <slug> [message]` | **Open / continue a chatroom with the agent on session `<slug>`.** Re-read both docs' `## Collab`, post your message into the shared room (the peer's `## Collab`, or the existing room if one is already open with them), tell the user to relay once to that chat, and arm the autonomous poll loop so you pick up the reply on your own. A lightweight cross-agent chatroom that then self-drives. With **live mode** on (config `collabLive` + tmux) it's real-time instead — `collab_send` types your message straight into the peer's chat (it answers directly), no relay or poll. Roles: the **lead delegates and QAs, peers do the work** — the lead never spawns its own background agents to implement (peers may, inside their lane, if the result stays lead-reviewable). See `references/collab.md`. |
 | `/rapid collab <N>` (N = 1–4) | **Spin up N collab-ready sessions** in the current repo and print the one command to open them (`rapid-collab <slugs>` for 2+, a `cd … && claude` + pair hint for 1). A *number* means "make this many" — not a message. Scaffolder: it does NOT bind this chat or start work; you close it and run the printed command. >4 is rejected. See `references/collab.md` → "Spin up a collab set". |
 | `/rapid collab setup` | **Enable live mode** (one time): register the `rapid-collab` relay MCP, set `collabLive: true`, verify tmux. The skill also offers this automatically the first time collab is used without it configured. See `references/setup.md` → "Enabling live collab". |
-| `/rapid inbox <slug> [message]` | **Leave an async note in session `<slug>`'s `## Inbox`.** Append the signed note to that doc and stop — no loop, no poke, no relay-to-start, no auto-surfacing. The user picks it up later by going to that chat and telling it to check (`inbox`). The recipient's `## Inbox` is a sanctioned cross-doc write; never touch its `## Notes`. See `references/inbox.md`. |
+| `/rapid inbox <slug> [message]` | **Leave an async note in session `<slug>`'s `## Inbox`.** Append the signed note to that doc and stop — no loop, no poke, no relay-to-start, no auto-surfacing. The user picks it up later by going to that chat and telling it to check (`inbox`). **An inbox note never triggers the recipient** — never pick inbox on your own to assign work, ask a question, or start a peer working; that's `/rapid collab <slug> <message>` (messages the agent directly) or `/rapid handoff`. The recipient's `## Inbox` is a sanctioned cross-doc write; never touch its `## Notes`. See `references/inbox.md`. |
 
 ### The bare-word rule
 
@@ -565,7 +566,7 @@ this same sweep as a bare-word verb.
 
 ## Inbox
 
-<!-- Async notes other chats left for this session. Blank until one arrives. Append-only; `[ ]` unread, `[x]` read. Each line: `- [ ] [HH:MM] rapid/<from> → rapid/<to>: <message>`. No loop, no poke, no auto-surfacing — the user reads it by telling this chat to check (`inbox` / "check your inbox") when ready. Unread notes block the reap until read. See references/inbox.md. -->
+<!-- Async notes other chats left for this session. Blank until one arrives. Append-only; `[ ]` unread, `[x]` read. Each line: `- [ ] [HH:MM] rapid/<from> → rapid/<to>: <message>`. No loop, no poke, no auto-surfacing — the user reads it by telling this chat to check (`inbox` / "check your inbox") when ready. Unread notes block the reap until read. ⚠️ AGENT ABOUT TO WRITE HERE: a note in this section does NOT reach this agent — it sits unread until the user manually tells this chat to check. To make this agent act (assign work, ask a question, expect a reply), message it directly instead: `/rapid collab <slug> <message>`, or `/rapid handoff` for a whole task. See references/inbox.md. -->
 
 ```
 
