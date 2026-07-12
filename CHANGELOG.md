@@ -2,17 +2,22 @@
 
 ## 1.22.0 — 2026-07-12
 
-- **Live collab keeps a slow sentinel poll now.** Live incident: a worker
-  finished a lane (opened a PR) and reported it as a reply in its OWN chat —
-  the lead never saw it, and push-only delivery can't catch a message that
-  was never sent. Live mode still never polls to receive, but while work is
-  in flight each agent keeps a ~5-min sentinel armed (`ScheduleWakeup`,
-  prompt `collab`): re-read the room for missed/garbled lines; the LEAD also
-  glances at each worker's doc for silent state (the mark-pushed `**Pushed:**`
-  stamp, `[c]`/`[x]` flips, new `[!]`) and nudges that worker to report
-  through collab. Winds down on the doc-mode idle budget (3 quiet checks)
-  once nothing is in flight. Worker report duty sharpened to match: results
-  go to the requester via `collab_send`, never only your own chat (the lead
+- **Live collab: the lead keeps a liveness sentinel on its workers.** Live
+  incident: a worker finished a lane (opened a PR) and reported it as a reply
+  in its OWN chat — the lead never saw it, and push-only delivery can't catch
+  a message that was never sent. New rule: while any lane is
+  assigned-but-unreported, the LEAD (only the lead — workers never poll)
+  wakes every ~5 min (`ScheduleWakeup`, prompt `collab`) and runs a CHEAP
+  liveness probe per outstanding worker — pane id from
+  `~/.rapid/collab-panes.json`, `tmux capture-pane | tail -3`, busy indicator
+  = still working. Busy → do nothing (no doc/room reads; a worker can grind
+  20+ min and that's healthy — the probe deliberately reads almost nothing so
+  the lead's context stays clean). Idle with no report → NOW read its doc
+  (the mark-pushed `**Pushed:**` stamp, `[c]`/`[x]` flips, new `[!]`) + the
+  room, and nudge it to report through collab; pane dead → surface to the
+  user. The sentinel never lapses while a lane is outstanding; it stops when
+  every lane is reported. Worker report duty sharpened to match: results go
+  to the requester via `collab_send`, never only your own chat (the lead
   can't see it — a report posted only there doesn't exist).
 
 ## 1.21.0 — 2026-07-11
