@@ -41,6 +41,13 @@
   peer", a slug, its worktree path) is a live agent — requests to it route
   through `collab_send` / `handoff` / `inbox`, never the Agent tool. "Ask
   <slug> for a plan" means message <slug> and let IT write the plan.
+- **The peer-authored plan flow now has a name: `rapid-plan`** (new
+  `/rapid plan <slug> <task>` verb + a "rapid-plan" section in
+  `references/collab.md`), so "plan" stops pattern-matching the harness's
+  Plan subagent / plan mode. Flow: requester `collab_send`s a
+  `[plan-request]` brief; the peer authors the plan in its own chat and sends
+  it back as `[plan] …`; the requester (lead) reviews before anything reaches
+  the user. Saying "rapid-plan" anywhere means this flow.
 
 ## 1.20.0 — 2026-07-08
 

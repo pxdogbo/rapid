@@ -30,7 +30,8 @@ goes through THIS skill: `collab_send` in live mode (or the doc-mode room),
 asked for. **NEVER satisfy it by spawning your own background agent** (Plan,
 general-purpose, or any subagent): "ask quantum-kart for a plan" means MESSAGE
 quantum-kart and let IT write the plan — not "launch a Plan subagent and wait
-for it". A subagent runs on your own model inside your own chat, invisible to
+for it". (That flow has a name — a **rapid-plan**; see "rapid-plan" under
+Roles & roster.) A subagent runs on your own model inside your own chat, invisible to
 the user and the peer — the opposite of what was asked, and it double-spends
 the tokens the peer split exists to save. If you catch yourself typing
 `Agent(...)` with a peer's name or worktree in the prompt, stop and
@@ -318,6 +319,28 @@ was opened for.
   they help — as long as the result stays reviewable by the lead: everything
   lands on your session's branch/worktree, and you report it through the room
   like any other work of yours. No side-channel output the lead can't inspect.
+
+### rapid-plan — asking a peer to author a plan
+
+A **rapid-plan** is a plan written by a PEER agent and delivered through
+collab. The name exists to kill an ambiguity: "plan" alone pattern-matches the
+harness's built-in Plan subagent / plan mode, which is the WRONG tool here — a
+rapid-plan is never a subagent and never plan mode.
+
+Trigger: `/rapid plan <slug> <task>`, or the user says "rapid-plan" / "have
+<slug> plan it" / "ask your peer for a plan". Flow:
+
+1. **Requester (usually the lead):** `collab_send(<slug>, "[plan-request]
+   <task brief — goal, constraints, files/areas, what the plan must cover>")`.
+   That's the whole send — no Agent tool, nothing to poll; the peer is a live
+   chat and will answer like any collab message.
+2. **Peer:** author the plan yourself in your own chat (your lane, your
+   model; background agents allowed per the rules above) and send it back:
+   `collab_send(<lead>, "[plan] <the plan>")`. Don't enter plan mode, don't
+   ask the user anything — your reviewer is the lead.
+3. **Requester:** review the plan (scope, overlap with other lanes, risks).
+   Clear the peer to build, ask for a revision, or — only if something needs
+   the user's call — surface it through your normal user queue.
 
 ### Workers don't plan at the user — a plan goes to the lead first
 
