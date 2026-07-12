@@ -19,6 +19,21 @@
   every lane is reported. Worker report duty sharpened to match: results go
   to the requester via `collab_send`, never only your own chat (the lead
   can't see it — a report posted only there doesn't exist).
+- **Two new reliability hooks + one broadened** (`references/hooks/`), making
+  the new collab rules deterministic; same conventions as the v1.20 set (Node
+  18+, zero-dep, fail open):
+  - **`guard-agent-peer`** (PreToolUse on Task) — blocks spawning a subagent
+    whose prompt names another live session's slug or worktree ("peers are
+    NOT subagents"), feeding back the `collab_send` fix. Branch tokens
+    (`rapid/<slug>…`) are stripped first so QC-ing a peer's shipped branch
+    stays allowed.
+  - **`compact-peers`** (PostToolUse on Bash) — after a `gh pr create` that
+    opened a PR from a live-collab pane, sends `/compact` into every other
+    same-repo collab pane (the post-push sweep), skipping mid-turn panes and
+    verifying each send-keys submitted; prints a summary the lead relays.
+  - **`guard-sealed-pr`** now guards a `rapid/*` push from ANY checkout, not
+    just rapid worktrees — pushing a just-merged branch from the main clone
+    orphaned a commit in the wild (this very repo, this very release).
 - **`push` in a live collab: the lead ships, then auto-compacts the peers.**
   Every push, no separate ask: the lead opens the PR (workers never do),
   then sends `/compact` into each worker pane (idle-first via the sentinel

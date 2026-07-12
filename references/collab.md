@@ -31,7 +31,9 @@ asked for. **NEVER satisfy it by spawning your own background agent** (Plan,
 general-purpose, or any subagent): "ask quantum-kart for a plan" means MESSAGE
 quantum-kart and let IT write the plan — not "launch a Plan subagent and wait
 for it". (That flow has a name — a **rapid-plan**; see "rapid-plan" under
-Roles & roster.) A subagent runs on your own model inside your own chat, invisible to
+Roles & roster.) With the reliability hooks installed, `guard-agent-peer`
+enforces this: an Agent-tool prompt naming a live peer's slug or worktree is
+blocked with the collab_send fix. A subagent runs on your own model inside your own chat, invisible to
 the user and the peer — the opposite of what was asked, and it double-spends
 the tokens the peer split exists to save. If you catch yourself typing
 `Agent(...)` with a peer's name or worktree in the prompt, stop and
@@ -379,6 +381,11 @@ compact sweep** — every push, automatically, no separate ask:
 2. Don't compact yourself — the user drives your context.
 3. **End your reply with the PR link.** That's the deliverable of `push`:
    PR shipped, peers compacted, link in hand.
+
+With the reliability hooks installed, `compact-peers` runs step 1
+automatically after the `gh pr create` (it prints what it compacted, skipped
+mid-turn, or found gone) — then your job is just to relay that summary, catch
+any skipped pane once it idles, and hand back the PR link.
 
 ### Workers don't plan at the user — a plan goes to the lead first
 

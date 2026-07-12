@@ -8,11 +8,12 @@
 // PR state before the push and stops it, telling the agent to cut a fresh
 // branch off origin/main instead.
 //
-// COST: one `gh pr view` per push — but only for pushes of a rapid/* branch
-// from inside a rapid worktree (the common rapid case), so it's bounded. Fails
+// COST: one `gh pr view` per push of a rapid/* branch — from ANY checkout, not
+// just rapid worktrees (a sealed rapid/* branch is just as sealed when pushed
+// from the main repo clone; that exact miss orphaned a commit once). Fails
 // OPEN on any error (no gh, no network, no PR) — never blocks on uncertainty.
 
-import { readPayload, toolCommand, toolCwd, sessionForCwd, git, block } from './_shared.mjs';
+import { readPayload, toolCommand, toolCwd, git, block } from './_shared.mjs';
 import { execFileSync } from 'node:child_process';
 
 // Which branch is this push targeting? An explicit `git push <remote> <branch>`
@@ -34,7 +35,6 @@ async function main() {
   const cmd = toolCommand(payload);
   if (!/\bgit\s+push\b/.test(cmd)) return;       // not a push — allow
   const cwd = toolCwd(payload);
-  if (!sessionForCwd(cwd)) return;               // not a rapid worktree — allow
   const branch = pushedBranch(cmd, cwd);
   if (!branch || !branch.startsWith('rapid/')) return; // only guard rapid/* branches
 
