@@ -115,21 +115,35 @@ truth; when in doubt, trust `self`.
 - **No "tell the user to relay" step** — delivery is automatic. (If `collab_send`
   reports a doc-only fallback — peer not registered / different host / inject
   failed — THEN tell the user to relay once, exactly as doc-mode.)
-- **No autonomous poll loop for receiving** — delivery is push, so do **not**
-  `ScheduleWakeup`/`/loop` just to check for messages. Still glance at the room
-  at natural pauses (cheap; covers a message that landed while you were
-  mid-turn). **One sanctioned self-wake: the waiting watchdog** — when you are
-  BLOCKED on something you asked a peer for, arm the nudge cycle in "Waiting on
-  a peer" below so a silently-finished (or stuck) peer can't strand you.
+- **Sentinel poll — live mode still keeps a SLOW safety poll.** Delivery is
+  push, so you never poll to *receive* — but a poke can be missed (lands
+  mid-turn, inject garbles) and, worse, a peer can fail to send at all (e.g.
+  report its finished work as a reply in its own chat, where nobody else can
+  see it). So while the collab has work in flight, keep a low-frequency
+  sentinel armed — `ScheduleWakeup(delaySeconds: 300, prompt: "collab")` —
+  plus the usual glance at natural pauses. On each wake:
+  1. Re-read the room, diff against `last-seen`, handle anything you missed.
+  2. **Lead only:** glance at each worker's session doc (header + notes) for
+     state that never reached the room — a fresh `**Pushed:**` PR stamp,
+     notes flipped `[c]`/`[x]`, a new `[!]` blocker. That's a worker that
+     finished or moved silently: nudge it — `collab_send(<worker>, "saw
+     <state> in your doc — report through collab: results go to the lead,
+     not your own chat")` — then QC the work as usual.
+  3. Blocked on a specific peer → apply the waiting-watchdog nudge rules
+     ("Waiting on a peer" below) on this same cadence.
+  **Budget:** while any lane is assigned-but-unreported or an ask is pending,
+  keep re-arming. Once nothing is in flight, the doc-mode idle budget takes
+  over — 3 consecutive quiet checks (~15 min) → stop re-arming (any new
+  message re-arms it). Track it in the same `collab-loop` state comment.
 - **Stopping** — still post `[DONE]` / `[PAUSED]` via `collab_send` the same way;
-  the peer reads the tag and stops. No idle-budget countdown is needed (there's
-  no loop to wind down), but `[PAUSED]` is still the right signal if you step
-  away with work unfinished.
+  the peer reads the tag and stops. The sentinel poll winds down on the
+  doc-mode idle budget once nothing is in flight, and `[PAUSED]` is still the
+  right signal if you step away with work unfinished.
 
 Because the relay also records every message in the room, a delivery that
 garbles or lands while the peer is mid-turn only *delays* the message — it is
-never lost: the full line is in the room, and the peer picks it up on its next
-natural-pause `collab` check. So live mode needs no fallback poll.
+never lost: the full line is in the room, and the sentinel poll (or a
+natural-pause check) picks it up within ~5 minutes.
 
 ### Enabling live mode (don't silently degrade)
 
@@ -422,7 +436,10 @@ collab stalls. Two duties close the loop:
 you — you owe them TWO messages:**
 1. **Ack now**, before starting: one line saying what you'll do and roughly
    when ("taking it — after my current note", "starting now, ~10 min").
-2. **Report the moment it lands**: message the requester the RESULT — what
+2. **Report the moment it lands — via `collab_send` to the requester, never
+   only as a reply in your own chat.** Your chat reaches only the pane the
+   user happens to be watching; the lead cannot see it — a report posted only
+   there doesn't exist. Message the RESULT — what
    changed and where (branch, PR, file), not a bare "done". If you stall,
    park it, or hit a blocker instead, say that. Never let the requester
    discover completion by accident; assume they are sitting blocked on you.
@@ -434,7 +451,8 @@ you — you owe them TWO messages:**
   ("blocked on you for X — message me when it's in").
 - Mark the item `[!] blocked: waiting on rapid/<peer> for <thing>` and pick
   up any independent work meanwhile.
-- **Arm the waiting watchdog** (the one sanctioned live-mode self-wake):
+- **Arm the waiting watchdog** (in live mode it rides the sentinel poll —
+  same wake, plus a nudge):
   `ScheduleWakeup(delaySeconds: 270, prompt: "collab")`. On each wake with
   still no word, nudge once — `collab_send(<peer>, "status on <thing>? still
   blocked on it")`. Any peer message resets the count, exactly like the
@@ -477,8 +495,9 @@ to you since your last check (compare against the `collab-loop … last-seen`
 marker); **loudly flag** any question awaiting your reply, and handle anything the
 peer cleared. Then reply via `/rapid collab <peer> <reply>` (or append to the
 room) and **(re-)arm the autonomous loop** (below). No session → normal message;
-never queue `collab` as a note. (Live mode: this verb is just a catch-up read —
-reply to anything new via `collab_send`, and don't arm any loop.)
+never queue `collab` as a note. (Live mode: this verb is the sentinel's
+catch-up read — reply to anything new via `collab_send` and re-arm the
+sentinel if work is in flight; never arm the doc-mode reply loop.)
 
 ---
 

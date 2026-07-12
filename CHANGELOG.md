@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.22.0 — 2026-07-12
+
+- **Live collab keeps a slow sentinel poll now.** Live incident: a worker
+  finished a lane (opened a PR) and reported it as a reply in its OWN chat —
+  the lead never saw it, and push-only delivery can't catch a message that
+  was never sent. Live mode still never polls to receive, but while work is
+  in flight each agent keeps a ~5-min sentinel armed (`ScheduleWakeup`,
+  prompt `collab`): re-read the room for missed/garbled lines; the LEAD also
+  glances at each worker's doc for silent state (the mark-pushed `**Pushed:**`
+  stamp, `[c]`/`[x]` flips, new `[!]`) and nudges that worker to report
+  through collab. Winds down on the doc-mode idle budget (3 quiet checks)
+  once nothing is in flight. Worker report duty sharpened to match: results
+  go to the requester via `collab_send`, never only your own chat (the lead
+  can't see it — a report posted only there doesn't exist).
+
 ## 1.21.0 — 2026-07-11
 
 - **Inbox now says loudly that it never triggers the recipient.** Live
