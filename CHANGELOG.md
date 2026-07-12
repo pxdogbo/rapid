@@ -19,6 +19,13 @@
   every lane is reported. Worker report duty sharpened to match: results go
   to the requester via `collab_send`, never only your own chat (the lead
   can't see it — a report posted only there doesn't exist).
+- **`push` in a live collab: the lead ships, then auto-compacts the peers.**
+  Every push, no separate ask: the lead opens the PR (workers never do),
+  then sends `/compact` into each worker pane (idle-first via the sentinel
+  probe, send-keys verified) — the shipped-lane chatter is exactly what the
+  workers no longer need, and everything durable lives in the session docs —
+  and ends its reply with the PR link. New "push in a live collab" section in
+  `references/collab.md` + a clause on the `push` verb row.
 
 ## 1.21.0 — 2026-07-11
 

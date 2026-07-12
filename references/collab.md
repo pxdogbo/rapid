@@ -362,6 +362,24 @@ Trigger: `/rapid plan <slug> <task>`, or the user says "rapid-plan" / "have
    Clear the peer to build, ask for a revision, or — only if something needs
    the user's call — surface it through your normal user queue.
 
+### push in a live collab — the lead ships, then compacts the peers
+
+The user's `push` goes to the **lead** (workers never open the PR — they
+report lanes done; the lead QCs, commits, and ships the combined work per
+`references/push.md`). After the PR is open, the lead runs the **post-push
+compact sweep** — every push, automatically, no separate ask:
+
+1. For each worker pane (pane ids from `~/.rapid/collab-panes.json`): if the
+   worker is mid-turn, wait for it to go idle (the sentinel probe tells you),
+   then send `/compact` — `tmux send-keys -t <pane> '/compact' Enter` — and
+   verify it submitted (`tmux capture-pane -t <pane> -p`; re-send Enter if the
+   line is still sitting in the composer). Compacting is safe: everything
+   durable lives in the session docs, and the shipped-lane chatter it drops is
+   exactly what the workers no longer need.
+2. Don't compact yourself — the user drives your context.
+3. **End your reply with the PR link.** That's the deliverable of `push`:
+   PR shipped, peers compacted, link in hand.
+
 ### Workers don't plan at the user — a plan goes to the lead first
 
 A worker's default is to just DO its assigned lane; the lead already scoped
