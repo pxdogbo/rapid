@@ -19,6 +19,26 @@ messages. (To hand a whole scoped task to another chat instead of chatting, use
 
 ---
 
+## 🔴 Peers are NOT subagents — a named session routes through collab
+
+A rapid peer is a **live agent in another chat**, with its own session,
+worktree, and (usually cheaper) model. It is not a subagent of yours. When the
+user names one — a slug ("quantum-kart"), "your peer", "the other agent", or
+its worktree path — anything they ask you to send, assign, or request from it
+goes through THIS skill: `collab_send` in live mode (or the doc-mode room),
+`handoff` for a whole task, `inbox` only for a passive note they explicitly
+asked for. **NEVER satisfy it by spawning your own background agent** (Plan,
+general-purpose, or any subagent): "ask quantum-kart for a plan" means MESSAGE
+quantum-kart and let IT write the plan — not "launch a Plan subagent and wait
+for it". (That flow has a name — a **rapid-plan**; see "rapid-plan" under
+Roles & roster.) A subagent runs on your own model inside your own chat, invisible to
+the user and the peer — the opposite of what was asked, and it double-spends
+the tokens the peer split exists to save. If you catch yourself typing
+`Agent(...)` with a peer's name or worktree in the prompt, stop and
+`collab_send` instead.
+
+---
+
 ## The constraint: no live channel (and how the loop works around it)
 
 A markdown file is the only shared medium, and writing to it cannot wake a
@@ -281,6 +301,59 @@ attention, or an incoming peer message interrupts an agent mid-decision. So:
 or the first agent to start talking in a `/rapid collab <N>` set) is the **lead**
 — the single point of contact with the user. Everyone else is a **worker**. (If
 the user names a different lead, honor that.)
+
+### The lead delegates — it never spawns its own background agents to do the work
+
+In a live collab the **work belongs to the peers; the lead coordinates and
+QAs.** The peers usually run on a cheaper model — that split is the point of
+the setup. A lead that spawns its own background agents (Agent tool /
+subagents) to implement a lane defeats it twice: the work runs on the lead's
+expensive model anyway (no cost saving), and it bypasses the peers the collab
+was opened for.
+
+- **Lead:** never spawn a background agent to do lane work. Assign the lane to
+  a peer (`collab_send`) and review what comes back — reading diffs, testing,
+  settling merge order is YOUR job, done yourself. (A quick read-only lookup
+  agent for your own QA is fine; anything producing work product is not.)
+- **Workers:** you own your lane and MAY use background agents inside it when
+  they help — as long as the result stays reviewable by the lead: everything
+  lands on your session's branch/worktree, and you report it through the room
+  like any other work of yours. No side-channel output the lead can't inspect.
+
+### rapid-plan — asking a peer to author a plan
+
+A **rapid-plan** is a plan written by a PEER agent and delivered through
+collab. The name exists to kill an ambiguity: "plan" alone pattern-matches the
+harness's built-in Plan subagent / plan mode, which is the WRONG tool here — a
+rapid-plan is never a subagent and never plan mode.
+
+Trigger: `/rapid plan <slug> <task>`, or the user says "rapid-plan" / "have
+<slug> plan it" / "ask your peer for a plan". Flow:
+
+1. **Requester (usually the lead):** `collab_send(<slug>, "[plan-request]
+   <task brief — goal, constraints, files/areas, what the plan must cover>")`.
+   That's the whole send — no Agent tool, nothing to poll; the peer is a live
+   chat and will answer like any collab message.
+2. **Peer:** author the plan yourself in your own chat (your lane, your
+   model; background agents allowed per the rules above) and send it back:
+   `collab_send(<lead>, "[plan] <the plan>")`. Don't enter plan mode, don't
+   ask the user anything — your reviewer is the lead.
+3. **Requester:** review the plan (scope, overlap with other lanes, risks).
+   Clear the peer to build, ask for a revision, or — only if something needs
+   the user's call — surface it through your normal user queue.
+
+### Workers don't plan at the user — a plan goes to the lead first
+
+A worker's default is to just DO its assigned lane; the lead already scoped
+it. As a worker, don't write plan documents, don't enter plan mode (its
+approval prompt grabs the user), and NEVER ask the user to approve a plan or
+"should I proceed?" — that's the same serial-resource violation as asking them
+a question directly. If a lane is genuinely big or ambiguous enough to need a
+plan first, keep it short and send it to the **lead** for review before any
+work: `collab_send(<lead>, "[plan] <lane>: <the plan>")` — start only when the
+lead clears it. The lead reviews plans the way it reviews diffs: it owns
+scope, and it pulls the user in (through its normal question queue) only when
+something actually needs their call.
 
 **The roster lives in the room — that's how anyone, including a late joiner,
 learns who's who.** The lead maintains a roster line at the top of the room (it

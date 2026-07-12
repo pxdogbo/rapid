@@ -140,7 +140,7 @@ Start with the slash command, then drive everything with bare words mid-session.
 | `/rapid update` | Pull the latest skill version and show what changed |
 | `/rapid handoff [this session \| note N \| description]` | Seed a standalone session a fresh chat adopts via `/rapid start <slug>` — hand off the whole session, one note, or a described task |
 | `/rapid collab <slug> [message]` / `collab` | Open or continue a cross-agent chatroom with another session's agent; bare `collab` checks the room and drives the autonomous poll loop. Optional **live mode** (`collabLive` + tmux) makes it real-time — a send pokes the peer, no poll or relay |
-| `/rapid inbox <slug> [message]` / `inbox` | Leave an **async** note in another session's `## Inbox` — no loop, no poke, no relay, no auto-surfacing. You read it by going to that chat and saying `inbox` ("check your inbox") when ready, which reads + marks-read its inbox. The leave-a-note cousin of `collab` |
+| `/rapid inbox <slug> [message]` / `inbox` | Leave an **async** note in another session's `## Inbox` — no loop, no poke, no relay, no auto-surfacing. A note never triggers the recipient: to assign work or get a reply, that's `collab`/`handoff`, not inbox. You read it by going to that chat and saying `inbox` ("check your inbox") when ready, which reads + marks-read its inbox. The leave-a-note cousin of `collab` |
 
 ## The queue
 

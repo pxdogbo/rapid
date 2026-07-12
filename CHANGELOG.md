@@ -1,5 +1,54 @@
 # Changelog
 
+## 1.21.0 — 2026-07-11
+
+- **Inbox now says loudly that it never triggers the recipient.** Live
+  incident: asked to reroute a task to a peer session, an agent dropped the
+  full assignment into the peer's `## Inbox` and considered it delivered — the
+  note sat unread, nothing ever fired. Inbox is passive by design (no loop, no
+  poke), so the sender-side rule is now explicit everywhere a sender looks:
+  - `references/inbox.md` gains a "🔴 Inbox never triggers the recipient" rule:
+    when the agent is choosing the channel and the message assigns work, asks
+    a question, or expects any action/reply, that's `collab` (message the
+    agent directly) or `handoff` — never inbox, unless the user explicitly
+    said "inbox" / "leave a note". Intro example reworded from an actionable
+    ask to a passive FYI to match.
+  - The doc template's `## Inbox` comment now warns the *writing* agent in
+    place (the recipient's doc is exactly what a sender edits), and senders
+    backfill the comment into older docs that lack it.
+  - The `/rapid inbox` verb rows (SKILL.md + README), the frontmatter
+    description, and the send-flow confirmation line all carry the same
+    reminder (`this won't start them working — for that, /rapid collab
+    <slug>`).
+- **Collab roles: the lead delegates, peers do the work.** New rule in
+  `references/collab.md` (Roles & roster) + a clause on the SKILL.md verb row:
+  in a live collab the lead never spawns its own background agents to do lane
+  work — that reruns the work on the lead's expensive model (no cost saving)
+  and bypasses the (usually cheaper) peers the collab was opened for. The lead
+  assigns lanes, coordinates, and QAs; workers may use background agents
+  inside their own lane as long as everything lands on their branch and stays
+  reviewable by the lead.
+- **Workers don't plan at the user.** Also in Roles & roster: a worker's
+  default is to just do its assigned lane. If a lane genuinely needs a plan
+  first, the worker sends it to the LEAD for review (`[plan] …` via
+  `collab_send`) and starts only when cleared — it never enters plan mode or
+  asks the user "should I proceed?". User approval, when needed, is the
+  lead's to seek through its normal question queue.
+- **Peers are NOT subagents.** Live incident: told to send a plan request to
+  the peer session by name (worktree path included), an agent instead spawned
+  a background Plan subagent and sat polling it. New 🔴 rule at the top of
+  `references/collab.md` + a SKILL.md Rules bullet: a named session ("your
+  peer", a slug, its worktree path) is a live agent — requests to it route
+  through `collab_send` / `handoff` / `inbox`, never the Agent tool. "Ask
+  <slug> for a plan" means message <slug> and let IT write the plan.
+- **The peer-authored plan flow now has a name: `rapid-plan`** (new
+  `/rapid plan <slug> <task>` verb + a "rapid-plan" section in
+  `references/collab.md`), so "plan" stops pattern-matching the harness's
+  Plan subagent / plan mode. Flow: requester `collab_send`s a
+  `[plan-request]` brief; the peer authors the plan in its own chat and sends
+  it back as `[plan] …`; the requester (lead) reviews before anything reaches
+  the user. Saying "rapid-plan" anywhere means this flow.
+
 ## 1.20.0 — 2026-07-08
 
 - **Three more reliability hooks** (`references/hooks/`), joining `mark-pushed`
