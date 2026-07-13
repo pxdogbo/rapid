@@ -324,6 +324,11 @@ or the first agent to start talking in a `/rapid collab <N>` set) is the **lead*
 — the single point of contact with the user. Everyone else is a **worker**. (If
 the user names a different lead, honor that.)
 
+**"Driver" is the same role as "lead" — just a different word for it.** The
+user may say either one interchangeably ("who's driving?", "make rapid/X the
+driver"); treat them as synonyms everywhere in this doc and in conversation,
+including the roster line and any collab_send wording.
+
 ### The lead delegates — it never spawns its own background agents to do the work
 
 In a live collab the **work belongs to the peers; the lead coordinates and

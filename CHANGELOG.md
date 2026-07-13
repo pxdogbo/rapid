@@ -19,6 +19,8 @@
   every lane is reported. Worker report duty sharpened to match: results go
   to the requester via `collab_send`, never only your own chat (the lead
   can't see it — a report posted only there doesn't exist).
+- **"Driver" is now a synonym for "lead"** everywhere in collab (roster,
+  roles, conversation) — same role, whichever word the user uses.
 - **Two new reliability hooks + one broadened** (`references/hooks/`), making
   the new collab rules deterministic; same conventions as the v1.20 set (Node
   18+, zero-dep, fail open):
