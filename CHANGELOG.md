@@ -1,5 +1,50 @@
 # Changelog
 
+## 1.22.0 — 2026-07-12
+
+- **Live collab: the lead keeps a liveness sentinel on its workers.** Live
+  incident: a worker finished a lane (opened a PR) and reported it as a reply
+  in its OWN chat — the lead never saw it, and push-only delivery can't catch
+  a message that was never sent. New rule: while any lane is
+  assigned-but-unreported, the LEAD (only the lead — workers never poll)
+  wakes every ~5 min (`ScheduleWakeup`, prompt `collab`) and runs a CHEAP
+  liveness probe per outstanding worker — pane id from
+  `~/.rapid/collab-panes.json`, `tmux capture-pane | tail -3`, busy indicator
+  = still working. Busy → do nothing (no doc/room reads; a worker can grind
+  20+ min and that's healthy — the probe deliberately reads almost nothing so
+  the lead's context stays clean). Idle with no report → NOW read its doc
+  (the mark-pushed `**Pushed:**` stamp, `[c]`/`[x]` flips, new `[!]`) + the
+  room, and nudge it to report through collab; pane dead → surface to the
+  user. The sentinel never lapses while a lane is outstanding; it stops when
+  every lane is reported. Worker report duty sharpened to match: results go
+  to the requester via `collab_send`, never only your own chat (the lead
+  can't see it — a report posted only there doesn't exist).
+- **"Driver"/"rider" are now synonyms for "lead"/"worker"** everywhere in
+  collab (roster, roles, conversation) — same roles, whichever words the
+  user uses.
+- **Two new reliability hooks + one broadened** (`references/hooks/`), making
+  the new collab rules deterministic; same conventions as the v1.20 set (Node
+  18+, zero-dep, fail open):
+  - **`guard-agent-peer`** (PreToolUse on Task) — blocks spawning a subagent
+    whose prompt names another live session's slug or worktree ("peers are
+    NOT subagents"), feeding back the `collab_send` fix. Branch tokens
+    (`rapid/<slug>…`) are stripped first so QC-ing a peer's shipped branch
+    stays allowed.
+  - **`compact-peers`** (PostToolUse on Bash) — after a `gh pr create` that
+    opened a PR from a live-collab pane, sends `/compact` into every other
+    same-repo collab pane (the post-push sweep), skipping mid-turn panes and
+    verifying each send-keys submitted; prints a summary the lead relays.
+  - **`guard-sealed-pr`** now guards a `rapid/*` push from ANY checkout, not
+    just rapid worktrees — pushing a just-merged branch from the main clone
+    orphaned a commit in the wild (this very repo, this very release).
+- **`push` in a live collab: the lead ships, then auto-compacts the peers.**
+  Every push, no separate ask: the lead opens the PR (workers never do),
+  then sends `/compact` into each worker pane (idle-first via the sentinel
+  probe, send-keys verified) — the shipped-lane chatter is exactly what the
+  workers no longer need, and everything durable lives in the session docs —
+  and ends its reply with the PR link. New "push in a live collab" section in
+  `references/collab.md` + a clause on the `push` verb row.
+
 ## 1.21.0 — 2026-07-11
 
 - **Inbox now says loudly that it never triggers the recipient.** Live

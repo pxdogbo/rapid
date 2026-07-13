@@ -31,7 +31,9 @@ asked for. **NEVER satisfy it by spawning your own background agent** (Plan,
 general-purpose, or any subagent): "ask quantum-kart for a plan" means MESSAGE
 quantum-kart and let IT write the plan — not "launch a Plan subagent and wait
 for it". (That flow has a name — a **rapid-plan**; see "rapid-plan" under
-Roles & roster.) A subagent runs on your own model inside your own chat, invisible to
+Roles & roster.) With the reliability hooks installed, `guard-agent-peer`
+enforces this: an Agent-tool prompt naming a live peer's slug or worktree is
+blocked with the collab_send fix. A subagent runs on your own model inside your own chat, invisible to
 the user and the peer — the opposite of what was asked, and it double-spends
 the tokens the peer split exists to save. If you catch yourself typing
 `Agent(...)` with a peer's name or worktree in the prompt, stop and
@@ -115,21 +117,41 @@ truth; when in doubt, trust `self`.
 - **No "tell the user to relay" step** — delivery is automatic. (If `collab_send`
   reports a doc-only fallback — peer not registered / different host / inject
   failed — THEN tell the user to relay once, exactly as doc-mode.)
-- **No autonomous poll loop for receiving** — delivery is push, so do **not**
-  `ScheduleWakeup`/`/loop` just to check for messages. Still glance at the room
-  at natural pauses (cheap; covers a message that landed while you were
-  mid-turn). **One sanctioned self-wake: the waiting watchdog** — when you are
-  BLOCKED on something you asked a peer for, arm the nudge cycle in "Waiting on
-  a peer" below so a silently-finished (or stuck) peer can't strand you.
+- **Lead sentinel — the LEAD keeps a slow liveness poll on its workers.**
+  Delivery is push, so nobody polls to *receive* — but a worker can fail to
+  send at all (e.g. report its finished work as a reply in its own chat,
+  where nobody else can see it), and push can't catch a message that was
+  never sent. So while ANY lane is assigned-but-unreported, the **lead — and
+  only the lead; workers never run this** — keeps a sentinel armed:
+  `ScheduleWakeup(delaySeconds: 300, prompt: "collab")`. Each wake is a
+  CHEAP liveness probe, not a read — protect your context:
+  1. For each outstanding worker, check whether its agent is still running:
+     pane id from `~/.rapid/collab-panes.json`, then
+     `tmux capture-pane -p -t <pane> | tail -3` — a busy indicator
+     ("esc to interrupt" / a spinner) means it's mid-turn, working.
+  2. **Still running → do nothing.** No doc read, no room read, no nudge —
+     re-arm and stay out of its way. A worker can legitimately grind for
+     20+ minutes; busy = healthy, however many wakes in a row it lasts.
+  3. **Idle (or pane gone) with no report → NOW dig.** Read its doc header +
+     notes for silent state (a fresh `**Pushed:**` PR stamp, `[c]`/`[x]`
+     flips, a new `[!]`) and the room for lines you missed, then nudge:
+     `collab_send(<worker>, "you're idle and I have no report on <lane> —
+     status? results go to the lead, not your own chat")`. If it finished
+     silently, QC the work as usual; pane dead → surface to the user.
+  **The sentinel never lapses while a lane is outstanding** — a heads-down
+  worker outliving a fixed budget is exactly what it exists to survive. Stop
+  re-arming only once every lane is reported and nothing is pending (a new
+  assignment re-arms it). Track it in the `collab-loop` state comment. A
+  worker's only self-wake remains the blocked waiting-watchdog below.
 - **Stopping** — still post `[DONE]` / `[PAUSED]` via `collab_send` the same way;
-  the peer reads the tag and stops. No idle-budget countdown is needed (there's
-  no loop to wind down), but `[PAUSED]` is still the right signal if you step
-  away with work unfinished.
+  the peer reads the tag and stops. The lead's sentinel stops once every lane
+  is reported, and `[PAUSED]` is still the
+  right signal if you step away with work unfinished.
 
 Because the relay also records every message in the room, a delivery that
 garbles or lands while the peer is mid-turn only *delays* the message — it is
-never lost: the full line is in the room, and the peer picks it up on its next
-natural-pause `collab` check. So live mode needs no fallback poll.
+never lost: the full line is in the room, caught at the peer's next
+natural-pause check or by the lead's sentinel follow-up.
 
 ### Enabling live mode (don't silently degrade)
 
@@ -302,6 +324,12 @@ or the first agent to start talking in a `/rapid collab <N>` set) is the **lead*
 — the single point of contact with the user. Everyone else is a **worker**. (If
 the user names a different lead, honor that.)
 
+**"Driver"/"rider" are the same roles as "lead"/"worker" — just different
+words for them.** The user may say any of the four interchangeably ("who's
+driving?", "make rapid/X the driver", "the riders are still going"); treat
+`driver` = `lead` and `rider` = `worker` everywhere in this doc and in
+conversation, including the roster line and any collab_send wording.
+
 ### The lead delegates — it never spawns its own background agents to do the work
 
 In a live collab the **work belongs to the peers; the lead coordinates and
@@ -341,6 +369,29 @@ Trigger: `/rapid plan <slug> <task>`, or the user says "rapid-plan" / "have
 3. **Requester:** review the plan (scope, overlap with other lanes, risks).
    Clear the peer to build, ask for a revision, or — only if something needs
    the user's call — surface it through your normal user queue.
+
+### push in a live collab — the lead ships, then compacts the peers
+
+The user's `push` goes to the **lead** (workers never open the PR — they
+report lanes done; the lead QCs, commits, and ships the combined work per
+`references/push.md`). After the PR is open, the lead runs the **post-push
+compact sweep** — every push, automatically, no separate ask:
+
+1. For each worker pane (pane ids from `~/.rapid/collab-panes.json`): if the
+   worker is mid-turn, wait for it to go idle (the sentinel probe tells you),
+   then send `/compact` — `tmux send-keys -t <pane> '/compact' Enter` — and
+   verify it submitted (`tmux capture-pane -t <pane> -p`; re-send Enter if the
+   line is still sitting in the composer). Compacting is safe: everything
+   durable lives in the session docs, and the shipped-lane chatter it drops is
+   exactly what the workers no longer need.
+2. Don't compact yourself — the user drives your context.
+3. **End your reply with the PR link.** That's the deliverable of `push`:
+   PR shipped, peers compacted, link in hand.
+
+With the reliability hooks installed, `compact-peers` runs step 1
+automatically after the `gh pr create` (it prints what it compacted, skipped
+mid-turn, or found gone) — then your job is just to relay that summary, catch
+any skipped pane once it idles, and hand back the PR link.
 
 ### Workers don't plan at the user — a plan goes to the lead first
 
@@ -422,7 +473,10 @@ collab stalls. Two duties close the loop:
 you — you owe them TWO messages:**
 1. **Ack now**, before starting: one line saying what you'll do and roughly
    when ("taking it — after my current note", "starting now, ~10 min").
-2. **Report the moment it lands**: message the requester the RESULT — what
+2. **Report the moment it lands — via `collab_send` to the requester, never
+   only as a reply in your own chat.** Your chat reaches only the pane the
+   user happens to be watching; the lead cannot see it — a report posted only
+   there doesn't exist. Message the RESULT — what
    changed and where (branch, PR, file), not a bare "done". If you stall,
    park it, or hit a blocker instead, say that. Never let the requester
    discover completion by accident; assume they are sitting blocked on you.
@@ -434,7 +488,9 @@ you — you owe them TWO messages:**
   ("blocked on you for X — message me when it's in").
 - Mark the item `[!] blocked: waiting on rapid/<peer> for <thing>` and pick
   up any independent work meanwhile.
-- **Arm the waiting watchdog** (the one sanctioned live-mode self-wake):
+- **Arm the waiting watchdog** (in live mode this is the one self-wake a
+  WORKER may arm — only when blocked; the lead folds its nudges into the
+  sentinel wakes instead):
   `ScheduleWakeup(delaySeconds: 270, prompt: "collab")`. On each wake with
   still no word, nudge once — `collab_send(<peer>, "status on <thing>? still
   blocked on it")`. Any peer message resets the count, exactly like the
@@ -477,8 +533,9 @@ to you since your last check (compare against the `collab-loop … last-seen`
 marker); **loudly flag** any question awaiting your reply, and handle anything the
 peer cleared. Then reply via `/rapid collab <peer> <reply>` (or append to the
 room) and **(re-)arm the autonomous loop** (below). No session → normal message;
-never queue `collab` as a note. (Live mode: this verb is just a catch-up read —
-reply to anything new via `collab_send`, and don't arm any loop.)
+never queue `collab` as a note. (Live mode: this verb is a catch-up read —
+reply to anything new via `collab_send`; the lead re-arms its sentinel if
+lanes are outstanding; never arm the doc-mode reply loop.)
 
 ---
 
