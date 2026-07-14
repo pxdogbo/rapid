@@ -61,6 +61,24 @@ export function toolCwd(payload) {
   return payload?.cwd || payload?.tool_input?.cwd || process.cwd();
 }
 
+// A command can `cd <dir> && …` before the command a hook actually cares
+// about — the harness's reported cwd is the shell's cwd BEFORE this command
+// ran, so a leading `cd` changes the EFFECTIVE cwd for everything after it in
+// the same command. Walk `&&`/`;`-separated segments applying each `cd` in
+// order (relative targets resolve against the running cwd, `~` expands) so a
+// hook checks the right directory instead of a stale one.
+export function resolveCwd(cmd, baseCwd) {
+  let cwd = baseCwd;
+  for (const seg of (cmd || '').split(/&&|;/)) {
+    const m = seg.trim().match(/^cd\s+(.+)$/);
+    if (!m) continue;
+    let target = expand(m[1].trim().replace(/^["']|["']$/g, ''));
+    if (!target.startsWith('/')) target = join(cwd, target);
+    cwd = target;
+  }
+  return cwd;
+}
+
 export function git(cwd, args) {
   return execFileSync('git', ['-C', cwd, ...args], {
     stdio: ['ignore', 'pipe', 'ignore'],

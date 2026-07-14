@@ -22,7 +22,7 @@
 // ~/.rapid/collab-panes.json on this host, same repo; wrapped so it can NEVER
 // throw or block the push. Always exits 0.
 
-import { readPayload, toolCommand, toolCwd, sessionForCwd, sessionsDir, rapidHome, expand } from './_shared.mjs';
+import { readPayload, toolCommand, toolCwd, resolveCwd, sessionForCwd, sessionsDir, rapidHome, expand } from './_shared.mjs';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { hostname } from 'node:os';
@@ -74,7 +74,7 @@ async function main() {
     : JSON.stringify(payload.tool_response || '');
   if (!/https:\/\/github\.com\/[^\s"']+\/pull\/\d+/.test(blob)) return; // no PR opened
 
-  const sess = sessionForCwd(toolCwd(payload));
+  const sess = sessionForCwd(resolveCwd(toolCommand(payload), toolCwd(payload)));
   if (!sess) return; // not a rapid worktree
 
   let panes;
