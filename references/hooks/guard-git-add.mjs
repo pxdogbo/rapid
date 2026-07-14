@@ -13,7 +13,7 @@
 // registered rapid worktree. `git add <explicit/path>` always passes. Fails
 // OPEN on any error — a guard must never brick the shell.
 
-import { readPayload, toolCommand, toolCwd, sessionForCwd, block } from './_shared.mjs';
+import { readPayload, toolCommand, toolCwd, resolveCwd, sessionForCwd, block } from './_shared.mjs';
 
 function isBlanketGitAdd(cmd) {
   // Split on shell separators so `foo && git add -A` is caught too.
@@ -35,7 +35,7 @@ async function main() {
   const cmd = toolCommand(payload);
   if (!/\bgit\s+add\b/.test(cmd)) return;      // not a git add — allow
   if (!isBlanketGitAdd(cmd)) return;           // explicit paths — allow
-  const sess = sessionForCwd(toolCwd(payload));
+  const sess = sessionForCwd(resolveCwd(cmd, toolCwd(payload)));
   if (!sess) return;                            // not a rapid worktree — allow
   block(
     `rapid guard: refusing "git add -A/./--all" inside rapid worktree ${sess.slug}.\n` +

@@ -13,7 +13,7 @@
 // from the main repo clone; that exact miss orphaned a commit once). Fails
 // OPEN on any error (no gh, no network, no PR) — never blocks on uncertainty.
 
-import { readPayload, toolCommand, toolCwd, git, block } from './_shared.mjs';
+import { readPayload, toolCommand, toolCwd, resolveCwd, git, block } from './_shared.mjs';
 import { execFileSync } from 'node:child_process';
 
 // Which branch is this push targeting? An explicit `git push <remote> <branch>`
@@ -34,7 +34,7 @@ async function main() {
   const payload = await readPayload();
   const cmd = toolCommand(payload);
   if (!/\bgit\s+push\b/.test(cmd)) return;       // not a push — allow
-  const cwd = toolCwd(payload);
+  const cwd = resolveCwd(cmd, toolCwd(payload));
   const branch = pushedBranch(cmd, cwd);
   if (!branch || !branch.startsWith('rapid/')) return; // only guard rapid/* branches
 

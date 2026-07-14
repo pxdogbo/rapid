@@ -74,6 +74,21 @@ function sessionForCwd(cwd) {
   return best;
 }
 
+// A command can `cd <dir> && gh pr create …` — the harness's reported cwd is
+// the shell's cwd BEFORE this command ran, so a leading `cd` changes where the
+// PR actually opened. Walk `&&`/`;`-separated segments applying each `cd`.
+function resolveCwd(cmd, baseCwd) {
+  let cwd = baseCwd;
+  for (const seg of (cmd || '').split(/&&|;/)) {
+    const m = seg.trim().match(/^cd\s+(.+)$/);
+    if (!m) continue;
+    let target = expand(m[1].trim().replace(/^["']|["']$/g, ''));
+    if (!target.startsWith('/')) target = join(cwd, target);
+    cwd = target;
+  }
+  return cwd;
+}
+
 function currentBranch(cwd) {
   try {
     return execFileSync('git', ['-C', cwd, 'rev-parse', '--abbrev-ref', 'HEAD'], {
@@ -133,9 +148,9 @@ async function main() {
   let payload;
   try { payload = JSON.parse(raw); } catch { return; }
 
-  const cwd = payload.cwd || payload.tool_input?.cwd || process.cwd();
   const command = payload.tool_input?.command || '';
   if (!/\bgh\s+pr\s+create\b/.test(command)) return; // only PR-open events
+  const cwd = resolveCwd(command, payload.cwd || payload.tool_input?.cwd || process.cwd());
 
   // Find the PR URL in the tool output (gh prints it on success).
   const blob = typeof payload.tool_response === 'string'

@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.22.1 — 2026-07-13
+
+- **Hook fix: resolve a `cd <dir> && …` prefix before checking cwd.** The
+  harness reports a Bash tool call's cwd as the shell state BEFORE the
+  command ran, so `cd rapid-landing && git push` looked, to a hook, like it
+  ran from wherever the shell happened to be sitting. Caught live:
+  `guard-sealed-pr` (broadened in v1.22.0 to fire from any checkout)
+  resolved the wrong repo entirely, found an unrelated branch there sealed,
+  and blocked a legitimate push in a different repo. New `resolveCwd(cmd,
+  baseCwd)` in `references/hooks/_shared.mjs` walks `&&`/`;`-separated `cd`
+  segments to compute the effective cwd; `guard-sealed-pr`, `guard-git-add`,
+  and `compact-peers` now use it. `mark-pushed.mjs` (self-contained, no
+  `_shared` import) got an inline copy of the same fix — it had the identical
+  gap (silently failing to stamp a PR opened via a chained `cd`).
+
 ## 1.22.0 — 2026-07-12
 
 - **Live collab: the lead keeps a liveness sentinel on its workers.** Live

@@ -1,6 +1,6 @@
 ---
 name: rapid
-version: 1.22.0
+version: 1.22.1
 user-invocable: true
 description: >
   Rapid session — capture realtime notes from the user while working with a
