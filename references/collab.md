@@ -56,10 +56,12 @@ room before you post or reply: never assume you've seen the latest.
 When **live mode** is available, the file-write limitation goes away: a sender
 types the **message itself straight into the peer's chat**, so the two agents
 talk in real time — the peer sees your message land and answers directly, no
-"go read the room" hop, no self-poll loop, no per-message relay. The `## Collab`
-room is still written as the durable record (and `[DONE]`/`[PAUSED]` still end
-an exchange) — but the peer doesn't have to *read* it to get your message; it's
-already in their chat. Live mode swaps only the *transport*. Setup + internals:
+"go read the room" hop, no self-poll loop, no per-message relay. In live mode a
+successful send writes **NOTHING** to the `## Collab` doc — the conversation
+lives in the chats, not the doc. (`[DONE]`/`[PAUSED]` still end an exchange, in
+chat.) The relay writes a room line only as a *fallback*, when a live send can't
+reach the peer (not live / another host / inject failed), so the message isn't
+lost. Live mode swaps only the *transport*. Setup + internals:
 `references/collab-live/README.md`.
 
 **Use live mode when ALL hold** (otherwise use the doc-mode flow below — it is
@@ -92,17 +94,19 @@ truth; when in doubt, trust `self`.
 - **🔴 CHAT with the peer — the conversation happens in the chats, not the
   doc.** Talk to the other agent the way you'd answer a user: send the message,
   get the reply, keep the exchange going. Never hand-write lines into a
-  `## Collab` section as your way of "sending" (the relay writes the room copy
-  of every `collab_send` for you), never reply by editing a doc, and never send
-  a message that just says "check the room" / "I posted in the doc" — put the
-  actual content in the message. The `## Collab` room mechanics below (manual
-  append, relay-once, poll loop) are the **doc-mode fallback for non-live
-  sessions**; in live mode the room is only the auto-maintained transcript.
+  `## Collab` section as your way of "sending" (a live send goes chat-to-chat,
+  not through the doc), never reply by editing a doc, and never send a message
+  that just says "check the room" / "I posted in the doc" — put the actual
+  content in the message. The `## Collab` room mechanics below (manual append,
+  relay-once, poll loop) are the **doc-mode fallback for non-live sessions**; in
+  live mode nothing per-message goes in the doc — the section holds only the
+  hand-written roster line (see Roles & roster).
 - **Sending** — call **`collab_send(to, message)`** with the **raw message
-  only** (no `rapid/x → rapid/y:` prefix — the relay signs the room copy and
-  tags the injected copy; if you prefix it yourself the line double-signs). The
-  relay types your message straight into the peer's pane AND records it in the
-  peer's room. (Tool unavailable? CLI: `node …/relay.mjs send <peer> "<msg>"`.)
+  only** (no `rapid/x → rapid/y:` prefix — the relay signs/tags the injected
+  copy; if you prefix it yourself the line double-signs). The relay types your
+  message straight into the peer's pane and writes nothing to the doc; it falls
+  back to a room line only if it can't reach the peer live. (Tool unavailable?
+  CLI: `node …/relay.mjs send <peer> "<msg>"`.)
 - **Receiving** — a turn that arrives as **`[collab from rapid/<peer>] <message>`**
   is a live message from that peer agent. Just answer it: reply with
   `collab_send(<peer>, <your reply>)`, which types your reply into *their* pane.
@@ -276,18 +280,19 @@ raw tmux commands. Same for reopening: `rapid-collab open`, not
 Every session doc carries a `## Collab` section (blank until a collab opens). It
 is an **append-only** chatroom — newest line last, never rewrite history:
 
-> **Live mode: this section is the transcript, not the medium.** The relay
-> writes a room line for every `collab_send` automatically; you never append
-> chat lines by hand, and you read the room only to catch up after a gap. The
-> manual mechanics in this and the following sections (hand-appending lines,
-> relay-once, the poll loop) apply to **doc-mode (non-live) sessions** — plus
-> the roster line and `<!-- collab-loop -->` state comment, which stay
-> hand-maintained in both modes.
+> **Live mode: this section is NOT the medium, and holds no chat lines.** A
+> live `collab_send` goes chat-to-chat and writes nothing here. In live mode the
+> ONLY things in this section are the hand-written roster line (the pair + who's
+> driver) and the `<!-- collab-loop -->` state comment. Per-message `rapid/x →
+> rapid/y:` lines belong to **doc-mode (non-live) sessions** — where the doc IS
+> the transport — or appear as a relay fallback when a live send can't reach the
+> peer. All the manual mechanics below (hand-appending lines, relay-once, the
+> poll loop) are the doc-mode flow.
 
 ```markdown
 ## Collab
-**Room** · rapid/<slug-a> ⇄ rapid/<slug-b>      <!-- only in the host doc -->
-- [16:40] rapid/sonic-jet → rapid/nitro-coupe: done editing BrillService.swift yet? I need to touch its prompt.
+**Room** · rapid/<slug-a> ⇄ rapid/<slug-b> · driver: rapid/<slug-a>   <!-- host doc; roster line, both modes -->
+- [16:40] rapid/sonic-jet → rapid/nitro-coupe: done editing BrillService.swift yet? I need to touch its prompt.   <!-- doc-mode / fallback only -->
 - [16:48] rapid/nitro-coupe → rapid/sonic-jet: yes, merged in PR #57 — go ahead.
 ```
 
@@ -302,9 +307,11 @@ When you `/rapid collab <peer>`:
 - If your own `## Collab` already records an open room with that peer
   (a `**Room** · …` line or an `opened with` pointer), **reuse it**.
 - Otherwise the room is the **peer's** `## Collab` (the doc you reached out to).
-  Write a `**Room** · rapid/<you> ⇄ rapid/<peer>` line at the top of it, and
-  drop a one-line pointer in YOUR `## Collab`:
-  `[HH:MM] collab opened with rapid/<peer> — room: rapid/<peer>`.
+  Write a `**Room** · rapid/<you> ⇄ rapid/<peer> · driver: rapid/<opener>` line
+  at the top of it (name the driver/lead — the opener unless the user says
+  otherwise), and drop a one-line pointer in YOUR `## Collab`:
+  `[HH:MM] collab opened with rapid/<peer> — room: rapid/<peer>`. This roster
+  line is the one thing written in **both** modes — it's what live mode records.
 
 The peer owns that doc, so its `## Collab` **is** the room — it reads and replies
 in place. You (the visitor) post into the room and read it on `collab`. If the
@@ -381,8 +388,9 @@ compact sweep** — every push, automatically, no separate ask:
    worker is mid-turn, wait for it to go idle (the sentinel probe tells you),
    then send `/compact` — `tmux send-keys -t <pane> '/compact' Enter` — and
    verify it submitted (`tmux capture-pane -t <pane> -p`; re-send Enter if the
-   line is still sitting in the composer). Compacting is safe: everything
-   durable lives in the session docs, and the shipped-lane chatter it drops is
+   line is still sitting in the composer). Compacting is safe: everything that
+   matters is already persisted (the notes queue, `## Pushes`, and the shipped
+   code/PRs), and the live-collab chatter it drops is ephemeral by design and
    exactly what the workers no longer need.
 2. Don't compact yourself — the user drives your context.
 3. **End your reply with the PR link.** That's the deliverable of `push`:
@@ -507,9 +515,10 @@ you — you owe them TWO messages:**
 ## `/rapid collab <slug> [message]`
 
 > **Live mode? Skip this flow — just chat.** `collab_send(<slug>, <message>)`
-> delivers the message into the peer's chat and writes the room line for you;
-> there is nothing to append, no relay to request, no loop to arm. The numbered
-> steps below are the **doc-mode (non-live) fallback**.
+> delivers the message straight into the peer's chat and writes nothing to the
+> doc; there is nothing to append, no relay to request, no loop to arm. (Do set
+> the roster line once when you open the room — see Roles & roster.) The
+> numbered steps below are the **doc-mode (non-live) fallback**.
 
 1. Read `~/.rapid/sessions/<slug>.md`. Missing → reply `No session <slug> found.`
 2. Resolve the room (above).

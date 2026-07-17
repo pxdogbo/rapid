@@ -12,22 +12,23 @@
 //   • CLI (`send` / `register` / `status`): the same actions for users who'd
 //     rather shell out from the Bash tool than wire up MCP.
 //
-// Delivery = append + direct inject:
-//   1. append the signed line to the PEER's `## Collab` (durable; the room is
-//      still the record + recovery log, exactly as doc-mode collab),
-//   2. `tmux send-keys` the MESSAGE ITSELF into the peer's pane — tagged
+// Delivery = direct inject (live is chat-only, no doc write):
+//   1. `tmux send-keys` the MESSAGE ITSELF into the peer's pane — tagged
 //      `[collab from rapid/<sender>]` for reply routing — so the peer sees your
 //      message land in its chat and answers directly, with no "go read the
 //      room" hop. (There is no `claude inject` yet, so tmux is the injector —
 //      hence live mode is Unix + tmux only. Newlines are flattened to ⏎ for the
-//      injected copy since send-keys submits on each newline; the room copy
-//      keeps the full text.)
+//      injected copy since send-keys submits on each newline.)
+//   2. A successful live send writes NOTHING to the doc. The signed line is
+//      appended to the PEER's `## Collab` ONLY as a fallback — when the peer
+//      isn't live, is on another host, or the inject throws — so a message that
+//      can't be delivered live isn't lost.
 //
 // Nothing here loops or polls. The agents only act when a message lands; the
-// relay only runs when an agent sends. A garbled/missed inject (peer mid-turn)
-// merely DELAYS a message — never loses it — because the full line is already
-// durably in the room, and the peer reads every unread line on its next
-// `collab`.
+// relay only runs when an agent sends. A missed live inject (peer not
+// reachable) merely DELAYS a message — never loses it — because the fallback
+// appends the full line to the room, and the peer reads every unread line on
+// its next `collab`.
 //
 // Identity is derived, never hardcoded: a session's slug comes from matching
 // the process cwd against the `**Worktree:**` header in ~/.rapid/sessions/*.md,
@@ -235,12 +236,14 @@ function doSend(to, message) {
     return { ok: false, msg: `No session "${to}" found to deliver to.` };
   }
   const line = `- [${hhmm()}] rapid/${from} → rapid/${to}: ${message}`;
-  appendCollabLine(to, line);
 
   // Poke the peer if it's registered live and we can reach its pane.
   const reg = readRegistry();
   const peer = reg[to];
   if (!peer || !peer.pane) {
+    // Doc-mode: the peer isn't live, so its `## Collab` room IS the medium —
+    // write the line so it's picked up on the peer's next `collab`.
+    appendCollabLine(to, line);
     return {
       ok: true,
       delivered: 'doc-only',
@@ -248,6 +251,8 @@ function doSend(to, message) {
     };
   }
   if (peer.host && peer.host !== hostname()) {
+    // Cross-host: can't reach the pane, so fall back to the doc room.
+    appendCollabLine(to, line);
     return {
       ok: true,
       delivered: 'doc-only',
@@ -259,14 +264,19 @@ function doSend(to, message) {
   // land in its chat and answers, with no "go read the room" hop. The minimal
   // `[collab from rapid/<from>]` tag is routing only: it tells the receiver who
   // to reply to (via collab_send back to <from>), not an attribution. Newlines
-  // are flattened to ⏎ because send-keys submits on each newline; the full,
-  // unflattened text is already durably in the room (appended above) for the
-  // record and for recovery if this injection garbles.
+  // are flattened to ⏎ because send-keys submits on each newline.
+  //
+  // A successful live send writes NOTHING to the doc: live mode is chat-only,
+  // and `## Collab` is reserved for doc-mode rooms plus the hand-written roster
+  // line. Only if the pane injection fails do we fall back to the doc (below)
+  // so the message isn't lost.
   const oneLine = String(message).replace(/\s*\r?\n\s*/g, ' ⏎ ').trim();
   const payload = `[collab from rapid/${from}] ${oneLine}`;
   try {
     tmuxPoke(peer.pane, payload);
   } catch (e) {
+    // Injection failed — fall back to the doc room so the message survives.
+    appendCollabLine(to, line);
     return {
       ok: true,
       delivered: 'doc-only',
@@ -322,7 +332,7 @@ const TOOLS = [
   {
     name: 'collab_send',
     description:
-      "Send a message to a peer rapid session in real time: types your message directly into the peer's tmux pane (tagged `[collab from rapid/<you>]` for reply routing) so it sees and answers immediately — no 'go read the room' step — and also appends a signed line to the peer's `## Collab` as the durable record. Pass the RAW message only; the relay does the signing/tagging (do NOT prefix it yourself). Falls back to doc-only delivery (asks the user to relay) if the peer isn't registered for live mode.",
+      "Send a message to a peer rapid session in real time: types your message directly into the peer's tmux pane (tagged `[collab from rapid/<you>]` for reply routing) so it sees and answers immediately — no 'go read the room' step. A successful live send writes NOTHING to the doc — live mode is chat-only. Pass the RAW message only; the relay does the signing/tagging (do NOT prefix it yourself). Falls back to doc-only delivery (writes the signed line to the peer's `## Collab` and asks the user to relay) only if the peer isn't registered for live mode, is on another host, or the pane injection fails.",
     inputSchema: {
       type: 'object',
       properties: {

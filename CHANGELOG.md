@@ -1,5 +1,23 @@
 # Changelog
 
+## 1.22.3 — 2026-07-17
+
+- **Live collab is chat-only — a successful live send writes NOTHING to the
+  doc.** The relay was appending the full signed message to the peer's
+  `## Collab` on *every* `collab_send`, before it even checked whether the peer
+  was live — so a fully-live session filled the doc identically to a non-live
+  one (one session accumulated 600+ lines of relayed research). That contradicts
+  the design intent: live agents converse in their chats; `## Collab` is the
+  transport for **doc-mode (non-live)** only. Fixed in `relay.mjs`: the doc
+  append now fires ONLY on the fallback paths (peer not registered, peer on
+  another host, or the tmux inject throws) so an undeliverable message still
+  isn't lost. A successful live send appends nothing. In live mode the section
+  holds only the hand-written **roster line**, which now names the **driver**
+  (`**Room** · rapid/a ⇄ rapid/b · driver: rapid/a`). Docs corrected to match
+  across `SKILL.md`, `references/collab.md`, and `references/collab-live/`
+  (README + relay comments + the `collab_send` tool description), which all
+  previously claimed live auto-writes a durable transcript.
+
 ## 1.22.2 — 2026-07-17
 
 - **`push` now reconciles the whole queue, and reports a done/total tally.**
