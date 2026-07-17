@@ -24,16 +24,20 @@ back to the doc-mode poll/relay flow — nothing breaks.
    your message land in its chat and answers directly, no "go read the room"
    hop. (Newlines are flattened to ⏎ for the injected copy, since send-keys
    submits on each newline.)
-2. **Appends** the full signed line to the peer's `## Collab` block — the room
-   stays the durable record + recovery log, exactly as doc-mode.
+2. **Writes NOTHING to the doc on a successful live send** — live mode is
+   chat-only. The peer's `## Collab` block is left for doc-mode rooms (and the
+   hand-written roster line). The relay appends the signed line to the peer's
+   `## Collab` **only** as a fallback: when the peer isn't live, is on another
+   host, or the pane injection throws. That fallback line is how the message
+   survives to the peer's next `collab`.
 
 There is no `claude inject` yet, so **tmux is the injector** — hence live mode is
 **Unix + tmux only**, and each collab chat must run inside a tmux pane.
 
 Nothing loops or polls. Agents act only when a message arrives; the relay runs
-only when an agent sends. A garbled/missed inject (peer mid-turn) just **delays**
-a message — never loses it — because the full line is already in the room and
-the peer reads every unread line on its next `collab`.
+only when an agent sends. If a live inject fails (peer mid-turn, pane
+unreachable), the relay falls back to appending the line to the room, so the
+message is **delayed, never lost** — the peer reads it on its next `collab`.
 
 **Identity is derived, never hardcoded:** a session's slug comes from matching
 the process cwd against the `**Worktree:**` header in `~/.rapid/sessions/*.md`;
@@ -148,7 +152,7 @@ Reopen anytime with `rapid-collab <slugA> <slugB>`.
 
 | Tool | Args | Effect |
 |---|---|---|
-| `collab_send` | `to` (peer slug), `message` | Append the signed line to the peer's room + poke its pane. Falls back to doc-only (and says to relay) if the peer isn't live. |
+| `collab_send` | `to` (peer slug), `message` | Poke the peer's pane (live, chat-only — no doc write). Falls back to appending the signed line to the peer's room (and says to relay) only if the peer isn't live, is on another host, or the inject fails. |
 | `collab_register` | — | Re-record this session's pane. Automatic on launch; call only if the pane changed. |
 
 ## CLI (no MCP)
