@@ -99,6 +99,12 @@ Behavior:
      the work isn't shipped, so do NOT flip notes to `[x]`.
 8. **Flip the shipped notes from `[c]` to `[x]`** in the session doc. PR
    open is the licensing event; merge is the user's call and out of scope.
+   **Then reconcile the WHOLE queue, not just this batch:** walk every note
+   and flip to `[x]` any whose work is actually done but was left at `[~]`
+   (or never checked off) on an earlier turn. `push` is the checkpoint where
+   the doc gets caught up to reality — no completed note may stay unchecked
+   after a push. Don't invent completion: only flip notes whose work
+   genuinely shipped or landed; anything still in flight stays `[~]`.
    **Always record the PR URL under each flipped note** — this is required,
    not optional. Format: `→ PR #<N> <url>` on its own indented line so the
    user can click straight to the PR from the session doc.
@@ -120,8 +126,10 @@ Behavior:
      - rapid/<slug>-lyrics-block-ops, rapid/<slug>-accent-hue-slider, rapid/<slug>-confirm-modal-glass, …
    ```
 10. **Reply with a one-block summary**: combined branch name, PR URL, and
-    a bullet list of which notes shipped. Mention that the user merges
-    via the GitHub UI when ready.
+    a bullet list of which notes shipped. **Directly under the PR link, state
+    the tally on its own line — `<done> of <total> notes done`** (count `[x]`
+    against all real notes, excluding `[-]` dropped). This is required on
+    every push. Mention that the user merges via the GitHub UI when ready.
 11. **Print the session status** right after the summary — every `push` ends
     with a snapshot so the user knows whether you're done or something was
     deferred. Re-read the doc and render the Step 6 review (shipped / done-but-
@@ -181,7 +189,9 @@ Behavior:
    branch's commits in note order, and push (a normal push — never
    force). Conflicts → same stop-and-ask flow as `push` step 5.
 5. **Flip the carpooled notes `[c]` → `[x]`** with the SAME PR URL as
-   the target PR (`→ PR #<N> <url>` under each note).
+   the target PR (`→ PR #<N> <url>` under each note). Same whole-queue
+   reconciliation as `push` step 8 — catch up any note left at `[~]` whose
+   work is actually done.
 6. **Append to the batch's `## Pushes` entry** rather than creating a
    new one:
    ```
@@ -190,9 +200,10 @@ Behavior:
      - + carpooled [<date>]: rapid/<slug>-header-copy, rapid/<slug>-footer-link
    ```
 7. **Reply in one block**: which notes were added, the PR URL, and a
-   reminder that the PR now contains the extra commits. **Then print the session
-   status** — same as `push` step 11 (Step 6 review + a one-line done/deferred
-   verdict).
+   reminder that the PR now contains the extra commits. **Under the PR link,
+   state the `<done> of <total> notes done` tally** (same as `push` step 10).
+   **Then print the session status** — same as `push` step 11 (Step 6 review
+   + a one-line done/deferred verdict).
 
 Rules:
 - **Carpool never creates a PR.** No open PR in this session → fall back
