@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.22.2 — 2026-07-17
+
+- **`push` now reconciles the whole queue, and reports a done/total tally.**
+  Two gaps caught live: (1) `push` flipped only the notes in the current
+  batch to `[x]`, so notes whose work had actually shipped on an earlier turn
+  but were never checked off stayed stuck at `[~]` forever (one session
+  accumulated 23 such stale checkboxes while the tree was clean and every PR
+  merged). `push`/`carpool` now walk the ENTIRE `## Notes` block and flip any
+  note whose work genuinely landed — `push` is the checkpoint where the doc
+  catches up to reality; no completed note may stay unchecked after a push
+  (in-flight work still stays `[~]`). (2) The PR-share summary never stated
+  how much of the queue was done. `push`/`carpool` now print a required
+  `<done> of <total> notes done` line directly under the PR link. The
+  `mark-pushed` hook is unchanged — it stamps the header/branch record but by
+  design can't know which note a batch PR covered, so the per-note tick stays
+  the agent's job; this makes that job explicit and retroactive.
+
 ## 1.22.1 — 2026-07-13
 
 - **Hook fix: resolve a `cd <dir> && …` prefix before checking cwd.** The
