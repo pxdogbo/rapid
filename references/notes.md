@@ -113,7 +113,8 @@ Rules:
 
 When the user texts `link` or `link <N>` (case-insensitive, optionally
 with a leading `#` on the number like `link #3`) and **this chat has a
-session**, print the URL(s) of recent PRs opened from this session. No
+session**, print the URL(s) of recent PRs opened from this session —
+plus, for web projects, the project's dev and production URLs. No
 preamble, no commentary — the user wants the links.
 
 Behavior:
@@ -146,9 +147,40 @@ Behavior:
    (`git remote get-url origin`). If the doc only stored the PR
    number without a full URL, build it from the resolved repo root.
 
-4. **No work, no diffs.** This is read-only. Don't open the PRs to
-   inspect them; don't run `gh pr view`. The user wants the links —
-   that's it.
+4. **Web project? Also print the project's own links.** After the PR
+   list, add a Dev and a Prod line for the session's repo — resolved
+   from local files only:
+   ```
+   - **Dev**: http://localhost:<port>
+   - **Prod**: https://<domain>
+   ```
+   - **Detection + dev URL**: the repo is a web project if it has a dev
+     server — a `dev`/`start` script in `package.json` or a framework
+     config (Next.js, Vite, Astro, SvelteKit, Nuxt, CRA…). Resolve the
+     port in this order: explicit `--port`/`-p`/`PORT=` in the script →
+     port set in the framework config → the framework's default (Next.js
+     and Nuxt 3000, Vite and SvelteKit 5173, Astro 4321, CRA 3000).
+   - **Prod URL**, first local source that names one wins: the session
+     doc's `**Links:**` header (see cache below) → `homepage` in
+     `package.json` → deployment config (`vercel.json`, `netlify.toml`,
+     `wrangler.toml` routes/domains, a `CNAME` file) → a canonical URL
+     stated at the top of the README. Nothing local names it → omit the
+     Prod line; NEVER guess or fabricate a domain.
+   - **Cache the result** in the session doc header as
+     `**Links:** dev <url> · prod <url>` so later `link` calls (in this
+     chat or a chat that resumes the session) print it straight from the
+     doc. This header line is the ONE write `link` may make.
+   - **Monorepo with several web apps** → print the pair for the app the
+     session's notes actually touched; genuinely ambiguous → one labeled
+     Dev/Prod pair per app.
+   - **Not a web project** → PR list only. No "not a web project" line,
+     no apology.
+
+5. **No work, no diffs.** This is read-only apart from the `**Links:**`
+   header cache. Don't open the PRs to inspect them; don't run `gh pr
+   view`; don't start dev servers, call deploy CLIs, or fetch anything
+   over the network to resolve URLs. The user wants the links — that's
+   it.
 
 Edge cases:
 - **No session in this chat** → treat as a normal message.
