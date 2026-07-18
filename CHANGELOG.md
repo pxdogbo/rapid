@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.23.0 — 2026-07-18
+
+- **`link` now also prints the project's dev and production URLs when the
+  session's repo is a web project.** After the PR list, `link` appends a
+  `Dev:` line (dev-server URL — port resolved from the `dev`/`start` script's
+  explicit flag, then the framework config, then the framework default) and a
+  `Prod:` line (first local source that names a domain: the doc's `**Links:**`
+  header, `package.json` `homepage`, `vercel.json`/`netlify.toml`/
+  `wrangler.toml`/`CNAME`, or a canonical URL at the top of the README — never
+  guessed). Resolution happens from local files only: no dev servers started,
+  no deploy CLIs, no network. The resolved pair is cached in the session doc
+  header as `**Links:** dev <url> · prod <url>` — the one write `link` may
+  make — so later calls and resumed sessions print it straight from the doc.
+  Non-web repos are unchanged: PR list only, no extra output.
+
 ## 1.22.3 — 2026-07-17
 
 - **Live collab is chat-only — a successful live send writes NOTHING to the

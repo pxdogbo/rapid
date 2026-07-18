@@ -1,6 +1,6 @@
 ---
 name: rapid
-version: 1.22.3
+version: 1.23.0
 user-invocable: true
 description: >
   Rapid session — capture realtime notes from the user while working with a
@@ -181,7 +181,7 @@ skipped and the session is doc-only.
 | `park` / `park <N>` (bare word, mid-session) | Mark a note as **parked** (`[p]`) so it sticks around but is set aside. `park` alone → park the current `[~]`. See `references/notes.md`. |
 | `unpark <N>` (bare word, mid-session) | Flip a parked note back into the queue (or straight to in-progress if nothing else is pending). See `references/notes.md`. |
 | `drop <N>` (bare word, mid-session) | Mark note N dropped (`[-]`) — "never," not "later." Bookkeeping only; use `reverse` to also discard work. See `references/notes.md`. |
-| `link` / `link <N>` (bare word, mid-session) | Print the URL(s) of recent PRs opened from **this chat's** session, newest first. See `references/notes.md`. |
+| `link` / `link <N>` (bare word, mid-session) | Print the URL(s) of recent PRs opened from **this chat's** session, newest first — and, when the repo is a web project, the project's dev and production URLs (resolved from local config only, cached in the doc's `**Links:**` header). See `references/notes.md`. |
 | `reverse <N>` / `undo <N>` (bare word, mid-session) | **Undo the work done on note N** — discard uncommitted changes, reset committed branches, or close pushed PRs (with confirmation). See `references/reverse.md`. |
 | `wax` (bare word, mid-session) | **Groom** this chat's session doc in place — condense finished notes, group related ones, refresh in-progress state, strip stale sub-bullets. Keeps the whole live queue; doc-only, no git. See `references/wax.md`. |
 | `collab` (bare word, mid-session) | **Check the collab room + drive the loop.** Re-read this chat's `## Collab` (and any room it joined), surface new peer messages since last check (loudly flag any awaiting reply), act on what the peer cleared, then (re-)arm the autonomous poll loop. No live channel: the user relays once per side to start each agent; after that the agents self-poll. On stop it posts an explicit status to the room so the peer knows which happened (and isn't left thinking the work just paused): `[DONE]` (work finished) or `[PAUSED]` (idle after 3 *consecutive* quiet checks ~5 min apart — any new peer note resets that count, NOT finished), echoed in your chat too. **Live mode** (config `collabLive` + tmux): agents CHAT directly — a send types your message straight into the peer's chat in real time and writes NOTHING to the doc (live is chat-only; `## Collab` stays empty but for the hand-written roster line naming the pair + driver); no relay, no "go read the room", no per-message room lines — but the LEAD keeps a ~5-min **sentinel** on outstanding workers: a cheap tmux liveness probe (is the worker's pane still running?), nothing read while it's busy; only a worker that went IDLE without reporting triggers a nudge to report through collab. Never lapses while a lane is outstanding. See `references/collab.md`. |
