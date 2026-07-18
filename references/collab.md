@@ -347,13 +347,42 @@ expensive model anyway (no cost saving), and it bypasses the peers the collab
 was opened for.
 
 - **Lead:** never spawn a background agent to do lane work. Assign the lane to
-  a peer (`collab_send`) and review what comes back — reading diffs, testing,
-  settling merge order is YOUR job, done yourself. (A quick read-only lookup
+  a peer (`collab_send`) and review what comes back — reading diffs and
+  settling merge order is YOUR job, done yourself; hands-on testing is NOT
+  (see "Testing in a live collab" below). (A quick read-only lookup
   agent for your own QA is fine; anything producing work product is not.)
 - **Workers:** you own your lane and MAY use background agents inside it when
   they help — as long as the result stays reviewable by the lead: everything
   lands on your session's branch/worktree, and you report it through the room
   like any other work of yours. No side-channel output the lead can't inspect.
+
+### Testing in a live collab — the driver never tests
+
+Hands-on verification is lane work, and lane work belongs to the riders.
+
+- **Driver/lead: never test yourself.** No dev servers, no browser automation,
+  no simulators, no curl-the-preview — not even to QC a lane. When a test is
+  called for, write **testing instructions** instead and send them to the
+  rider who owns the lane (or the best-placed idle rider): what to run, which
+  flow to drive, what a pass looks like, and that the verdict comes back in
+  the `references/test.md` report shape —
+  `collab_send(<rider>, "[test] <instructions>")`. The lead QCs by reading the
+  rider's verdict + evidence (screenshot, log, URL it tested against), not by
+  running the flow itself.
+- **The user's `test` / `testdrive` lands on the lead, but the lead
+  delegates it.** Receiving the bare word does NOT mean run
+  `references/test.md` yourself — compose the instructions, send them to the
+  rider, and relay the rider's verdict (same shape, evidence pointer included)
+  back to the user.
+- **Riders: never spin up a dev server, run the app, or launch browser
+  automation on your own initiative** — not after finishing a lane, not to
+  "verify" your own work, not because a diff looks risky. You test ONLY when
+  the user explicitly asked for it — either relayed by the driver as `[test]`
+  instructions, or typed by the user directly into your pane. (This is the
+  session-wide "only test when asked" rule; the collab twist is that the ask
+  normally reaches you through the driver.)
+- The chain, end to end: **user asks → driver instructs → rider executes →
+  verdict flows back up.** No link in that chain self-starts.
 
 ### rapid-plan — asking a peer to author a plan
 

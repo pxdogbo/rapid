@@ -7,6 +7,13 @@ it's a normal message. This exists because the failure mode of this
 skill is: user asks → push → wait 10 min for deploy → user comes back,
 nothing changed. `test`/`testdrive` is the antidote.
 
+> **In a live collab, the lead never runs this flow — a rider does.** The
+> user's `test` lands on the lead; the lead composes testing instructions and
+> `collab_send`s them to the rider owning the lane; the rider runs this
+> file's flow in its own pane and sends the verdict (step 5's shape, evidence
+> included) back to the lead, who relays it to the user. See
+> `references/collab.md` → "Testing in a live collab".
+
 Behavior:
 
 1. **Identify the target.** Default to the most recent `[x]` note whose PR

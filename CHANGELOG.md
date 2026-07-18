@@ -1,5 +1,26 @@
 # Changelog
 
+## 1.23.1 — 2026-07-18
+
+- **Live collab: the driver never tests — testing is rider lane work, and only
+  on the user's ask.** New role rule, three parts: (1) the **driver/lead never
+  runs tests itself** — no dev servers, no browser automation, no simulators,
+  not even to QC a lane; when a test is called for it composes **testing
+  instructions** (what to run, which flow, what a pass looks like, verdict in
+  the `references/test.md` shape) and `collab_send`s them to the rider owning
+  the lane, then QCs the returned verdict + evidence. (2) The user's bare
+  `test`/`testdrive` still lands on the lead, but the lead **delegates** it and
+  relays the rider's verdict back — it no longer runs `references/test.md`
+  itself. (3) **Riders never spin up dev servers, run the app, or launch
+  browser automation on their own initiative** — not to "verify" a finished
+  lane — only when the user explicitly asked (relayed as `[test]` instructions
+  by the driver, or typed directly into the rider's pane). Chain: user asks →
+  driver instructs → rider executes → verdict flows back up; no link
+  self-starts. Docs updated in `references/collab.md` (new "Testing in a live
+  collab" section; the lead-delegates rule no longer lists testing as the
+  lead's own job), `references/test.md` (collab callout), and `SKILL.md`
+  (trigger rows + the "only test when asked" rule).
+
 ## 1.23.0 — 2026-07-18
 
 - **`link` now also prints the project's dev and production URLs when the
