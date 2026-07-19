@@ -279,6 +279,34 @@ if tmux has-session -t "$SESS" 2>/dev/null; then
   exit 1
 fi
 
+# ── Pre-write the roster so every agent knows who's who at boot. ──
+# The FIRST slug is the driver/lead (pane 0); the room lives in ITS doc. Riders
+# get an "opened with" pointer in theirs. This is the hand-written roster line
+# live mode expects — the primed panes (below) read it the moment they bind, so
+# the driver knows it has riders (and who they are) before the user says a word.
+node -e '
+const fs=require("fs");
+const [sroot,lead,...riders]=process.argv.slice(1);
+const hhmm=new Date().toTimeString().slice(0,5);
+const doc=(s)=>{const p=sroot+"/"+s+".md";return fs.existsSync(p)?p:sroot+"/archive/"+s+".md";};
+function upsert(file,line,replaceRoom){
+  let s; try{s=fs.readFileSync(file,"utf8");}catch{return;}
+  if(s.includes(line)) return;
+  if(!/^## Collab\s*$/m.test(s)) s=s.replace(/\s*$/,"\n\n## Collab\n");
+  if(replaceRoom && /^\*\*Room\*\* ·.*$/m.test(s)){
+    fs.writeFileSync(file,s.replace(/^\*\*Room\*\* ·.*$/m,line)); return;
+  }
+  fs.writeFileSync(file,s.replace(/^(## Collab\s*\n)/m,"$1"+line+"\n"));
+}
+const names=[lead,...riders].map(x=>"rapid/"+x);
+const roster= riders.length===1
+  ? "**Room** · rapid/"+lead+" ⇄ rapid/"+riders[0]+" · driver: rapid/"+lead
+  : "**Room** · lead: rapid/"+lead+" · members: "+names.join(", ")+" · owns: (unassigned)";
+upsert(doc(lead),roster,true);
+for(const r of riders)
+  upsert(doc(r),"- ["+hhmm+"] collab opened with rapid/"+lead+" — room: rapid/"+lead+" · driver: rapid/"+lead+" (you are a rider)",false);
+' "$SROOT" "${SLUGS[@]}"
+
 # Build the panes: first pane = new session, the rest = splits. Each pane starts
 # in its slug's worktree (-c) so the relay auto-registers the right session.
 PANES=()
@@ -294,13 +322,62 @@ for p in "${PANES[@]}"; do
   tmux send-keys -t "$p" 'claude' Enter
 done
 
-echo "Opened tmux '$SESS' with ${#SLUGS[@]} panes:"
+# ── Prime the panes (live mode only): as each pane's relay registers, type
+# `/rapid collab` into it so the agent binds its identity and reads the roster
+# BEFORE the user says anything — this is what makes the driver treat "the
+# rider" as its live peer, not a subagent. Runs in the background so attaching
+# isn't delayed; if a pane never registers (relay missing, live mode off), it
+# just isn't primed and the manual kickoff lines printed below still apply.
+LIVE="$(node -e 'const fs=require("fs"),os=require("os");try{const c=JSON.parse(fs.readFileSync(os.homedir()+"/.rapid/config.json","utf8"));process.stdout.write(c.collabLive?"1":"0")}catch{process.stdout.write("0")}')"
+if [ "$LIVE" = "1" ]; then
+  (
+    set +eu
+    end=$(( $(date +%s) + 150 ))
+    pending=()
+    for i in "${!SLUGS[@]}"; do pending+=("$i"); done
+    while [ "${#pending[@]}" -gt 0 ] && [ "$(date +%s)" -lt "$end" ]; do
+      sleep 3
+      still=()
+      for i in ${pending[@]+"${pending[@]}"}; do
+        # Registered = this slug's registry entry points at OUR pane (a stale
+        # entry from an old collab must not trigger a premature prime).
+        if node -e '
+const fs=require("fs"),os=require("os");
+try{const d=JSON.parse(fs.readFileSync(os.homedir()+"/.rapid/collab-panes.json","utf8"));
+  const e=d[process.argv[1]];process.exit(e&&e.pane===process.argv[2]?0:1);}catch{process.exit(1);}' \
+          "${SLUGS[$i]}" "${PANES[$i]}" 2>/dev/null; then
+          tmux send-keys -t "${PANES[$i]}" -l '/rapid collab' 2>/dev/null
+          sleep 1
+          tmux send-keys -t "${PANES[$i]}" Enter 2>/dev/null
+          sleep 2
+          # send-keys can lose the Enter mid-render; if the line still sits in
+          # the composer, hit Enter again (a spare Enter on empty is a no-op).
+          if tmux capture-pane -p -t "${PANES[$i]}" 2>/dev/null | tail -6 | grep -qE '/rapid collab[[:space:]]*$'; then
+            tmux send-keys -t "${PANES[$i]}" Enter 2>/dev/null
+          fi
+        else
+          still+=("$i")
+        fi
+      done
+      pending=()
+      for i in ${still[@]+"${still[@]}"}; do pending+=("$i"); done
+    done
+  ) >/dev/null 2>&1 &
+fi
+
+echo "Opened tmux '$SESS' with ${#SLUGS[@]} panes — driver: ${SLUGS[0]}:"
 for i in "${!SLUGS[@]}"; do echo "  ${PANES[$i]}  ${SLUGS[$i]}  (${WTS[$i]})"; done
 echo
-echo "Each pane auto-adopts its worktree's session (identity keys off the dir —"
-echo "no /rapid resume needed). Once claude is up, kick off the exchange:"
-echo "  in the ${SLUGS[0]} pane:  /rapid collab ${SLUGS[1]} \"you there?\""
-for i in $(seq 1 $(( ${#SLUGS[@]} - 1 ))); do echo "  in the ${SLUGS[$i]} pane:  /rapid collab ${SLUGS[0]}"; done
+if [ "$LIVE" = "1" ]; then
+  echo "Each pane auto-binds its worktree's session and is primed with '/rapid collab'"
+  echo "as it boots — the roster (driver + riders) is already written, so every agent"
+  echo "knows its role before you say a word. Just talk to the ${SLUGS[0]} (driver) pane."
+else
+  echo "Each pane auto-adopts its worktree's session (identity keys off the dir —"
+  echo "no /rapid resume needed). Once claude is up, kick off the exchange:"
+  echo "  in the ${SLUGS[0]} pane:  /rapid collab ${SLUGS[1]} \"you there?\""
+  for i in $(seq 1 $(( ${#SLUGS[@]} - 1 ))); do echo "  in the ${SLUGS[$i]} pane:  /rapid collab ${SLUGS[0]}"; done
+fi
 echo
 
 if [ -n "${TMUX:-}" ]; then

@@ -1,5 +1,63 @@
 # Changelog
 
+## 1.24.0 — 2026-07-18
+
+- **Fresh collabs now know who's who at boot — no more "driver spawns a
+  subagent as its rider."** Live incident (intermittent): in a just-opened
+  collab, "delegate this to the rider" made the driver launch a background
+  subagent — the panes booted as bare `claude` with zero collab context, and
+  `guard-agent-peer` only matched actual slug names, so the generic word
+  "rider" sailed through. Three-part fix:
+  1. **`collab-start` pre-writes the roster and primes every pane.** Before
+     launching, it writes the `**Room** · … driver: rapid/<first>` roster line
+     into the driver's doc (first slug = pane 0 = driver) and an "opened
+     with … (you are a rider)" pointer into each rider's. With live mode on,
+     a background watcher then types `/rapid collab` into each pane as its
+     relay registers (send-keys verified, stale-registry-proof) — every agent
+     binds its cwd session, reads the roster, announces its role, and stands
+     by. New fresh-boot-prime rule in `references/collab.md`: roster-only room
+     → announce role, don't message peers, don't arm loops, don't invent work.
+  2. **`guard-agent-peer` now blocks generic role words during a RUNNING live
+     collab.** When this session and at least one peer are registered in
+     `~/.rapid/collab-panes.json` with panes still alive in tmux, an
+     Agent-tool prompt saying rider/worker/peer/other-agent blocks, naming the
+     real peer slugs in the fix. Technical uses (web/service worker, worker
+     thread/pool, peer dependency/review, peer-to-peer) are scrubbed first;
+     outside a live collab the words stay inert, so normal subagent use never
+     trips it.
+  3. **`/rapid collab <N>` no longer strands a throwaway session.** A
+     session-bound chat that asks for a collab of N now rides its OWN session
+     along as the driver: only N−1 riders are minted, this chat's slug prints
+     first in the `rapid-collab` line, and the driver pane takes the session
+     over (the user closes the scaffolding chat). Previously every spin-up
+     minted N fresh sessions and left the invoking chat's session as an
+     unused leftover to `tidy` later. No session in the chat → all N fresh,
+     first minted slug is the driver, as before.
+  Scaffolded sets host the room in the DRIVER's doc (documented exception to
+  "the room is the peer's doc"); `references/collab-live/README.md` updated to
+  match, including the driver-first argument order of `rapid-collab`.
+
+## 1.23.1 — 2026-07-18
+
+- **Live collab: the driver never tests — testing is rider lane work, and only
+  on the user's ask.** New role rule, three parts: (1) the **driver/lead never
+  runs tests itself** — no dev servers, no browser automation, no simulators,
+  not even to QC a lane; when a test is called for it composes **testing
+  instructions** (what to run, which flow, what a pass looks like, verdict in
+  the `references/test.md` shape) and `collab_send`s them to the rider owning
+  the lane, then QCs the returned verdict + evidence. (2) The user's bare
+  `test`/`testdrive` still lands on the lead, but the lead **delegates** it and
+  relays the rider's verdict back — it no longer runs `references/test.md`
+  itself. (3) **Riders never spin up dev servers, run the app, or launch
+  browser automation on their own initiative** — not to "verify" a finished
+  lane — only when the user explicitly asked (relayed as `[test]` instructions
+  by the driver, or typed directly into the rider's pane). Chain: user asks →
+  driver instructs → rider executes → verdict flows back up; no link
+  self-starts. Docs updated in `references/collab.md` (new "Testing in a live
+  collab" section; the lead-delegates rule no longer lists testing as the
+  lead's own job), `references/test.md` (collab callout), and `SKILL.md`
+  (trigger rows + the "only test when asked" rule).
+
 ## 1.23.0 — 2026-07-18
 
 - **`link` now also prints the project's dev and production URLs when the

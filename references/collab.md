@@ -4,7 +4,7 @@ Read this when the user invokes `/rapid collab <slug>` or the bare word `collab`
 
 | Invocation | What it does |
 |---|---|
-| `/rapid collab <N>` (N = 1–4) | **Spin up N collab-ready sessions** in the current repo and print the one command to open them. A *number* means "make this many" (not a message). See "Spin up a collab set" below. |
+| `/rapid collab <N>` (N = 1–4) | **Spin up a collab of N agents** in the current repo and print the one command to open them. This chat's session rides along as the **driver** (only N−1 new riders are minted; no throwaway session); no session here → all N fresh. A *number* means "make this many" (not a message). See "Spin up a collab set" below. |
 | `/rapid collab setup` | **Enable live mode** (one time): register the relay, set `collabLive: true`, verify tmux. See "Enabling live mode" below + `references/setup.md`. |
 | `/rapid collab <slug> [message]` | Open or continue a chatroom with the agent on session `<slug>`. Live mode pokes them in real time; otherwise post + relay. |
 | `collab` (bare word, mid-session) | Re-read your `## Collab` (and any room you joined); show new messages from the peer; flag anything awaiting your reply. |
@@ -31,9 +31,21 @@ asked for. **NEVER satisfy it by spawning your own background agent** (Plan,
 general-purpose, or any subagent): "ask quantum-kart for a plan" means MESSAGE
 quantum-kart and let IT write the plan — not "launch a Plan subagent and wait
 for it". (That flow has a name — a **rapid-plan**; see "rapid-plan" under
-Roles & roster.) With the reliability hooks installed, `guard-agent-peer`
-enforces this: an Agent-tool prompt naming a live peer's slug or worktree is
-blocked with the collab_send fix. A subagent runs on your own model inside your own chat, invisible to
+Roles & roster.)
+
+**The same rule holds when no slug is said.** In a live collab, "the rider",
+"your worker", "your peer", "the other agent" ARE named sessions — the roster
+line says which. "Delegate this to the rider" means `collab_send` to that
+peer, never `Agent(...)`; if you don't know who your rider is yet, read the
+roster (the `**Room**` line in the lead's doc) or `collab_register`/`relay.mjs
+status` — don't fall back to a subagent because no slug was typed.
+
+With the reliability hooks installed, `guard-agent-peer` enforces both forms:
+an Agent-tool prompt naming a live peer's slug or worktree is blocked with the
+collab_send fix, and inside a RUNNING live collab (own pane + a peer pane
+registered and alive) the generic role words rider/worker/peer/other-agent
+block too, with the real peer slugs named in the message (technical uses like
+"service worker" / "worker thread" / "peer dependency" are exempt). A subagent runs on your own model inside your own chat, invisible to
 the user and the peer — the opposite of what was asked, and it double-spends
 the tokens the peer split exists to save. If you catch yourself typing
 `Agent(...)` with a peer's name or worktree in the prompt, stop and
@@ -173,21 +185,33 @@ The bare `/rapid collab setup` verb runs the same setup on demand, any time.
 
 ## Spin up a collab set — `/rapid collab <N>` (N = 1–4)
 
-A **number** (not a slug) means "create this many collab-ready sessions in the
-current repo and hand me the command to open them." It's a **scaffolder**: it
-mints sessions and prints how to open them — it does **not** bind this chat or
-start working (close this chat after; the work happens in the opened panes).
+A **number** (not a slug) means "get me a collab of N agents in the current
+repo and hand me the command to open them." It's a **scaffolder**: it mints
+what's missing and prints how to open the set — the work happens in the opened
+panes.
 
-1. **Cap at 4.** If N > 4, do nothing and reply: `Max 4 per spin-up (tmux gets
-   cramped past that, and 4 live agents is plenty). Run \`/rapid collab\` again
-   for more, or add one at a time with \`/rapid collab 1\`.` If N < 1 or
-   non-numeric, treat as a slug/other (see the other rows).
+**🟢 This chat's session rides along as the DRIVER — don't mint a throwaway.**
+If this chat already has a session (bound earlier, or auto-adopted from a
+collab pane's cwd), that session IS one of the N: mint only **N−1 fresh rider
+sessions** and print this chat's slug **first** (first slug = pane 0 = the
+driver). Spinning up N fresh sessions from a session-bound chat strands the
+chat's own session as an unused leftover — the very thing the user then has to
+`tidy`. The driver pane boots in this session's worktree and **takes the
+session over** (tell the user to close this chat after running the printed
+command — one chat, one doc; the pane is that one chat now). Any queued notes
+ride along; the driver picks up the queue. Only when this chat has NO session
+(or a doc-only one with no worktree) does the scaffolder mint all N fresh.
+
+1. **Cap at 4 agents total** (this session + minted riders). If N > 4, do
+   nothing and reply: `Max 4 per collab (tmux gets cramped past that, and 4
+   live agents is plenty). Add one at a time later with \`/rapid collab 1\`.`
+   If N < 1 or non-numeric, treat as a slug/other (see the other rows).
 2. **Resolve the repo** from cwd (`git rev-parse --show-toplevel`). Not in a repo
    → reply that spin-up needs a git repo and stop.
-3. **Mint N fresh sessions** — run Step 2b (SKILL.md) N times: a unique
+3. **Mint the missing sessions** — run Step 2b (SKILL.md) for each: a unique
    `<adjective>-<vehicle>` slug, a worktree at `~/worktrees/<repo>/<slug>/` on
    `rapid/<slug>` off `origin/main`, and a session doc each. Do **not** bind this
-   chat to any of them.
+   chat to any of the new ones.
 4. **Live-mode readiness.** If live mode isn't set up, append a one-liner to the
    printout: `(first run \`/rapid collab setup\` to enable real-time mode)`.
 5. **Already mid-collab? Add to it — don't make the user fiddle with tmux.**
@@ -216,26 +240,42 @@ start working (close this chat after; the work happens in the opened panes).
      Find `<lead>` from the room's roster line (the collab opener). If it hasn't
      registered in time, tell the user to type that line in the new pane. Report:
      `Added rapid/<slug> to the live collab — joining <lead> now.`
-   - **Not running → fresh start.** Print the open command and tell the user to
-     close this chat:
-     - **N = 1** — one session, to pair with one you already have:
+   - **Not running → fresh start.** Print the open command — **this chat's slug
+     first** when it has a session (it's the driver) — and tell the user to
+     close this chat after running it:
+     - **N = 1, this chat has a session** — one new rider to pair with it:
+       ```
+       Created rapid/<new> (your rider).
+       ▶ rapid-collab <this-slug> <new>
+         (close this chat after — the driver pane takes over rapid/<this-slug>)
+       ```
+     - **N = 1, no session here** — one session, to pair with one you already have:
        ```
        Created rapid/<slug>.
-       ▶ pair it with a session you've got going:  rapid-collab <slug> <other-slug>
-         (live now for this repo: <list live slugs>)
+       ▶ pair it with a session you've got going:  rapid-collab <other-slug> <slug>
+         (live now for this repo: <list live slugs>; first slug = driver)
        ▶ or open it solo:  cd ~/worktrees/<repo>/<slug> && claude
        ```
-     - **N ≥ 2** — a fresh set; one launch line:
+     - **N ≥ 2** — one launch line, driver first:
        ```
-       Created rapid/<slugA> + rapid/<slugB>[ + …].
-       ▶ rapid-collab <slugA> <slugB>[ …]
+       Created rapid/<newA>[ + rapid/<newB> …] — riders for rapid/<this-slug>.
+       ▶ rapid-collab <this-slug> <newA>[ …]
          (close this chat — the panes are where you'll work)
        ```
-6. **Stop** (fresh-start path) — don't open tmux yourself or bind; the user runs
-   the printed command. (The mid-session-add path already opened the pane above.)
+       (No session in this chat → all N are fresh and the first minted slug is
+       the driver.)
+6. **Stop** (fresh-start path) — don't open tmux yourself; the user runs the
+   printed command. (The mid-session-add path already opened the pane above.)
+   If this chat's session rode along as the driver, remind the user this chat
+   is done — its pane replaces it.
 
 Once opened, each pane **auto-adopts its directory's session** (no `/rapid
-resume`), and `/rapid collab <peer> <message>` starts the real-time exchange.
+resume`). The launcher also **pre-writes the roster** (the `**Room**` line in
+the driver's doc + an "opened with" pointer in each rider's) and, in live
+mode, **primes every pane with `/rapid collab` as it boots** — so each agent
+binds its identity and learns its role (driver or rider, and who the peers
+are) before the user types anything. There is no "the driver doesn't know it
+has a rider" window: just talk to the driver pane.
 
 ---
 
@@ -317,6 +357,12 @@ The peer owns that doc, so its `## Collab` **is** the room — it reads and repl
 in place. You (the visitor) post into the room and read it on `collab`. If the
 peer's doc has no `## Collab` yet (older doc), add the section when you first post.
 
+**Scaffolded sets are the exception: the room lives in the DRIVER's doc.** The
+launcher (`collab-start`) pre-writes the roster line into the first slug's doc
+(pane 0 = driver) and an `opened with … — room: rapid/<driver>` pointer into
+each rider's, so every agent — and any late joiner — finds the roster in the
+lead's `## Collab`. The reuse rule above then keeps everyone in that room.
+
 ---
 
 ## Roles & roster — one agent fronts the user; the room says who's who
@@ -347,13 +393,42 @@ expensive model anyway (no cost saving), and it bypasses the peers the collab
 was opened for.
 
 - **Lead:** never spawn a background agent to do lane work. Assign the lane to
-  a peer (`collab_send`) and review what comes back — reading diffs, testing,
-  settling merge order is YOUR job, done yourself. (A quick read-only lookup
+  a peer (`collab_send`) and review what comes back — reading diffs and
+  settling merge order is YOUR job, done yourself; hands-on testing is NOT
+  (see "Testing in a live collab" below). (A quick read-only lookup
   agent for your own QA is fine; anything producing work product is not.)
 - **Workers:** you own your lane and MAY use background agents inside it when
   they help — as long as the result stays reviewable by the lead: everything
   lands on your session's branch/worktree, and you report it through the room
   like any other work of yours. No side-channel output the lead can't inspect.
+
+### Testing in a live collab — the driver never tests
+
+Hands-on verification is lane work, and lane work belongs to the riders.
+
+- **Driver/lead: never test yourself.** No dev servers, no browser automation,
+  no simulators, no curl-the-preview — not even to QC a lane. When a test is
+  called for, write **testing instructions** instead and send them to the
+  rider who owns the lane (or the best-placed idle rider): what to run, which
+  flow to drive, what a pass looks like, and that the verdict comes back in
+  the `references/test.md` report shape —
+  `collab_send(<rider>, "[test] <instructions>")`. The lead QCs by reading the
+  rider's verdict + evidence (screenshot, log, URL it tested against), not by
+  running the flow itself.
+- **The user's `test` / `testdrive` lands on the lead, but the lead
+  delegates it.** Receiving the bare word does NOT mean run
+  `references/test.md` yourself — compose the instructions, send them to the
+  rider, and relay the rider's verdict (same shape, evidence pointer included)
+  back to the user.
+- **Riders: never spin up a dev server, run the app, or launch browser
+  automation on your own initiative** — not after finishing a lane, not to
+  "verify" your own work, not because a diff looks risky. You test ONLY when
+  the user explicitly asked for it — either relayed by the driver as `[test]`
+  instructions, or typed by the user directly into your pane. (This is the
+  session-wide "only test when asked" rule; the collab twist is that the ask
+  normally reaches you through the driver.)
+- The chain, end to end: **user asks → driver instructs → rider executes →
+  verdict flows back up.** No link in that chain self-starts.
 
 ### rapid-plan — asking a peer to author a plan
 
@@ -425,7 +500,10 @@ authoritative "who's lead, who's here, who owns what." The lead rewrites it
 whenever membership or ownership changes (kickoff, a join, a reassignment).
 
 **At kickoff** the lead posts that roster line AND `collab_send`s each peer a
-roles note, so every agent records: *lead = rapid/<slug>* + its own lane.
+roles note, so every agent records: *lead = rapid/<slug>* + its own lane. (In
+a scaffolded set the launcher already wrote the roster and primed every pane —
+see "Spin up a collab set" — so kickoff reduces to assigning lanes: rewrite
+`owns:` and send each rider its lane.)
 
 ### Routing a question to the user
 
@@ -545,6 +623,17 @@ room) and **(re-)arm the autonomous loop** (below). No session → normal messag
 never queue `collab` as a note. (Live mode: this verb is a catch-up read —
 reply to anything new via `collab_send`; the lead re-arms its sentinel if
 lanes are outstanding; never arm the doc-mode reply loop.)
+
+**Fresh-boot prime — roster line only, no messages yet.** The launcher types
+`/rapid collab` into every pane at boot (see "Spin up a collab set"). When
+that lands and the room holds just the roster (no chat lines), you're being
+primed, not asked to work: bind to the cwd's session (auto-adopt), read the
+roster, then **announce your role in one line and stand by** — driver: `I'm
+the driver of this collab; riders: rapid/<w1>[, rapid/<w2>]. Waiting on you.`
+· rider: `I'm a rider here; driver is rapid/<lead>. Standing by for a lane.`
+Don't message peers yet, don't arm any loop, don't invent work. From this
+moment "the rider"/"the driver" in anything the user says means those live
+agents — never a subagent.
 
 ---
 
