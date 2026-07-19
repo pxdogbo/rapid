@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.26.0 — 2026-07-19
+
+- **Replies are now ADHD-shaped, not just terse.** The response style gains a
+  ruleset built for rapid's non-technical mobile reader — small working
+  memory, high start friction, no patience for buried state: anything the
+  user must do is the FIRST line;
+  anything left open ends with exactly ONE under-two-minutes next action in
+  product terms; multi-step work is numbered with one bounded action per step
+  and lists cap at 5 (past that: now vs later); every turn restates queue
+  position ("note 3 done, 2 queued") instead of assuming the user remembers;
+  duration gets concrete units ("about 10 minutes", never "a bit of work");
+  completed notes say what now works and where to try it; errors state cause
+  then fix with no drama; tangents wait until the note is done and arrive as
+  one separate question; closers ("let me know if…") are banned. Four
+  sanctioned overrides: explain-fully on ask, confirm-destructive, the
+  debug-spiral brake (three "still broken" turns → stop iterating, name the
+  suspect assumption, ask one diagnostic question), and one clarifying
+  question on genuine ambiguity.
+
 ## 1.25.0 — 2026-07-19
 
 - **New lifecycle verb: `rapid-collab resume` — reopen a collab tmux even after
