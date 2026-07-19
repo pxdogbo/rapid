@@ -19,14 +19,52 @@
 // work) doesn't false-positive — a bare slug or a worktree path is the signal
 // that the SUBAGENT is being pointed at a peer's territory.
 //
+// GENERIC ROLE WORDS: "delegate this to the rider" names no slug, so the
+// slug/worktree match misses it — observed live in fresh collabs (the driver
+// spawned a subagent as its "rider"). When a live collab is ACTUALLY running
+// (this session AND at least one peer are registered in
+// ~/.rapid/collab-panes.json with their panes still alive in tmux), the words
+// rider/worker/peer/other-agent in a subagent prompt can only mean a live
+// peer, so they block too — with the real peer slugs named in the fix.
+// Technical uses (web/service worker, worker thread, peer dependency/review)
+// are scrubbed first, and outside a running live collab the role words are
+// ignored entirely, so ordinary subagent use never trips it.
+//
 // SAFETY: read-only; fails OPEN on any error. Blocking feeds the reason back to
 // the agent (exit 2), which is the point — it converts the mistake into the
 // correct collab_send in the same turn.
 
-import { readPayload, toolCwd, sessionForCwd, sessionsDir, expand, block } from './_shared.mjs';
+import { readPayload, toolCwd, sessionForCwd, sessionsDir, rapidHome, expand, block } from './_shared.mjs';
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
+import { execFileSync } from 'node:child_process';
+
+// Peer slugs of a LIVE collab this session is in right now: both this session
+// and the peer are in the pane registry, and the peer's pane still exists in
+// tmux. Empty array = not in a running live collab (role words stay inert).
+function liveCollabPeers(ownSlug) {
+  try {
+    const reg = JSON.parse(readFileSync(join(rapidHome(), 'collab-panes.json'), 'utf8'));
+    if (!reg[ownSlug]?.pane) return [];
+    const others = Object.entries(reg).filter(([s]) => s !== ownSlug);
+    if (!others.length) return [];
+    let panes;
+    try {
+      panes = new Set(
+        execFileSync('tmux', ['list-panes', '-a', '-F', '#{pane_id}'], {
+          stdio: ['ignore', 'pipe', 'ignore'],
+        }).toString().trim().split('\n')
+      );
+    } catch {
+      return []; // no tmux → nothing live right now
+    }
+    if (!panes.has(reg[ownSlug].pane)) return [];
+    return others.filter(([, i]) => i?.pane && panes.has(i.pane)).map(([s]) => s);
+  } catch {
+    return [];
+  }
+}
 
 function livePeers(ownSlug) {
   const dir = sessionsDir();
@@ -69,6 +107,28 @@ async function main() {
         `  live mode:  collab_send("${p.slug}", "<the request>")\n` +
         `  otherwise:  /rapid collab ${p.slug} <message>   (or /rapid handoff for a whole task)\n` +
         `A plan request is a rapid-plan: send [plan-request] via collab_send; the peer authors and returns [plan].`
+      );
+    }
+  }
+
+  // Generic role words ("the rider", "your worker", "the other agent") name no
+  // slug, but inside a RUNNING live collab they can only mean a peer agent.
+  const roleScrubbed = scrubbed
+    .replace(/\b(?:web|service|shared|cloudflare|node)[\s-]?workers?\b/gi, ' ')
+    .replace(/\bworkers?[\s-]?(?:threads?|pools?)\b/gi, ' ')
+    .replace(/\bpeer[\s-]?(?:review\w*|dependenc\w*|to[\s-]?peer)\b/gi, ' ');
+  const ROLE = /\b(riders?|workers?|peers?|other (?:live |collab )?agents?|collab agents?)\b/i;
+  const roleHit = roleScrubbed.match(ROLE);
+  if (roleHit) {
+    const live = liveCollabPeers(sess.slug);
+    if (live.length) {
+      const peers = live.map((s) => 'rapid/' + s).join(', ');
+      block(
+        `rapid guard: this chat is in a LIVE COLLAB right now — "${roleHit[0]}" means one of your live peer agents (${peers}), not a subagent.\n` +
+        `Delegated work goes to the peer, which does it in its own chat:\n` +
+        `  collab_send("${live[0]}", "<the request>")\n` +
+        `Your roster (who's driver, who owns what) is the **Room** line in the lead's session doc.\n` +
+        `If this subagent is genuinely unrelated to the collab (e.g. a web/service-worker feature), re-run with the role word removed from the prompt.`
       );
     }
   }

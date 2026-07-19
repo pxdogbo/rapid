@@ -100,26 +100,31 @@ everywhere.
 
 ## Quick start: `collab-start`
 
-Don't have the sessions yet? **`/rapid collab <N>`** (N up to 4) mints a set of
-collab-ready sessions in one shot and prints this exact `rapid-collab` line for
-you to run. `collab-start` itself caps at **4** panes.
+Don't have the sessions yet? **`/rapid collab <N>`** (N up to 4) scaffolds the
+set — the invoking chat's own session rides along as the **driver** and only
+the missing rider sessions are minted — and prints this exact `rapid-collab`
+line for you to run. `collab-start` itself caps at **4** panes.
 
 `collab-start` opens the whole tmux setup in one command — a pane per session,
 each started in its worktree (so the relay registers it), with `claude` launched
-in each:
+in each. **The first slug is the driver/lead** (pane 0):
 
 ```sh
-~/.claude/skills/rapid/references/collab-live/collab-start <slugA> <slugB> [slugC ...]
+~/.claude/skills/rapid/references/collab-live/collab-start <driver> <riderB> [riderC ...]
 # tip: alias rapid-collab=~/.claude/skills/rapid/references/collab-live/collab-start
 ```
 
-It resolves each slug's worktree from its session doc, splits a tiled tmux
-session **named per repo** — `rapid-collab-<repo>` — runs `claude` in every
-pane, and attaches you. Each pane **auto-adopts its worktree's session** (live
-mode keys identity off the cwd, so no `/rapid resume` needed); from one pane
-`/rapid collab <peer>` starts talking. `--dry-run` prints the slug→worktree plan
-without touching tmux. (Each slug must already be a rapid session with a
-worktree.)
+It resolves each slug's worktree from its session doc, **pre-writes the
+roster** (the `**Room** · … driver: rapid/<first>` line in the driver's doc, an
+"opened with" pointer in each rider's), splits a tiled tmux session **named per
+repo** — `rapid-collab-<repo>` — runs `claude` in every pane, and attaches you.
+Each pane **auto-adopts its worktree's session** (live mode keys identity off
+the cwd, so no `/rapid resume` needed), and with live mode on the launcher
+**primes each pane with `/rapid collab` as it boots** — every agent binds,
+reads the roster, and announces its role (driver or rider) before you type
+anything, so "delegate to the rider" is unambiguous from message one.
+`--dry-run` prints the slug→worktree plan without touching tmux. (Each slug
+must already be a rapid session with a worktree.)
 
 ### One collab per repo — run several side by side
 
