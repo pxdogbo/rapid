@@ -138,18 +138,22 @@ Start the second with `-n <name>` (→ `rapid-collab-<name>`).
 ```sh
 rapid-collab --add <slug> [...]   # drop more agents in (≤4 panes total); repo resolved from the new slug
 rapid-collab open                 # reattach — closing the terminal window only DETACHES tmux
+rapid-collab resume               # reattach, or RECREATE the collab after a kill/reboot (same slugs)
 rapid-collab kill                 # shut it down: panes + agents killed, relay registry pruned
 rapid-collab -n <name> <verb>     # target a named collab (a 2nd one in the same repo)
 ```
 
-`open`/`kill` resolve **which** collab from where you run them: the current
-repo's (run from inside a pane or anywhere in the repo), or — if you're outside
-any repo and several are running — they list the collabs and ask for `-n <name>`.
+`open`/`resume`/`kill` resolve **which** collab from where you run them: the
+current repo's (run from inside a pane or anywhere in the repo), or — if you're
+outside any repo and several are running — they list the collabs and ask for
+`-n <name>`.
 
 `kill` ends the *processes*, not the work: session docs, worktrees, and
 branches are untouched, and it removes the killed panes from
 `~/.rapid/collab-panes.json` so a stale entry can't misroute a later live send.
-Reopen anytime with `rapid-collab <slugA> <slugB>`.
+Reopen anytime with `rapid-collab resume` — every start/`--add` saves the
+collab's composition (slugs + name) to `~/.rapid/collab-last.json`, and `resume`
+recreates the same panes from it (or just reattaches if it's still running).
 
 ---
 

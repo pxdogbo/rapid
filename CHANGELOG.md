@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.25.0 — 2026-07-19
+
+- **New lifecycle verb: `rapid-collab resume` — reopen a collab tmux even after
+  it's gone.** `open` only reattaches to a *running* session; once you'd run
+  `kill` (or rebooted), getting the room back meant remembering and retyping the
+  slugs. `collab-start` now saves each collab's composition (slugs + `-n` name)
+  to `~/.rapid/collab-last.json` on every fresh start and `--add`, and keeps the
+  record across `kill`. `resume` reattaches if the session is still running,
+  otherwise recreates it — same slugs, same panes, `claude` relaunched in each.
+  Target resolution matches `open`/`kill` (`-n` → cwd repo → sole record); when
+  it can't tell, it lists the saved collabs and asks for `-n <name>`. `open`'s
+  nothing-running message and `kill`'s sign-off now point at `resume`.
+
 ## 1.24.0 — 2026-07-18
 
 - **Fresh collabs now know who's who at boot — no more "driver spawns a

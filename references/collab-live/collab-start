@@ -4,6 +4,7 @@
 #   collab-start [--dry-run] <slugA> <slugB> [slugC ...]   start a new collab
 #   collab-start --add <slug> [...]                        add agent(s) to it
 #   collab-start open                                      reattach to it
+#   collab-start resume                                    reattach, or RECREATE it after a kill/reboot
 #   collab-start kill                                      shut it down
 #   any verb + [-n <name>]                                 target a NAMED collab
 #
@@ -49,6 +50,24 @@ repo_name() {
 
 # Session name for a derived-or-overridden collab name (NAME may be empty).
 sess_for() { printf 'rapid-collab-%s' "$(sanitize "$1")"; }
+
+# Remember a collab's composition (name + slugs) in ~/.rapid/collab-last.json so
+# `resume` can recreate it after a kill or reboot. Survives `kill` on purpose —
+# kill ends the processes; the record is what lets resume bring them back.
+#   save_composition <merge:0|1> <sess> <name> <slug> [...]
+# merge=1 unions the slugs into an existing record (used by --add).
+save_composition() {
+  node -e '
+const fs=require("fs"),os=require("os");
+const dir=os.homedir()+"/.rapid", f=dir+"/collab-last.json";
+const [merge,sess,name,...slugs]=process.argv.slice(1);
+let d={}; try{d=JSON.parse(fs.readFileSync(f,"utf8"))}catch{}
+const prev=(merge==="1"&&d[sess]&&Array.isArray(d[sess].slugs))?d[sess].slugs:[];
+d[sess]={name:name||((merge==="1"&&d[sess]&&d[sess].name)||""),
+         slugs:[...new Set([...prev,...slugs])]};
+try{fs.mkdirSync(dir,{recursive:true});
+    fs.writeFileSync(f,JSON.stringify(d,null,2)+"\n");}catch{}' "$@"
+}
 
 # List running tmux sessions whose name is a rapid collab (`rapid-collab*`).
 running_collabs() {
@@ -99,22 +118,65 @@ resolve_lifecycle_sess() {
   return 2
 }
 
-# ── open / kill: manage the running collab (closing the terminal window only
+# ── open / resume / kill: manage the collab (closing the terminal window only
 # DETACHES tmux — the panes and their agents keep running until `kill`). The
 # target session is resolved from -n / cwd's repo / the sole running collab. ──
 # (The verb may sit after `-n <name>`, so scan all args, not just $1.)
 VERB=""
-for a in "$@"; do case "$a" in open|kill) VERB="$a"; break ;; esac; done
+for a in "$@"; do case "$a" in open|resume|kill) VERB="$a"; break ;; esac; done
 case "$VERB" in
   open)
     command -v tmux >/dev/null || { echo "collab-start: tmux not found." >&2; exit 1; }
     SESS="$(resolve_lifecycle_sess)" || exit 2
     if ! tmux has-session -t "$SESS" 2>/dev/null; then
-      echo "collab-start: no '$SESS' tmux session running. Start one:" >&2
-      echo "  rapid-collab <slugA> <slugB>   (or /rapid collab <N> in a chat)" >&2
+      echo "collab-start: no '$SESS' tmux session running. Bring back the last one:" >&2
+      echo "  rapid-collab resume   (or start fresh: rapid-collab <slugA> <slugB>)" >&2
       exit 1
     fi
     if [ -n "${TMUX:-}" ]; then exec tmux switch-client -t "$SESS"; else exec tmux attach -t "$SESS"; fi
+    ;;
+  resume)
+    # Reattach if the collab is still running; otherwise recreate it from the
+    # composition saved in ~/.rapid/collab-last.json (written on start/--add,
+    # kept across kill) by re-execing the fresh-start path with those slugs.
+    command -v tmux >/dev/null || { echo "collab-start: tmux not found." >&2; exit 1; }
+    SESS="$(resolve_lifecycle_sess)" || exit 2
+    if tmux has-session -t "$SESS" 2>/dev/null; then
+      if [ -n "${TMUX:-}" ]; then exec tmux switch-client -t "$SESS"; else exec tmux attach -t "$SESS"; fi
+    fi
+    # Look up the record: the resolved session's, or — if it has none and
+    # exactly one collab was ever recorded — that one (echoing the switch).
+    # Output: line 1 = session name, line 2 = -n name (may be blank), 3+ = slugs.
+    REC="$(node -e '
+const fs=require("fs"),os=require("os");
+let d={}; try{d=JSON.parse(fs.readFileSync(os.homedir()+"/.rapid/collab-last.json","utf8"))}catch{}
+let sess=process.argv[1];
+if(!(d[sess]&&Array.isArray(d[sess].slugs)&&d[sess].slugs.length)){
+  const keys=Object.keys(d).filter(k=>d[k]&&Array.isArray(d[k].slugs)&&d[k].slugs.length);
+  if(keys.length===1) sess=keys[0]; else process.exit(0);
+}
+console.log(sess); console.log(d[sess].name||"");
+for(const s of d[sess].slugs) console.log(s);' "$SESS")"
+    if [ -z "$REC" ]; then
+      echo "collab-start: nothing to resume — no saved composition for '$SESS'." >&2
+      KNOWN="$(node -e '
+const fs=require("fs"),os=require("os");
+try{const d=JSON.parse(fs.readFileSync(os.homedir()+"/.rapid/collab-last.json","utf8"));
+  process.stdout.write(Object.keys(d).join("\n"));}catch{}')"
+      if [ -n "$KNOWN" ]; then
+        echo "  saved collabs:" >&2
+        printf '%s\n' "$KNOWN" | sed 's/^/    /' >&2
+        echo "  pick one with:  rapid-collab -n <name> resume   (name = part after 'rapid-collab-')" >&2
+      fi
+      echo "  or start fresh:  rapid-collab <slugA> <slugB>" >&2
+      exit 1
+    fi
+    REC_SESS="$(printf '%s\n' "$REC" | sed -n '1p')"
+    REC_NAME="$(printf '%s\n' "$REC" | sed -n '2p')"
+    REC_SLUGS=()
+    while IFS= read -r s; do [ -n "$s" ] && REC_SLUGS+=("$s"); done < <(printf '%s\n' "$REC" | tail -n +3)
+    echo "Resuming '$REC_SESS' with: ${REC_SLUGS[*]}"
+    if [ -n "$REC_NAME" ]; then exec "$0" -n "$REC_NAME" "${REC_SLUGS[@]}"; else exec "$0" "${REC_SLUGS[@]}"; fi
     ;;
   kill)
     command -v tmux >/dev/null || { echo "collab-start: tmux not found." >&2; exit 1; }
@@ -143,7 +205,7 @@ try{const d=JSON.parse(fs.readFileSync(f,"utf8"));
   if(changed) fs.writeFileSync(f,JSON.stringify(d,null,2)+"\n");}catch{}' "$KILLED_PANES"
     echo "Killed tmux '$SESS' — $N agent pane(s) closed${KILLED_SLUGS:+ ($KILLED_SLUGS)}."
     echo "Session docs, worktrees, and branches are untouched — this ends the"
-    echo "processes, not the work. Reopen anytime:  rapid-collab <slugA> <slugB>"
+    echo "processes, not the work. Reopen anytime:  rapid-collab resume"
     exit 0
     ;;
 esac
@@ -163,6 +225,7 @@ while [ "$i" -lt "${#args[@]}" ]; do
       echo "usage: rapid-collab [--dry-run] <slugA> <slugB> [...]   start a new collab tmux (rapid-collab-<repo>)"
       echo "       rapid-collab --add [--dry-run] <slug> [...]      add agent(s) to the running one"
       echo "       rapid-collab open                                reattach to the running collab"
+      echo "       rapid-collab resume                              reattach, or recreate it after kill/reboot"
       echo "       rapid-collab kill                                shut it down (panes + agents; docs/worktrees kept)"
       echo "       ... -n <name>                                    target rapid-collab-<name> (2nd collab in a repo)"
       exit 0 ;;
@@ -253,6 +316,7 @@ if [ "$ADD" = "1" ]; then
   done
   tmux select-layout -t "$SESS" tiled >/dev/null
   for p in "${NEW[@]}"; do tmux send-keys -t "$p" 'claude' Enter; done
+  save_composition 1 "$SESS" "$NAME" "${SLUGS[@]}"
   echo "Added ${#SLUGS[@]} pane(s) to tmux '$SESS':"
   for i in "${!SLUGS[@]}"; do echo "  ${NEW[$i]}  ${SLUGS[$i]}  (${WTS[$i]})"; done
   echo
@@ -364,6 +428,8 @@ try{const d=JSON.parse(fs.readFileSync(os.homedir()+"/.rapid/collab-panes.json",
     done
   ) >/dev/null 2>&1 &
 fi
+
+save_composition 0 "$SESS" "$NAME" "${SLUGS[@]}"
 
 echo "Opened tmux '$SESS' with ${#SLUGS[@]} panes — driver: ${SLUGS[0]}:"
 for i in "${!SLUGS[@]}"; do echo "  ${PANES[$i]}  ${SLUGS[$i]}  (${WTS[$i]})"; done
