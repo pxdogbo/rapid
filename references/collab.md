@@ -279,26 +279,30 @@ has a rider" window: just talk to the driver pane.
 
 ---
 
-## Reopen / shut down the collab tmux — `rapid-collab open` / `rapid-collab kill`
+## Reopen / shut down the collab tmux — `rapid-collab open` / `resume` / `kill`
 
 **Closing the terminal window only DETACHES tmux** — the panes and their agents
 keep running invisibly in the background (and a later `/rapid collab <N>` piles
-new panes onto the ghosts). The lifecycle verbs, both subcommands of
+new panes onto the ghosts). The lifecycle verbs, all subcommands of
 `collab-start` / the `rapid-collab` alias:
 
 - **`rapid-collab open`** — reattach to the running collab (from inside tmux it
-  switches clients instead). Nothing running → says so and points at the start
-  command.
+  switches clients instead). Nothing running → says so and points at `resume`.
+- **`rapid-collab resume`** — reattach if the collab is still running; if it was
+  killed (or the machine rebooted), **recreate it** — same slugs, same panes —
+  from the composition saved in `~/.rapid/collab-last.json` (written on every
+  start and `--add`, kept across `kill`). No need to remember which slugs were
+  in the room.
 - **`rapid-collab kill`** — shut the whole thing down: kills the tmux session
   and every agent pane in it, and prunes those panes from the relay registry
   (`~/.rapid/collab-panes.json`) so a stale entry can't misroute a future live
   send. Session docs, worktrees, and branches are untouched — it ends the
-  *processes*, not the work.
+  *processes*, not the work. `rapid-collab resume` brings it back.
 
-**Which collab do open/kill act on? The one for your repo — automatically.**
-Each repo gets its own `rapid-collab-<repo>` tmux, so you can run several collabs
-side by side (one per repo) with no bookkeeping. `open`/`kill` figure out the
-target from where you run them:
+**Which collab do the lifecycle verbs act on? The one for your repo —
+automatically.** Each repo gets its own `rapid-collab-<repo>` tmux, so you can
+run several collabs side by side (one per repo) with no bookkeeping.
+`open`/`resume`/`kill` figure out the target from where you run them:
 - Run from inside a collab pane (or anywhere in the repo) → the current repo's
   collab. This is the normal case; nothing extra to type.
 - Two collabs in the **same** repo? Start the second with `-n <name>`
@@ -309,9 +313,10 @@ target from where you run them:
 
 **When the user says they're done with the collab** ("close the agents", "kill
 the panes", "shut it down"), run `rapid-collab kill` for them — don't hand back
-raw tmux commands. Same for reopening: `rapid-collab open`, not
-`tmux attach -t rapid-collab-<repo>`. (If this chat is a collab pane, running
-`kill`/`open` from it targets the right session on its own.)
+raw tmux commands. Same for reopening: `rapid-collab resume` (or `open` while
+it's still running), not `tmux attach -t rapid-collab-<repo>`. (If this chat is
+a collab pane, running `kill`/`open`/`resume` from it targets the right session
+on its own.)
 
 ---
 
