@@ -1,5 +1,23 @@
 # Changelog
 
+## 1.27.0 — 2026-07-19
+
+- **Plan authoring never flows down to a cheaper model.** Live incident: in a
+  driver/rider collab, `/rapid plan` made the driver forward the planning to
+  its rider — the cheap model designed while the expensive model waited to
+  rubber-stamp, inverting the economics the split exists for (the driver is
+  the strongest model precisely so it does the thinking; riders carry out its
+  plans). Tightened across `SKILL.md` and `references/collab.md`: planning is
+  the lead's OWN work — like reading diffs, unlike implementing and testing
+  (the lead-delegates rule now says so explicitly); `/rapid plan <task>` (no
+  slug) means YOU author the plan in your own chat; `/rapid plan <slug>
+  <task>` stays for asking a peer, but the sanctioned directions are **up or
+  across** (equal/stronger model, or the peer that owns the context) — a
+  `<slug>` naming a rider in your own collab gets the plan authored by the
+  driver instead, with a one-line note (an explicit user override still
+  wins). Rider lane plans (short "how I'll do my lane", sent up for review
+  before building) are unchanged.
+
 ## 1.26.0 — 2026-07-19
 
 - **Replies are now ADHD-shaped, not just terse.** The response style gains a
