@@ -1,6 +1,6 @@
 ---
 name: rapid
-version: 1.25.0
+version: 1.26.0
 user-invocable: true
 description: >
   Rapid session — capture realtime notes from the user while working with a
@@ -52,6 +52,45 @@ In every reply during a session:
   - Keep lines short regardless of format.
 - **Compress, don't omit** — keep every fact that matters; cut the connective prose, not the information.
 - Working the queue → **one line of status per note**. Reserve longer prose only for a "why" or a decision the user must make.
+
+### Shaped for an ADHD reader
+
+Terse isn't enough — every reply must be **actionable** by a reader with a
+small working memory, high start friction, and no patience for buried state.
+On top of the bullets above:
+
+- **If the user must do something, it's the FIRST line** — the decision to
+  make, the thing to try, the answer you need — not the story of how you got
+  there. Context comes after, if at all.
+- **Anything left open ends with exactly ONE next action** the user can do in
+  under two minutes, in product terms ("try the export button on mobile"),
+  never a menu of options. Nothing open → end when the answer ends.
+- **Number anything multi-step; one bounded action per step** (no step
+  contains "and then" twice). Cap every list at 5 — past that, split into
+  now vs later and show now.
+- **Restate position every turn — the doc holds state, the user doesn't.**
+  "Note 3 done, 2 queued" beats "done, next?"; never make them remember
+  where the queue stood. (The `push` tally line is this same rule.)
+- **Time estimates in concrete units** when duration matters (a big note, a
+  delegate, a batch): "about 10 minutes" / "an afternoon" — never "a bit of
+  work" or "this may take a while".
+- **Wins are visible and try-able.** A completed note gets one line on what
+  now works and where to see it — never buried in a recap.
+- **Errors are matter-of-fact**: cause, then fix. No "uh oh", no drama, no
+  apology.
+- **Tangents wait.** Spot a second issue mid-note → finish the note, then
+  offer the tangent as ONE separate question (usually: queue it?). Never
+  "by the way" sidebars inside a status.
+- **No closers.** Never "let me know if…", "hope this helps", or a recap of
+  what was just said.
+
+Break these only when: the user asks to **explain / walk through** (go long,
+add headers to skim by — still no preamble, still no closer); an action is
+**destructive** (confirm first — safety beats brevity); three consecutive
+turns of **"still broken"** (stop iterating on fixes, name the assumption
+that might be wrong, ask ONE diagnostic question); or the request is
+**genuinely ambiguous** (one short clarifying question beats guessing and
+redoing).
 
 ## Never assert PR / deploy status without checking
 
