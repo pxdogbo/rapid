@@ -420,10 +420,11 @@ expensive model anyway (no cost saving), and it bypasses the peers the collab
 was opened for.
 
 - **Lead:** never spawn a background agent to do lane work. Assign the lane to
-  a peer (`collab_send`) and review what comes back — reading diffs and
-  settling merge order is YOUR job, done yourself; hands-on testing is NOT
-  (see "Testing in a live collab" below). (A quick read-only lookup
-  agent for your own QA is fine; anything producing work product is not.)
+  a peer (`collab_send`) and review what comes back — reading diffs, settling
+  merge order, and **authoring plans** are YOUR job, done yourself; hands-on
+  testing is NOT (see "Testing in a live collab" below). (A quick read-only
+  lookup agent for your own QA is fine; anything producing work product is
+  not.)
 - **Workers:** you own your lane and MAY use background agents inside it when
   they help — as long as the result stays reviewable by the lead: everything
   lands on your session's branch/worktree, and you report it through the room
@@ -457,24 +458,47 @@ Hands-on verification is lane work, and lane work belongs to the riders.
 - The chain, end to end: **user asks → driver instructs → rider executes →
   verdict flows back up.** No link in that chain self-starts.
 
-### rapid-plan — asking a peer to author a plan
+### rapid-plan — a plan delivered through collab (and who authors it)
 
-A **rapid-plan** is a plan written by a PEER agent and delivered through
-collab. The name exists to kill an ambiguity: "plan" alone pattern-matches the
-harness's built-in Plan subagent / plan mode, which is the WRONG tool here — a
-rapid-plan is never a subagent and never plan mode.
+A **rapid-plan** is a plan delivered through collab. The name exists to kill
+an ambiguity: "plan" alone pattern-matches the harness's built-in Plan
+subagent / plan mode, which is the WRONG tool here — a rapid-plan is never a
+subagent and never plan mode.
 
-Trigger: `/rapid plan <slug> <task>`, or the user says "rapid-plan" / "have
-<slug> plan it" / "ask your peer for a plan". Flow:
+**🔴 Plan authoring runs on the STRONGEST model — it never flows down.** In a
+driver/rider collab the driver is the expensive model and the riders are the
+cheap ones; that split exists so the smart model does the thinking and the
+cheap ones do the doing. Planning is the most intelligence-bound task in the
+room, so it is the lead's OWN work — like reading diffs, unlike implementing
+and testing. A lead that `[plan-request]`s a rider inverts the economics: the
+cheap model designs while the expensive model waits to rubber-stamp.
 
-1. **Requester (usually the lead):** `collab_send(<slug>, "[plan-request]
+Who authors, by trigger:
+
+- **`/rapid plan <task>` (no slug), or "plan this" said to the lead** — YOU
+  author it, in your own chat (no plan mode, no Plan subagent). In a collab,
+  hand lanes to the riders once the plan stands.
+- **`/rapid plan <slug> <task>`** — ask the peer at `<slug>` to author it.
+  Sanctioned directions are **up or across**: a peer on an equal/stronger
+  model, or the peer that owns the context the plan is about. If `<slug>` is
+  a RIDER in your own collab, do NOT forward it — author the plan yourself
+  and say why in one line ("planning stays on the driver — here's the plan").
+  An explicit user override ("I want <rider> to plan it anyway") wins.
+- **Rider lane plans are the one exception** — a short "how I'll do my lane",
+  written by the rider, sent UP for the lead's review before building (see
+  "Workers don't plan at the user" below). That's a rider planning its own
+  execution, not the project.
+
+Flow for a peer-authored plan (up/across):
+
+1. **Requester:** `collab_send(<slug>, "[plan-request]
    <task brief — goal, constraints, files/areas, what the plan must cover>")`.
    That's the whole send — no Agent tool, nothing to poll; the peer is a live
    chat and will answer like any collab message.
 2. **Peer:** author the plan yourself in your own chat (your lane, your
    model; background agents allowed per the rules above) and send it back:
-   `collab_send(<lead>, "[plan] <the plan>")`. Don't enter plan mode, don't
-   ask the user anything — your reviewer is the lead.
+   `collab_send(<requester>, "[plan] <the plan>")`. Don't enter plan mode,
+   don't ask the user anything — your reviewer is the requester.
 3. **Requester:** review the plan (scope, overlap with other lanes, risks).
    Clear the peer to build, ask for a revision, or — only if something needs
    the user's call — surface it through your normal user queue.

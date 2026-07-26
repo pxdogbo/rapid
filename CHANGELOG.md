@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.25.1 — 2026-07-25
+## 1.27.1 — 2026-07-25
 
 - **The boot prime no longer sometimes answers "this chat has no rapid
   session."** Intermittent: a freshly opened collab pane, primed with
@@ -26,6 +26,43 @@
     nothing is bound), with the three-step resolve/bind/report sequence, the
     registry-optional cwd fallback, and the only real dead end spelled out: cwd
     isn't any session's worktree.
+
+## 1.27.0 — 2026-07-19
+
+- **Plan authoring never flows down to a cheaper model.** Live incident: in a
+  driver/rider collab, `/rapid plan` made the driver forward the planning to
+  its rider — the cheap model designed while the expensive model waited to
+  rubber-stamp, inverting the economics the split exists for (the driver is
+  the strongest model precisely so it does the thinking; riders carry out its
+  plans). Tightened across `SKILL.md` and `references/collab.md`: planning is
+  the lead's OWN work — like reading diffs, unlike implementing and testing
+  (the lead-delegates rule now says so explicitly); `/rapid plan <task>` (no
+  slug) means YOU author the plan in your own chat; `/rapid plan <slug>
+  <task>` stays for asking a peer, but the sanctioned directions are **up or
+  across** (equal/stronger model, or the peer that owns the context) — a
+  `<slug>` naming a rider in your own collab gets the plan authored by the
+  driver instead, with a one-line note (an explicit user override still
+  wins). Rider lane plans (short "how I'll do my lane", sent up for review
+  before building) are unchanged.
+
+## 1.26.0 — 2026-07-19
+
+- **Replies are now ADHD-shaped, not just terse.** The response style gains a
+  ruleset built for rapid's non-technical mobile reader — small working
+  memory, high start friction, no patience for buried state: anything the
+  user must do is the FIRST line;
+  anything left open ends with exactly ONE under-two-minutes next action in
+  product terms; multi-step work is numbered with one bounded action per step
+  and lists cap at 5 (past that: now vs later); every turn restates queue
+  position ("note 3 done, 2 queued") instead of assuming the user remembers;
+  duration gets concrete units ("about 10 minutes", never "a bit of work");
+  completed notes say what now works and where to try it; errors state cause
+  then fix with no drama; tangents wait until the note is done and arrive as
+  one separate question; closers ("let me know if…") are banned. Four
+  sanctioned overrides: explain-fully on ask, confirm-destructive, the
+  debug-spiral brake (three "still broken" turns → stop iterating, name the
+  suspect assumption, ask one diagnostic question), and one clarifying
+  question on genuine ambiguity.
 
 ## 1.25.0 — 2026-07-19
 
