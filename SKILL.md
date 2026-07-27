@@ -1,6 +1,6 @@
 ---
 name: rapid
-version: 1.27.0
+version: 1.27.1
 user-invocable: true
 description: >
   Rapid session — capture realtime notes from the user while working with a
@@ -233,6 +233,7 @@ skipped and the session is doc-only.
 | `/rapid resume <slug>` / `/rapid start <slug>` | Re-activate an archived session in this chat, OR **adopt a seeded hand-off session** (`**Handoff:** pending`): read its plan, flip the header to `adopted`, and cut its worktree + `rapid/<slug>` branch off `origin/main` (it has none yet). `start` and `resume` are aliases. `/rapid start` alone (no slug) behaves like bare `/rapid` — it opens the menu (Step 2·menu). |
 | `/rapid update` | Pull the latest version of this skill and show the changelog delta. Works any time, no session needed. See `references/setup.md`. |
 | `/rapid handoff [this session \| <note N> \| <description>]` | **Hand work to a fresh chat.** Seed a NEW session doc (own slug, header `**Handoff:** pending`, no worktree yet) holding the full instructions to build — the whole current session, one note, or a described task — then **ALWAYS end your reply with the copy-paste line `/rapid start <slug>`**. A fresh chat runs that to adopt it: it cuts its own worktree + `rapid/<slug>` branch off `origin/main` and works in its OWN doc (never this one). NOT a loose `~/.rapid/*.md` file. See `references/handoff.md`. |
+| `/rapid collab` (no arg — **the boot prime**) | **Bind this pane's collab identity, then check the room.** A collab launcher primes every pane it opens with exactly this line before the user says a word, so it normally arrives in a chat with **no session bound yet** — that is expected, **not** "this chat has no rapid session, nothing to do." Resolve who this pane is first: `collab_register` (or `node …/relay.mjs status`) → `self`; if neither is available, match this chat's cwd against the `**Worktree:**` headers in `~/.rapid/sessions/*.md` (incl. `archive/`). A match **binds this chat to that slug** — the directory named it, so this is explicit, not an implicit adoption — then read the roster (`**Room**` line) and say your role in one line. **Never** answer this with the menu, with "no rapid session in this chat", or by asking the user what to do. Only if the cwd is no session's worktree is there genuinely nothing to bind — say that and stop. Same for the bare word `collab` arriving with no session bound. See `references/collab.md`. |
 | `/rapid collab <slug> [message]` | **Open / continue a chatroom with the agent on session `<slug>`.** Re-read both docs' `## Collab`, post your message into the shared room (the peer's `## Collab`, or the existing room if one is already open with them), tell the user to relay once to that chat, and arm the autonomous poll loop so you pick up the reply on your own. A lightweight cross-agent chatroom that then self-drives. With **live mode** on (config `collabLive` + tmux) it's real-time instead — `collab_send` types your message straight into the peer's chat (it answers directly), no relay; the lead keeps a ~5-min liveness sentinel on outstanding workers (cheap pane probe, digs in only if a worker went idle without reporting). ("driver"/"rider" are synonyms for "lead"/"worker" throughout). Roles: the **lead delegates and QAs, peers do the work — but plan authoring stays on the lead** (the strongest model; never delegated down to a rider) — the lead never spawns its own background agents to implement (peers may, inside their lane, if the result stays lead-reviewable), the lead never tests — it sends testing instructions to a rider, and riders never start dev servers/testing on their own unless the user asked for a test — and workers never plan at the user (no plan mode, no "should I proceed?") — a worker's plan goes to the lead for review first. See `references/collab.md`. |
 | `/rapid collab <N>` (N = 1–4) | **Spin up a collab of N agents** in the current repo and print the one command to open them. **This chat's session rides along as the driver** — only N−1 new rider sessions are minted and this chat's slug prints first (no throwaway scaffolder session); the driver pane takes the session over, so the user closes this chat after running the line. No session in this chat → all N minted fresh. The launcher pre-writes the roster (driver + riders) and primes every pane with `/rapid collab` at boot, so each agent knows its role before the first message. A *number* means "make this many" — not a message. >4 is rejected. See `references/collab.md` → "Spin up a collab set". |
 | `/rapid collab setup` | **Enable live mode** (one time): register the `rapid-collab` relay MCP, set `collabLive: true`, verify tmux. The skill also offers this automatically the first time collab is used without it configured. See `references/setup.md` → "Enabling live collab". |
@@ -251,6 +252,11 @@ respond as you would in any chat.
 Exceptions to the session requirement:
 - `burn` and `tidy` are repo-wide and run regardless of session state.
 - `/rapid update` is about the skill itself and works any time.
+- **`collab` / `/rapid collab` (no arg) never degrades to "normal message."**
+  In a collab pane the *directory* names this chat's session, and the launcher
+  fires this line at boot precisely because nothing is bound yet. Resolve the
+  cwd's slug, bind it, report your role — see the Triggers row above and
+  `references/collab.md` → "Your identity is the directory".
 
 ### Drive-by notes
 
@@ -269,7 +275,11 @@ Each chat owns its own session. The slug for **this chat's** session is
 established when this chat invokes `/rapid` (Step 2) or `/rapid resume
 <slug>`, and from that point on it lives in this chat's conversation
 context. If this chat hasn't started a session, it has no session, full
-stop — never adopt another chat's live session implicitly.
+stop — never adopt another chat's live session implicitly. **One exception,
+and it is not implicit: a live-collab pane.** When the cwd IS some session's
+`**Worktree:**`, the directory itself names this chat's session, and the
+collab launcher primes the pane with `/rapid collab` to make it bind. See
+the `/rapid collab` (no arg) Triggers row.
 
 When deciding what to do:
 

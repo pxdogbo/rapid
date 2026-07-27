@@ -7,9 +7,10 @@ Read this when the user invokes `/rapid collab <slug>` or the bare word `collab`
 | `/rapid collab <N>` (N = 1–4) | **Spin up a collab of N agents** in the current repo and print the one command to open them. This chat's session rides along as the **driver** (only N−1 new riders are minted; no throwaway session); no session here → all N fresh. A *number* means "make this many" (not a message). See "Spin up a collab set" below. |
 | `/rapid collab setup` | **Enable live mode** (one time): register the relay, set `collabLive: true`, verify tmux. See "Enabling live mode" below + `references/setup.md`. |
 | `/rapid collab <slug> [message]` | Open or continue a chatroom with the agent on session `<slug>`. Live mode pokes them in real time; otherwise post + relay. |
+| `/rapid collab` (no arg) | **The boot prime.** Bind this pane's identity (the cwd's session — see "Your identity is the directory" below), read the roster, state your role. Arrives before the user says anything, in a chat with nothing bound yet. Then behaves like bare `collab`. |
 | `collab` (bare word, mid-session) | Re-read your `## Collab` (and any room you joined); show new messages from the peer; flag anything awaiting your reply. |
 
-> **Disambiguating `/rapid collab <arg>`:** a **number** (1–4) spins up that many sessions; the literal word **`setup`** enables live mode; a **slug** messages that peer; **bare `collab`** checks your room.
+> **Disambiguating `/rapid collab <arg>`:** a **number** (1–4) spins up that many sessions; the literal word **`setup`** enables live mode; a **slug** messages that peer; **no arg** (or bare `collab`) binds this pane and checks your room.
 
 `collab` is just a **chatroom**: two agents in two separate chats, each on its
 own session, talking — to coordinate a shared file, settle a decision, or hand
@@ -92,6 +93,22 @@ automatically**: read `self=<slug>` from `collab_register` (or `node
 …/relay.mjs status`), bind this chat to that slug, and continue. The directory
 already told us who you are, so the resume step is redundant in a collab pane.
 
+**Nothing bound yet is the NORMAL state when `/rapid collab` arrives — it is not
+"this chat has no rapid session."** The launcher types that line into every pane
+at boot, before the user speaks, *because* nothing is bound. So on an arg-less
+`/rapid collab` (or bare `collab`) with no slug bound:
+1. Resolve `self` — `collab_register`, else `relay.mjs status`, else match the
+   cwd against the `**Worktree:**` headers in `~/.rapid/sessions/*.md` (and
+   `archive/`). Any one of those is enough; the registry is not required.
+2. Bind this chat to that slug, read the roster (`**Room**` line — driver/lead
+   and riders), and reply with one line: who you are and your role.
+3. **Never** answer it with the `/rapid` menu, with "no rapid session in this
+   chat / nothing to check into a collab room for", or by asking the user what
+   they want to do. Making the user pick "resume" here is a bug — the pane
+   already knew its slug.
+Only when the cwd is no session's worktree at all is there genuinely nothing to
+bind; say that in one line (this isn't a collab pane) and stop.
+
 **🔴 But if you're ALREADY bound to a DIFFERENT slug, STOP — don't misroute.** The
 one failure mode is a *crossed* identity: this chat is bound to slug A while its
 cwd is slug B's worktree (e.g. someone explicitly resumed the wrong slug). The
@@ -145,6 +162,11 @@ truth; when in doubt, trust `self`.
      pane id from `~/.rapid/collab-panes.json`, then
      `tmux capture-pane -p -t <pane> | tail -3` — a busy indicator
      ("esc to interrupt" / a spinner) means it's mid-turn, working.
+     ⚠️ Text after the `❯` prompt in a capture is usually Claude Code's
+     GHOST-TEXT prompt suggestion (accepted with Tab), NOT typed input —
+     it renders identically in capture-pane. Never try to "submit" it
+     with Enter or treat it as a stuck message; only the relay's own
+     injections are real pending input.
   2. **Still running → do nothing.** No doc read, no room read, no nudge —
      re-arm and stay out of its way. A worker can legitimately grind for
      20+ minutes; busy = healthy, however many wakes in a row it lasts.

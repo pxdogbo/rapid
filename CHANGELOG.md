@@ -1,5 +1,32 @@
 # Changelog
 
+## 1.27.1 — 2026-07-25
+
+- **The boot prime no longer sometimes answers "this chat has no rapid
+  session."** Intermittent: a freshly opened collab pane, primed with
+  `/rapid collab`, replied with the no-session line and asked the user what to
+  do — then bound the correct slug the moment they picked "resume", proving the
+  pane always knew who it was. Cause was a routing hole, not the launcher:
+  `references/collab.md` had the auto-adopt rule, but the decision is made in
+  SKILL.md *before* that file is opened, and there SKILL.md said the opposite —
+  the bare-word rule ("no session → just a normal message"), Step 1 ("no
+  session, full stop — never adopt another chat's live session implicitly"), and
+  no Triggers row at all for arg-less `/rapid collab`. Whether collab.md got
+  read first was luck, which is why it worked once and not the next time. Fixed
+  on all three:
+  - **New Triggers row for `/rapid collab` (no arg)** — the boot prime: resolve
+    `self` (`collab_register` → `relay.mjs status` → cwd matched against
+    `**Worktree:**` headers), bind, read the roster, state your role. Explicitly
+    never the menu, never "no rapid session", never asking what to do.
+  - **Bare-word rule + Step 1 carve-outs** — `collab` never degrades to a normal
+    message, and a cwd that IS a session's worktree names this chat's session
+    *explicitly*, so it isn't the implicit adoption Step 1 forbids.
+  - **`collab.md`** now says nothing-bound-yet is the *normal* state for that
+    line (the launcher fires it before the user speaks, precisely because
+    nothing is bound), with the three-step resolve/bind/report sequence, the
+    registry-optional cwd fallback, and the only real dead end spelled out: cwd
+    isn't any session's worktree.
+
 ## 1.27.0 — 2026-07-19
 
 - **Plan authoring never flows down to a cheaper model.** Live incident: in a
