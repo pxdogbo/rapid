@@ -1,5 +1,38 @@
 # Changelog
 
+## 1.28.0 — 2026-08-06
+
+- **A lane a lead dispatches to a worker is now a note on BOTH docs, and every
+  PR report must carry the remaining queue.** A live `collab_send` writes
+  nothing to any doc by design, so a dispatched lane left no durable trace
+  anywhere. In practice: a lead dispatched three lanes with "propose first"
+  gates and never chased them, while the worker shipped eight *other* lanes as
+  PRs without creating a single note for any of them. Both docs looked healthy —
+  the worker's `## Pushes` listed every PR correctly — because `## Pushes`
+  records what shipped, never what is still owed. The user's real queue existed
+  only in two chat windows, and they found the three missing lanes by going
+  looking for the features.
+  - `SKILL.md` Step 3 now states outright that "a note" includes a lane
+    dispatched by a lead, so the capture rule fires for a worker whose work
+    arrives over collab rather than from the user. It was previously worded
+    entirely around a message the user typed into that chat, and workers read it
+    as not applying to them. Placed in SKILL.md deliberately: the decision is
+    made there before `references/collab.md` is ever opened — the same routing
+    hole as 1.27.1.
+  - `references/collab.md` gains "A dispatched lane is a note — on BOTH docs":
+    the lead writes the note *before* sending (a send is not a record) and
+    re-reads its own `## Notes` before scoping anything the user asks for, since
+    a forgotten dispatched lane looks exactly like a new request; the worker
+    writes the lane to its own `## Notes` before starting and flips
+    `[~]`/`[c]`/`[x]` with the PR URL. Never start a lane with no note.
+  - `references/collab.md` gains "Report the remaining queue with every PR": a
+    worker's PR report ends with the outstanding lanes in work order plus
+    anything blocked, and the lead relays that queue to the user in the same
+    reply as the PR link. A PR link with no queue behind it reads as "that's
+    everything" to a user who merges from notifications and never reads back.
+    Merges get annotated on the note too, since `## Pushes` keeps saying
+    `(open)` next to PRs that merged hours ago.
+
 ## 1.27.1 — 2026-07-25
 
 - **The boot prime no longer sometimes answers "this chat has no rapid

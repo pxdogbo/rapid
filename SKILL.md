@@ -1,6 +1,6 @@
 ---
 name: rapid
-version: 1.27.1
+version: 1.28.0
 user-invocable: true
 description: >
   Rapid session — capture realtime notes from the user while working with a
@@ -653,6 +653,25 @@ Before doing anything else with a new note:
 
 Do NOT acknowledge with multiple sentences or restate context. The whole point
 is fast capture.
+
+### "A note" includes a lane a lead dispatched to you
+
+A worker in a live collab receives most of its work as a `collab_send` from the
+lead, not as a message the user typed into this chat. **That is still a note and
+this step still applies in full** — append it to *your own* `## Notes` before you
+start, flip it `[~]` → `[c]` → `[x]`, and put the PR URL in it.
+
+Read this rule as unconditional. A live `collab_send` writes **nothing** to any
+doc by design (`references/collab.md` → "Live mode"), so a dispatched lane that
+nobody writes down exists only in two chat windows and is lost the moment either
+is compacted. Observed failure: eight lanes shipped as PRs with no note ever
+created for any of them, while three other dispatched lanes sat unbuilt for a day
+because no queue existed to show they were outstanding — the user found out by
+looking for the features. `## Pushes` is not a substitute; it records what
+shipped, never what is still owed.
+
+The lead's side of the same rule, and the per-PR queue report the user gets back,
+are in `references/collab.md` → "A dispatched lane is a note — on BOTH docs".
 
 ---
 

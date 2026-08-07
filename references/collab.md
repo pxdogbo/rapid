@@ -430,6 +430,60 @@ was opened for.
   lands on your session's branch/worktree, and you report it through the room
   like any other work of yours. No side-channel output the lead can't inspect.
 
+### A dispatched lane is a note — on BOTH docs
+
+**A live `collab_send` writes nothing to any doc.** That is deliberate (see
+"Live mode") and it is fine for coordination chatter, but it means a lane the
+lead dispatches leaves **no durable trace anywhere** unless both sides write it
+down. Neither the room nor `## Pushes` closes that gap: the room is a chatroom,
+not a work log, and `## Pushes` records what shipped, never what is still owed.
+
+Observed failure this rule exists to prevent: a lead dispatched three lanes with
+"propose first" gates and never chased them; the worker shipped eight *other*
+lanes as PRs without creating a single note for any of them. Both docs looked
+healthy — the worker's `## Pushes` listed every PR correctly — while the user's
+actual queue existed only in two chat windows. The user discovered the three
+missing lanes by going looking for the features, then asked, correctly, "i gave
+you the tasks where did they go?"
+
+So, every dispatched lane, both sides:
+
+- **Lead — write it before you send it.** Capture the user's request in *your*
+  `## Notes` (Step 3 of SKILL.md, unchanged) **first**, then `collab_send`. A
+  send is not a record. Before scoping anything the user asks for, re-read your
+  own `## Notes` — a lane you already dispatched and forgot looks exactly like a
+  brand-new request.
+- **Worker — write it before you start.** Append the lane to *your own*
+  `## Notes` the moment it lands, `- [ ] [HH:MM] lane from rapid/<lead>: <one
+  line>` with detail indented, and flip `[~]` → `[c]` → `[x]` as you go with the
+  PR URL in the note. Never start a lane that has no note.
+- **Neither doc is optional, and neither is a copy of the other.** The lead's
+  notes are the user's queue; the worker's notes are what that agent owes. A
+  lane missing from either one is invisible in the way that matters.
+- If a lane arrives that you can't map to a note, say so instead of starting.
+
+### Report the remaining queue with every PR
+
+Every time a worker reports a PR, that report **must end with what is still
+outstanding** — not just what just landed. One line per remaining lane, in the
+order they'll be worked, plus anything blocked and why:
+
+```
+#412 open: <url> — tsc+lint clean.
+Queue after this: (1) F gallery load speed  (2) K lock icon on cards
+(3) J scale-ref invalidates Variables. Blocked: none.
+```
+
+The lead relays that queue to the user in the same reply as the PR link. The
+user merges from notifications and often never reads back — a PR link with no
+queue behind it reads as "that's everything", which is exactly how outstanding
+work goes silent. When the queue is empty, say so explicitly.
+
+Merges are part of this. Where the user has handed merging to the workers, the
+note gets the merge annotated too — `## Pushes` keeps saying `(open)` next to
+PRs that merged hours ago (the skill does not track merge state), so the note is
+the only place that truth can live.
+
 ### Testing in a live collab — the driver never tests
 
 Hands-on verification is lane work, and lane work belongs to the riders.
