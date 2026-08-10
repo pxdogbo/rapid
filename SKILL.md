@@ -1,6 +1,6 @@
 ---
 name: rapid
-version: 1.28.0
+version: 1.29.0
 user-invocable: true
 description: >
   Rapid session — capture realtime notes from the user while working with a
@@ -214,7 +214,7 @@ skipped and the session is doc-only.
 | `/rapid` (bare)         | **Open the instant menu** — new session, resume, cleanup, review, handoff, update, help — and stop. Nothing is created, scanned over the network, or cleaned up until you pick. See Step 2·menu. |
 | `/rapid <text>`         | **Skip the menu — capture immediately.** Reuse an empty session in this chat if one exists (oldest in `sessions/` with zero notes), else start a brand-new one, append `<text>` as note 1, and start working it. No cleanup runs. See Step 2a/2b. |
 | `review` / `recap` (bare word, mid-session) | Session recap: what shipped (with PR links), what's done-but-unshipped, in progress, queued, parked, blocked. See Step 6. |
-| `push` (bare word, mid-session) | Finish the current `[~]` note, commit it, cut a fresh combined branch + open a new PR for it and any other unshipped `[c]` notes. Stop at PR-open. See `references/push.md`. **In a live collab, `push` is the lead's**: workers never open the PR; the lead ships the combined work, then sends `/compact` into each worker pane (they're carrying shipped-lane context they no longer need), and ends its reply with the PR link. See `references/collab.md` → "push in a live collab". |
+| `push` (bare word, mid-session) | Finish the current `[~]` note, commit it, **reconcile the whole queue against git before cutting anything** (a finished note still reading `[ ]`/`[~]` gets left out of the batch entirely), then cut a fresh combined branch + open a new PR for it and any other unshipped `[c]` notes. Stop at PR-open, then re-read the doc and confirm every shipped note is `[x]` with its PR URL. See `references/push.md`. **In a live collab, `push` is the lead's**: workers never open the PR; the lead ships the combined work, then sends `/compact` into each worker pane (they're carrying shipped-lane context they no longer need), and ends its reply with the PR link. See `references/collab.md` → "push in a live collab". |
 | `carpool` (bare word, mid-session) | **Add the latest work to the MOST RECENT still-open PR from this session** instead of cutting a new branch/PR. This is the one sanctioned way to amend an open PR. If that PR is merged/closed (or none exists), fall back to `push`. See `references/push.md`. |
 | `test` / `testdrive` (bare word, mid-session) | Actually verify the most recent `[c]`/`[x]` note (or the current `[~]`) end-to-end yourself — browser, simulator, curl, whatever the work calls for. **In a live collab the lead never runs this itself** — it sends testing instructions to a rider and relays the verdict back. See `references/test.md`. |
 | `park` / `park <N>` (bare word, mid-session) | Mark a note as **parked** (`[p]`) so it sticks around but is set aside. `park` alone → park the current `[~]`. See `references/notes.md`. |
@@ -632,6 +632,8 @@ Status boxes used in the queue:
 > ⚠️ **`push` opens a PR and stops.** It does NOT auto-merge to `main`. Each `push` invocation cuts a brand-new combined branch and opens a brand-new PR. **A PR is sealed the moment its URL appears in the conversation** — never push more commits to it, with ONE exception: the user explicitly texting `carpool`, which adds the latest work onto the most recent still-open PR (see `references/push.md`). New `[c]` notes otherwise accumulate locally until the next `push`, which creates a *fresh* branch + a *fresh* PR for them.
 >
 > The path from `[~]` to `[x]` runs through `[c]` and then through `push`, which flips notes to `[x]` upon successful PR open. Whether the PR has been merged is a downstream concern the user owns; `review` and `link` surface PR URLs the user can check on GitHub.
+>
+> ⚠️ **No PR opens over an unreconciled queue.** `push`/`carpool` **reconcile the whole queue against git BEFORE cutting a branch** (`references/push.md` step 4) and re-verify the doc from disk after the PR opens. A note whose work is finished but still reads `[ ]`/`[~]` is not merely mislabeled — it is left out of the batch, so its commits ship in no PR and nothing records where they went. And a `[x]` with no `→ PR #<url>` line forces the next agent to open every PR and diff it against the doc to learn what shipped. **The doc alone must answer "did this note ship, and where" — reading PRs to find out is the failure, not the fallback.**
 
 ---
 
@@ -883,8 +885,13 @@ Omit empty rows. Group shipped notes by PR. `/rapid review` and
 **Doc lint** — while rendering, validate the doc and append ONE warning
 line per violation found:
 - every `[x]` note has a `→ PR #` line (else: `⚠️ note <N> is marked
-  shipped but has no PR URL`)
+  shipped but has no PR URL — the doc can't answer "where did it ship"`)
 - every `[~]` / `[c]` note has a `branch:` line
+- **no `[ ]` / `[~]` note has commits sitting on its branch** — check the
+  ones with a `branch:` line (`git rev-list --count origin/main..<branch>`).
+  A count above zero means the work is done and the queue doesn't say so:
+  `⚠️ note <N> reads [~] but <branch> is 2 commits ahead — flip it to [c]
+  or it ships in no PR`. Fix it while you're here, don't just warn.
 - at most one `[~]` is being worked inline, and at most one carries a
   `delegated` sub-bullet
 
