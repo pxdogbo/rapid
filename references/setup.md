@@ -232,8 +232,9 @@ is in place.
 ## Reliability hooks (`references/hooks/`)
 
 Several of the skill's rules are things the agent is *supposed* to do but can
-skip — marking a pushed session, not committing the node_modules symlink, not
-pushing to a sealed PR, routing peer requests through collab. These six
+skip — marking a pushed session, catching the note queue up to what shipped, not
+committing the node_modules symlink, not pushing to a sealed PR, routing peer
+requests through collab. These seven
 `PostToolUse` / `PreToolUse` hooks make
 those rules **deterministic** instead of remembered. All are Node 18+, zero
 dependencies, resolve the session by cwd via the `**Worktree:**` header (like
@@ -244,6 +245,7 @@ context, so they're safe to leave on globally.
 | Hook | Event | What it does |
 |---|---|---|
 | `mark-pushed.mjs` | PostToolUse | After a `gh pr create` that opened a PR from a rapid worktree, flips the doc's `**Pushed:**` header to the PR ref and appends a `## Pushes` entry — the durable record cleanup keys on. Idempotent; never flips notes `[c]`→`[x]` (that stays the agent's job). |
+| `reconcile-notes.mjs` | PostToolUse | At PR-open (or a `carpool` push to a branch the doc ties to a PR), parses `## Notes` and hands the agent — next to the tool result — the notes still needing a status decision: anything left `[c]`, any `[ ]`/`[~]` whose branch carries commits ahead of `origin/main`, any `[x]` with no PR URL, plus what remains open for the queue line. Read-only, decides nothing, silent when the queue is already clean; states that the push succeeded so the PR is never re-created. |
 | `guard-git-add.mjs` | PreToolUse | **Blocks** `git add -A` / `--all` / `.` inside a rapid worktree — node_modules is symlinked there and a blanket add commits the symlink (repos ignore `node_modules/` as a dir, not as a symlink). Explicit-path staging passes. |
 | `exclude-node-modules.mjs` | PostToolUse | After `git worktree add`, appends `/node_modules` to the new worktree's `.git/info/exclude` — belt-and-suspenders for the same trap. Idempotent. |
 | `guard-sealed-pr.mjs` | PreToolUse | **Blocks** a `git push` to a `rapid/*` branch whose PR is MERGED/CLOSED (commits to a sealed branch reach no PR) — from ANY checkout, not just rapid worktrees. One `gh pr view` per rapid-branch push; fails open if gh/network/PR is unavailable. |
@@ -251,8 +253,11 @@ context, so they're safe to leave on globally.
 | `compact-peers.mjs` | PostToolUse | After a `gh pr create` that opened a PR from a live-collab pane: sends `/compact` into every other same-repo collab pane (the post-push compact sweep), skipping mid-turn panes and verifying each send-keys submitted. Prints a one-line summary the lead can relay. |
 
 Why these were the picks: `mark-pushed` + the cleanup fetch-first fix (v1.18.0)
-together end the false-"unshipped" pile-up; the two node_modules hooks kill a
-documented commit-the-symlink footgun; `guard-sealed-pr` enforces the standing
+together end the false-"unshipped" pile-up; `reconcile-notes` ends its sibling —
+a PR that shipped while the queue still read as pending, which forces the next
+agent to open every PR and diff it against the doc to learn what landed; the two
+node_modules hooks kill a documented commit-the-symlink footgun;
+`guard-sealed-pr` enforces the standing
 "verify the PR is OPEN before any git write" rule. (Deliberately NOT hooked:
 `SessionStart` — start is meant to be network-free/instant — and a `Stop`-hook
 "unshipped work" nudge, which would fire on every turn end.)
@@ -276,6 +281,7 @@ skill dir if not the default `~/.claude/skills/rapid`). Merge into any existing
     "PostToolUse": [
       { "matcher": "Bash", "hooks": [
         { "type": "command", "command": "node ~/.claude/skills/rapid/references/hooks/mark-pushed.mjs" },
+        { "type": "command", "command": "node ~/.claude/skills/rapid/references/hooks/reconcile-notes.mjs" },
         { "type": "command", "command": "node ~/.claude/skills/rapid/references/hooks/exclude-node-modules.mjs" },
         { "type": "command", "command": "node ~/.claude/skills/rapid/references/hooks/compact-peers.mjs" }
       ] }

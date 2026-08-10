@@ -1,5 +1,44 @@
 # Changelog
 
+## 1.29.0 — 2026-08-10
+
+- **The queue is reconciled against git *before* a PR opens, and the doc alone
+  now answers "did this note ship, and where."** Observed: agents opened PRs
+  while finished notes still read `[ ]`/`[~]`/`[c]`, so every later session had
+  to open each PR and diff it against the doc to work out what had actually
+  landed. That archaeology is the slow burn. Worse than cosmetic: a finished
+  note left unchecked is never collected into the batch, so its commits ship in
+  no PR at all and nothing in the doc records where they went. The old flow put
+  the whole-queue catch-up in `push` step 8 — *after* PR-open, at the tail of a
+  long turn, bundled with the header stamp and the hook note — which is the
+  easiest step in the flow to half-do.
+  - `references/push.md` gains **step 4, a pre-flight reconcile gate**: re-read
+    the doc from disk and walk every note against `git branch --list` /
+    `git rev-list --count origin/main..<branch>`, then fix the boxes — `[ ]`/`[~]`
+    with commits become `[c]` (so *this* batch picks them up), a `[c]` already
+    pushed with a PR becomes `[x]` with its URL, an `[x]` with no PR URL gets
+    one or goes back to `[c]`, and work that never got a note gets one now.
+    Collection (step 5) reads the reconciled doc. Only flip what git can back up.
+  - **The PR states its own scope.** Body bullets lead with the note number, and
+    the body ends with `## Notes in this PR` + `## Still open after this PR`
+    (`Queue clear.` when nothing remains). `## Pushes` entries carry note numbers
+    alongside branches. `carpool` updates both sections via `gh pr edit`.
+  - **New step 10, verify from disk**: after the flip, re-read the doc — not
+    memory — and confirm every batched note is `[x]` with `→ PR #<n> <url>`, no
+    batch `[c]` is left behind, and every still-open note has a stated reason.
+    The tally and status verdict are counted from *that* read.
+  - **New `reconcile-notes.mjs` hook** (PostToolUse): at PR-open — or a carpool
+    push to a branch the doc ties to a PR — it parses `## Notes` and returns the
+    exact list of notes still needing a decision as `additionalContext`, landing
+    next to the `gh pr create` result. Read-only, decides nothing, silent when
+    the queue is clean, and it says outright that the push succeeded so no agent
+    re-runs `gh pr create`. A backstop, not the mechanism.
+  - `SKILL.md`: the "no PR opens over an unreconciled queue" rule sits with the
+    status boxes where the `[c]`/`[x]` contract is defined; the `push` trigger
+    row names the gate; the `review` doc lint now flags a `[ ]`/`[~]` note whose
+    branch carries commits and fixes it in place. `references/collab.md` points
+    the worker's per-PR queue report at the same gate.
+
 ## 1.28.0 — 2026-08-06
 
 - **A lane a lead dispatches to a worker is now a note on BOTH docs, and every

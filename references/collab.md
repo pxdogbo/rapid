@@ -474,6 +474,12 @@ Queue after this: (1) F gallery load speed  (2) K lock icon on cards
 (3) J scale-ref invalidates Variables. Blocked: none.
 ```
 
+That report is only true if the queue behind it is. Before opening the PR, run
+the reconcile gate in `references/push.md` step 4 — walk every note against git
+and fix any box that lags what the branches show. A lane you finished but never
+checked off reads as outstanding here and as unshipped everywhere else, and the
+lead will chase you for work that already landed.
+
 The lead relays that queue to the user in the same reply as the PR link. The
 user merges from notifications and often never reads back — a PR link with no
 queue behind it reads as "that's everything", which is exactly how outstanding
