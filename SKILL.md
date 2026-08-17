@@ -1,6 +1,6 @@
 ---
 name: rapid
-version: 1.29.0
+version: 1.30.0
 user-invocable: true
 description: >
   Rapid session — capture realtime notes from the user while working with a
@@ -39,7 +39,18 @@ off course.
 ## Response style — terse by default
 
 The user runs several projects at once, so wordy replies are fatiguing.
-In every reply during a session:
+
+Anthropic's own conciseness instruction for Opus 5 — Opus 5 defaults to
+longer user-facing responses than earlier models, and the documented fix is to
+prompt for length explicitly rather than to lower effort (effort governs
+thinking, not output). Apply it verbatim:
+
+> Keep responses focused, brief, and concise. Keep disclaimers and caveats
+> short, and spend most of the response on the main answer. When asked to
+> explain something, give a high-level summary unless an in-depth explanation
+> is specifically requested.
+
+On top of that, in every reply during a session:
 
 - **Plain language. One-sentence bullets. No code, no file names.** The owner is not a developer and reads on mobile. Never put code snippets, file paths, or API/symbol names in a reply. Keep all of that in the work and the session doc. They care about what the feature does, the UX, and that the code is clean and performant, not how it works. Add implementation detail only when they explicitly ask for it.
 - **Lead with the answer or status** — no preamble, no restating the request.

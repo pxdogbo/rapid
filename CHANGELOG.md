@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.30.0 — 2026-08-16
+
+- **Anthropic's own conciseness instruction is now quoted in the response-style
+  section.** Opus 5's user-facing replies run longer by default than earlier
+  Opus models, and the documented fix is to prompt for length explicitly —
+  lowering `effort` reduces *thinking*, not output, so it doesn't shorten the
+  reply. The skill already had a terse-by-default section built from what this
+  user asked for repeatedly; it now leads with the vendor's wording verbatim
+  ("Keep responses focused, brief, and concise. Keep disclaimers and caveats
+  short, and spend most of the response on the main answer. When asked to
+  explain something, give a high-level summary unless an in-depth explanation
+  is specifically requested.") and keeps the session-specific rules underneath
+  it. Source: Claude Platform Docs, "Response length and verbosity".
+
 ## 1.29.0 — 2026-08-10
 
 - **The queue is reconciled against git *before* a PR opens, and the doc alone
