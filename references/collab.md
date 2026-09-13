@@ -565,6 +565,9 @@ Flow for a peer-authored plan (up/across):
 
 ### push in a live collab — the lead ships, then compacts the peers
 
+(`merge` behaves identically here — it is `push` plus the merge, so it is the
+lead's too, and the compact sweep below runs the same way once the PR lands.)
+
 The user's `push` goes to the **lead** (workers never open the PR — they
 report lanes done; the lead QCs, commits, and ships the combined work per
 `references/push.md`). After the PR is open, the lead runs the **post-push

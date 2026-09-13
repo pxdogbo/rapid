@@ -38,6 +38,13 @@ agent:  PR open → https://github.com/you/repo/pull/123
   own branch off `origin/main` (bisectable), but `push` rolls all unshipped
   work into a single combined branch + a single PR. Your PR list doesn't get
   flooded with eight one-line PRs.
+- **Stop at the PR, or go all the way.** `push` opens the PR and stops — you
+  merge when you're ready. `merge` does the same batch and then lands it on
+  `main`: it re-reads the PR from GitHub to confirm the merge really happened,
+  writes `(merged)` next to each note, and fast-forwards your local `main` so
+  the next note starts from the merged code. It never force-pushes and never
+  overrides a protection rule — a failing required check stops it, pending
+  checks turn into auto-merge.
 - **Sealed PRs — with one escape hatch.** Once a PR's URL is shared, that PR
   is closed-for-edits; new work accumulates until the next `push` cuts a
   fresh batch. The one exception is you saying `carpool`, which rides the
@@ -122,7 +129,8 @@ Start with the slash command, then drive everything with bare words mid-session.
 | `/rapid <note>` | Skip the menu — capture straight into a new or reused session (fresh doc + worktree on `rapid/<slug>`) and start the note |
 | *(any message)* | Drive-by note → appended to the queue before anything else happens |
 | `review` / `recap` | Session recap: shipped (with PR links), done-but-unshipped, in progress, queued, parked, blocked |
-| `push` | Finish current note, roll every unshipped note into ONE combined branch + ONE PR, stop at PR-open |
+| `push` | Finish current note, roll every unshipped note into ONE combined branch + ONE PR, stop at PR-open (you merge) |
+| `merge` | Same as `push`, then **merges that PR onto `main`**, confirms the merge with GitHub, marks the notes `(merged)`, and fast-forwards your local `main`. Checks still running → enables auto-merge and says *queued*. The only verb that writes to `main` |
 | `carpool` | Ride the latest work along on the most recent still-open PR instead of cutting a new one |
 | `test` / `testdrive` | Agent verifies the last shipped note end-to-end itself (browser, simulator, curl) and reports ✅/❌/⚠️ with evidence |
 | `park` / `park <N>` | Set a note aside without dropping it |
@@ -181,7 +189,7 @@ can run concurrent sessions — each chat binds to its own slug.
 ```
 SKILL.md          # the core loop — what the agent loads on every session
 references/       # heavy verbs, read on demand when their trigger fires
-├── push.md       #   push, carpool
+├── push.md       #   push, merge, carpool
 ├── wax.md        #   wax
 ├── handoff.md    #   handoff
 ├── collab.md     #   collab (+ Live mode section)

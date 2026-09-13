@@ -62,9 +62,10 @@ exist. Run this BEFORE creating any directories, docs, or worktrees.
    rapid is a realtime note queue: drop observations while you use your
    product live; I capture each one to a doc on disk, work through them
    in an isolated git worktree, and ship batches as single PRs when you
-   say `push`. The five words you'll use most: drop a note (just type
-   it), `review` (where things stand), `push` (ship one PR), `test`
-   (I verify it myself), `wash` (clear the queue, keep the session).
+   say `push`. The words you'll use most: drop a note (just type it),
+   `review` (where things stand), `push` (ship one PR), `merge` (ship it
+   AND land it on main), `test` (I verify it myself), `wash` (clear the
+   queue, keep the session).
 
    It stores files in two places:
      ~/.rapid/        — session docs (the note queues) + this config

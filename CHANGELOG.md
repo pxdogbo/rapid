@@ -1,5 +1,32 @@
 # Changelog
 
+## 1.31.0 — 2026-09-13
+
+- **New bare word: `merge` — `push` plus the last mile.** `push` has always
+  stopped at PR-open on purpose, leaving the merge to the user. That's still
+  true, but it meant every shipment needed a second, manual step outside the
+  chat. `merge` runs the identical `push` flow (finish the `[~]` note, commit,
+  reconcile the whole queue against git, one combined branch, one PR) and then
+  lands that PR on `main`. The name is the action — no new vocabulary to
+  remember. `/rapid merge` is an alias; `merge <N>` targets a specific PR from
+  the session.
+- **It refuses to claim a merge it hasn't verified.** After merging it re-reads
+  `gh pr view --json state,mergedAt` and only says "merged" when GitHub says
+  `MERGED`. Pending checks become auto-merge and are reported as *queued to
+  merge*, never as merged. A failed required check stops it outright — fixing
+  the check is the next note, not a silent override. It never force-pushes and
+  never reaches for an admin override on a protected branch.
+- **A conflicting PR gets rebased, not forced.** If `main` moved under the
+  batch, `merge` follows the existing stale-PR rule: rebase onto fresh
+  `origin/main` on a new batch branch, open the corrected PR, close the stale
+  one itself, then merge the new one — so the open-PR list stays correct
+  without the user reading chat.
+- **Merged work is visible in the doc, and `main` comes forward.** Each note in
+  the batch keeps its PR URL and gains `(merged)`, the `## Pushes` entry flips
+  from `(open)` to `(merged <date>)`, and both the worktree and the primary
+  checkout fetch `main` (fast-forwarding it when clean) so the next note
+  branches off the code that just landed instead of re-shipping it.
+
 ## 1.30.0 — 2026-08-16
 
 - **Anthropic's own conciseness instruction is now quoted in the response-style
