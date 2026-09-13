@@ -1,6 +1,6 @@
 ---
 name: rapid
-version: 1.30.0
+version: 1.31.0
 user-invocable: true
 description: >
   Rapid session — capture realtime notes from the user while working with a
@@ -13,7 +13,8 @@ description: >
   sessions only ever runs when you ask for it (the menu's Cleanup option, or
   `tidy`/`burn`) — never automatically at start. Drive-by notes and bare-word
   triggers (review/recap, push (→ always
-  commits the queue and opens a PR, never a bare git push), carpool,
+  commits the queue and opens a PR, never a bare git push), merge (→ push,
+  then land that PR on main and verify it), carpool,
   wash/clean, park, unpark, drop, test/testdrive, scrap, tidy, burn,
   link, reverse/undo, inbox) operate on the session this chat started, not on
   whatever doc happens to be marked active globally. wax grooms the doc in
@@ -156,7 +157,7 @@ this one — **read the reference file when its trigger fires**, not before:
 
 | File | Covers |
 |---|---|
-| `references/push.md` | `push`, `carpool` |
+| `references/push.md` | `push`, `merge`, `carpool` |
 | `references/wax.md` | `wax` |
 | `references/handoff.md` | `handoff` (hand a session / note / plan to a fresh chat) |
 | `references/collab.md` | `collab` (cross-agent chatroom); **Live mode** (real-time poke), **Spin up a collab set** (`/rapid collab <N>`), **Enabling live mode** (`/rapid collab setup`); `references/collab-live/` is the relay + `collab-start` helper |
@@ -227,6 +228,7 @@ skipped and the session is doc-only.
 | `review` / `recap` (bare word, mid-session) | Session recap: what shipped (with PR links), what's done-but-unshipped, in progress, queued, parked, blocked. See Step 6. |
 | `push` (bare word, mid-session) | Finish the current `[~]` note, commit it, **reconcile the whole queue against git before cutting anything** (a finished note still reading `[ ]`/`[~]` gets left out of the batch entirely), then cut a fresh combined branch + open a new PR for it and any other unshipped `[c]` notes. Stop at PR-open, then re-read the doc and confirm every shipped note is `[x]` with its PR URL. See `references/push.md`. **In a live collab, `push` is the lead's**: workers never open the PR; the lead ships the combined work, then sends `/compact` into each worker pane (they're carrying shipped-lane context they no longer need), and ends its reply with the PR link. See `references/collab.md` → "push in a live collab". |
 | `carpool` (bare word, mid-session) | **Add the latest work to the MOST RECENT still-open PR from this session** instead of cutting a new branch/PR. This is the one sanctioned way to amend an open PR. If that PR is merged/closed (or none exists), fall back to `push`. See `references/push.md`. |
+| `merge` (bare word, mid-session) | **`push`, then land it on `main`.** Runs the whole `push` flow (finish the `[~]` note, commit, reconcile the queue against git, one combined branch, one PR), then merges that PR, **re-reads the PR state from GitHub to confirm it actually landed**, records `(merged)` on every note in the doc, and fast-forwards local `main` so the next note branches off the merged code. Nothing new to ship → it merges the most recent still-open PR from this session instead. Checks still running → enables auto-merge and says *queued*, never *merged*. A required check failed, `main` conflicts, or branch protection blocks it → it stops honestly (or rebases onto a fresh PR and closes the stale one); it never force-pushes and never overrides a protection rule. `/rapid merge` is an alias; `merge <N>` targets PR #N. This is the ONLY verb that writes to `main`. See `references/push.md`. |
 | `test` / `testdrive` (bare word, mid-session) | Actually verify the most recent `[c]`/`[x]` note (or the current `[~]`) end-to-end yourself — browser, simulator, curl, whatever the work calls for. **In a live collab the lead never runs this itself** — it sends testing instructions to a rider and relays the verdict back. See `references/test.md`. |
 | `park` / `park <N>` (bare word, mid-session) | Mark a note as **parked** (`[p]`) so it sticks around but is set aside. `park` alone → park the current `[~]`. See `references/notes.md`. |
 | `unpark <N>` (bare word, mid-session) | Flip a parked note back into the queue (or straight to in-progress if nothing else is pending). See `references/notes.md`. |
@@ -635,16 +637,16 @@ Status boxes used in the queue:
 - `[ ]` pending — not started
 - `[~]` in progress — actively being worked
 - `[c]` committed — implementation done, work is on a local branch, **not yet pushed**
-- `[x]` done — **shipped to a PR** (PR open, possibly merged — the skill does not track merge state). The note's commit must be on a pushed branch with an open or merged PR before flipping to `[x]`. **The PR URL must appear in the note** — e.g. `→ PR #123 https://github.com/…/pull/123`.
+- `[x]` done — **shipped to a PR** (PR open; a note landed by `merge` also carries `(merged)` after its PR URL). The note's commit must be on a pushed branch with an open or merged PR before flipping to `[x]`. **The PR URL must appear in the note** — e.g. `→ PR #123 https://github.com/…/pull/123`.
 - `[!]` blocked — needs user input or external thing
 - `[p]` parked — explicitly set aside by the user
 - `[-]` dropped — user said skip it
 
-> ⚠️ **`push` opens a PR and stops.** It does NOT auto-merge to `main`. Each `push` invocation cuts a brand-new combined branch and opens a brand-new PR. **A PR is sealed the moment its URL appears in the conversation** — never push more commits to it, with ONE exception: the user explicitly texting `carpool`, which adds the latest work onto the most recent still-open PR (see `references/push.md`). New `[c]` notes otherwise accumulate locally until the next `push`, which creates a *fresh* branch + a *fresh* PR for them.
+> ⚠️ **`push` opens a PR and stops.** It does NOT merge to `main` — `merge` is the one verb that does (see `references/push.md`). Each `push` invocation cuts a brand-new combined branch and opens a brand-new PR. **A PR is sealed the moment its URL appears in the conversation** — never push more commits to it, with ONE exception: the user explicitly texting `carpool`, which adds the latest work onto the most recent still-open PR (see `references/push.md`). New `[c]` notes otherwise accumulate locally until the next `push`, which creates a *fresh* branch + a *fresh* PR for them.
 >
-> The path from `[~]` to `[x]` runs through `[c]` and then through `push`, which flips notes to `[x]` upon successful PR open. Whether the PR has been merged is a downstream concern the user owns; `review` and `link` surface PR URLs the user can check on GitHub.
+> The path from `[~]` to `[x]` runs through `[c]` and then through `push`, which flips notes to `[x]` upon successful PR open. After a `push` the merge is the user's to make; `review` and `link` surface PR URLs they can check on GitHub. **`merge` is `push` plus that last mile** — same batching, same reconciliation, then it lands the PR on `main`, verifies the merge from GitHub before saying so, and marks the notes `(merged)`.
 >
-> ⚠️ **No PR opens over an unreconciled queue.** `push`/`carpool` **reconcile the whole queue against git BEFORE cutting a branch** (`references/push.md` step 4) and re-verify the doc from disk after the PR opens. A note whose work is finished but still reads `[ ]`/`[~]` is not merely mislabeled — it is left out of the batch, so its commits ship in no PR and nothing records where they went. And a `[x]` with no `→ PR #<url>` line forces the next agent to open every PR and diff it against the doc to learn what shipped. **The doc alone must answer "did this note ship, and where" — reading PRs to find out is the failure, not the fallback.**
+> ⚠️ **No PR opens over an unreconciled queue.** `push`/`merge`/`carpool` **reconcile the whole queue against git BEFORE cutting a branch** (`references/push.md` step 4) and re-verify the doc from disk after the PR opens. A note whose work is finished but still reads `[ ]`/`[~]` is not merely mislabeled — it is left out of the batch, so its commits ship in no PR and nothing records where they went. And a `[x]` with no `→ PR #<url>` line forces the next agent to open every PR and diff it against the doc to learn what shipped. **The doc alone must answer "did this note ship, and where" — reading PRs to find out is the failure, not the fallback.**
 
 ---
 
@@ -781,9 +783,12 @@ While working:
     - branch: rapid/<slug>-node-error-glow (off origin/main)
   ```
   The `push` step picks up note branches via these lines.
-- **Never push or open PRs inline.** Commit work to its local branch
+- **Never push, open PRs, or merge inline.** Commit work to its local branch
   and stop. Pushes + PRs only happen when the user texts the bare
-  `push` / `carpool` command or explicitly says "push it." Auto-pushing
+  `push` / `merge` / `carpool` command or explicitly says "push it." Merging
+  to `main` happens ONLY on the bare `merge` (or an explicit instruction to
+  merge) — never as a follow-on to a `push` the user didn't ask to land.
+  Auto-pushing
   every finished note clutters GitHub with PRs the user has to triage
   individually and removes their chance to batch / reorder / drop work
   before it leaves the worktree.
@@ -882,7 +887,7 @@ things stand:
 rapid/<slug> — review
 
 shipped:         #1 avatar sizing, #2 title wrap → PR #12
-done, unshipped: #4 sticker copy (on rapid/<slug>-sticker-copy — say `push`)
+done, unshipped: #4 sticker copy (on rapid/<slug>-sticker-copy — say `push` or `merge`)
 in progress:     #5 ContentView spacing
 delegated:       #3 light/dark theme — background agent since 14:32
 queued:          #6 footer link, #7 empty-state copy
@@ -919,8 +924,8 @@ line per violation found:
    If `committed-unshipped > 0` OR `parked > 0`, **flag it loudly** before
    archiving: those notes have local commits that have never been pushed
    (`[c]`) or were explicitly set aside (`[p]`), and `done`/`off` does
-   NOT push them. Either run `push` first, or accept that they'll sit
-   on local branches. Do not silently archive over unshipped or parked
+   NOT push them. Either run `push` (or `merge`) first, or accept that they'll
+   sit on local branches. Do not silently archive over unshipped or parked
    work — confirm with the user.
 2. Move the file: `mv sessions/<slug>.md sessions/archive/<slug>.md`.
 3. Reply with the one-paragraph summary.

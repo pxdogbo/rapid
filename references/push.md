@@ -282,3 +282,106 @@ Rules:
 - **Carpool is per-invocation consent.** It unseals the PR for this one
   batch of notes only; afterwards the PR is sealed again until the next
   explicit `carpool`.
+
+---
+
+## Bare `merge`
+
+When the user texts just the word `merge` (no slash, no other content) while
+**this chat has a session**, they want the work **all the way onto `main`** —
+not parked at PR-open. `merge` is `push` plus the last mile: it runs the entire
+`push` flow above, then merges the PR it just opened, confirms the merge landed,
+and brings the local `main` forward so the next note branches off the merged
+code.
+
+`/rapid merge` is an alias. `merge <N>` targets PR #N from this session
+specifically instead of the one `push` just opened.
+
+> ⚠️ **`merge` is the only verb in this skill that writes to `main`.** Every
+> other path stops at PR-open and leaves the merge to the user. Because the
+> user typed the word, no extra confirmation is needed — but every guard below
+> is mandatory, and the merge is never claimed without re-reading the PR state
+> from GitHub afterwards.
+
+Behavior:
+
+1. **Acknowledge in one line**, e.g. `Got it — finishing note 4, then opening
+   and merging the PR.`
+2. **Run `push` steps 1–11 in full.** Finish the `[~]` note, commit it,
+   reconcile the queue against git, collect every `[c]`, cut the batch branch,
+   push it, open ONE PR, flip the notes to `[x]` with the PR URL, stamp the
+   header and the `## Pushes` entry. No shortcuts — a note left unreconciled is
+   left out of the batch, and `merge` would then put an incomplete PR on `main`.
+   - **Nothing new to ship?** Don't stop there the way `push` does. Look up the
+     most recent `## Pushes` entry and, if its PR is still open, that PR is the
+     merge target — the user is asking you to land work that already shipped to
+     a PR. No open PR either → reply `Nothing to merge.` and stop.
+3. **Verify the PR's real state before touching it** — never from memory:
+   ```
+   gh pr view <N> --json state,mergedAt,mergeStateStatus,statusCheckRollup
+   ```
+   - `MERGED` already → say so in one line, skip to step 6 (the doc may still
+     be stale). Do not error.
+   - `CLOSED` → report it and stop; nothing to merge.
+   - `OPEN` → continue.
+4. **Merge it**, matching the action to `mergeStateStatus`:
+   - `CLEAN` / `HAS_HOOKS` / `UNSTABLE` with no *required* check failing →
+     merge now: `gh pr merge <N> --squash --delete-branch`. Squash is the
+     default: a rapid batch is one logical shipment, and a squashed batch keeps
+     `main` readable. Use `--merge` / `--rebase` only if the user asked or the
+     repo forbids squash.
+   - `BLOCKED` / checks still running → do **not** poll or hammer. Turn on
+     auto-merge instead: `gh pr merge <N> --squash --auto --delete-branch`, and
+     say in one line that it lands by itself when the checks pass. Then skip to
+     step 7 and report it as *queued to merge*, never as merged.
+   - A **required check has failed** → do not merge and do not queue. Report
+     which check failed, in plain words, and stop. Fixing it is the next note,
+     not a silent override.
+   - `CONFLICTING` / `DIRTY` (`main` moved under the batch) → do **not**
+     force-push the open PR. Follow the skill's stale-PR rule: rebase the batch
+     onto fresh `origin/main` on a NEW batch branch, open the corrected PR,
+     **close the stale one yourself** (`gh pr close <N> --comment "Superseded by
+     #<new> — rebased onto main" --delete-branch`), then merge the new one. The
+     open-PR list must stay correct without the user reading chat.
+   - Blocked by **branch protection / a required review** → report the exact
+     reason and stop. Never reach for an admin override unless the user
+     explicitly says to.
+5. **Confirm the merge actually landed.** Re-run `gh pr view <N> --json
+   state,mergedAt`. `state: MERGED` with a `mergedAt` timestamp is the only
+   thing that licenses the word "merged" in your reply — an exit code is not.
+   If it didn't land, report what GitHub says and stop.
+6. **Record the merge in the doc.**
+   - Each note in the batch keeps its `→ PR #<N> <url>` line and gains
+     ` (merged)` — so the doc answers *did this reach `main`*, not just *did
+     this reach a PR*.
+   - The `## Pushes` entry's `(open)` becomes `(merged <YYYY-MM-DD>)`.
+   - The header `**Pushed:**` ref gains `(merged)`.
+   - Auto-merge queued instead of merged → write `(auto-merge queued)`, not
+     `(merged)`. Never record an outcome you haven't verified.
+7. **Bring `main` forward — both checkouts.** A merged batch that nobody pulled
+   means the next note branches off stale code and re-ships what just landed:
+   ```
+   git -C <worktree> fetch --prune origin main        # so the next note branches off the merge
+   git -C <repo-root> fetch --prune origin main
+   git -C <repo-root> pull --ff-only                  # only if it's on main and clean
+   ```
+   Skip the `pull` silently if the primary checkout is on another branch or
+   dirty — the `fetch` is the part that matters. Then delete the merged batch
+   branch locally (`git branch -D rapid/<slug>-batch-<N>`); `--delete-branch`
+   already removed the remote one.
+8. **Reply in one block**: the PR link, the word *merged* (or *queued to merge*),
+   the `<done> of <total> notes done` tally on its own line, and then the
+   session status render — same as `push` steps 12–13, verdict line included.
+   Say `main` is up to date in the same block, so the user knows the work is
+   live and not sitting in a branch.
+
+Rules:
+- **Never claim a merge you didn't re-read from GitHub** (step 5). This is the
+  skill's "never assert PR status without checking" rule at its sharpest: the
+  user acts on what you say here.
+- **`merge` never force-pushes and never overrides a protection rule.** Every
+  blocked path above ends in either auto-merge or an honest stop.
+- **One PR per `merge`**, exactly like `push`. It merges the batch it opened (or
+  the one still-open PR it found), never a sweep of every open PR in the repo.
+- **`merge` does not clean up the session.** Reaping stays on `tidy` / the
+  Cleanup menu, so a merged session is still there to keep working in.
