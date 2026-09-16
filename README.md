@@ -4,7 +4,8 @@ You're using your product live. You spot things — a misaligned button, a dead
 link, copy that reads weird. You can't wait for the agent to finish its current
 task, and you can't keep opening new chats. `/rapid` turns the agent into a
 ticket queue: drop observations as they come, and it captures, prioritizes,
-implements, and ships them in batched PRs — without ever losing its place.
+implements, and ships them — one batched PR, opened and **merged for you** —
+without ever losing its place and without you typing a ship word.
 
 ```
 you:    /rapid the avatar in the sidebar feels too small
@@ -16,12 +17,17 @@ agent:  Noted (queued as note 2). Finishing avatar size first.
 
 you:    review
 agent:  rapid/turbo-kart — review
-        done, unshipped: #1 avatar sizing (say `push`)
+        done, unshipped: #1 avatar sizing
         in progress:     #2 title bar wrap
 
-you:    push
-agent:  PR open → https://github.com/you/repo/pull/123
-        (2 notes shipped on rapid/turbo-kart-batch-1)
+agent:  Note 2 done — title bar wraps clean at 1280px.
+        🚀 landing in 2 min — say `hold` to stop, or drop another note
+
+        (two minutes later, nothing typed)
+
+agent:  ✅ merged to main — PR #123 https://github.com/you/repo/pull/123
+        2 of 2 notes done
+        ✅ queue clear — all shipped
 ```
 
 ## What it does
@@ -38,15 +44,17 @@ agent:  PR open → https://github.com/you/repo/pull/123
   own branch off `origin/main` (bisectable), but `push` rolls all unshipped
   work into a single combined branch + a single PR. Your PR list doesn't get
   flooded with eight one-line PRs.
-- **Stop at the PR, or go all the way.** `push` opens the PR and stops — you
-  merge when you're ready. `merge` does the same batch and then lands it on
-  `main`: it re-reads the PR from GitHub to confirm the merge really happened,
-  writes `(merged)` next to each note, and fast-forwards your local `main` so
-  the next note starts from the merged code. It never force-pushes and never
-  overrides a protection rule — a failing required check stops it, pending
-  checks turn into auto-merge.
+- **It ships itself.** You never type a ship word. When the queue goes quiet —
+  nothing in progress, nothing left to start — the agent says *landing in 2
+  min*, and then it opens the PR, merges it, re-reads GitHub to confirm the
+  merge really happened, writes `(merged)` next to each note, and
+  fast-forwards your local `main`. Drop another note inside the window and it
+  rides along in the same batch. `hold` stops it; `push` skips the wait; `pr`
+  opens the PR and deliberately leaves it for a human. It never force-pushes
+  and never overrides a protection rule — a failing required check stops it
+  loudly (`⚠️ NOT merged`), pending checks turn into auto-merge.
 - **Sealed PRs — with one escape hatch.** Once a PR's URL is shared, that PR
-  is closed-for-edits; new work accumulates until the next `push` cuts a
+  is closed-for-edits; new work accumulates until the next shipment cuts a
   fresh batch. The one exception is you saying `carpool`, which rides the
   latest work onto the most recent still-open PR.
 - **Overlap aware.** Before starting a note the agent checks whether its
@@ -129,8 +137,11 @@ Start with the slash command, then drive everything with bare words mid-session.
 | `/rapid <note>` | Skip the menu — capture straight into a new or reused session (fresh doc + worktree on `rapid/<slug>`) and start the note |
 | *(any message)* | Drive-by note → appended to the queue before anything else happens |
 | `review` / `recap` | Session recap: shipped (with PR links), done-but-unshipped, in progress, queued, parked, blocked |
-| `push` | Finish current note, roll every unshipped note into ONE combined branch + ONE PR, stop at PR-open (you merge) |
-| `merge` | Same as `push`, then **merges that PR onto `main`**, confirms the merge with GitHub, marks the notes `(merged)`, and fast-forwards your local `main`. Checks still running → enables auto-merge and says *queued*. The only verb that writes to `main` |
+| *(nothing)* | **Autoship — the default.** Queue goes quiet → 2-minute window → ONE combined branch + ONE PR, merged to `main`, confirmed with GitHub, `main` fast-forwarded. No word from you |
+| `hold` / `wait` | Cancel the pending shipment. Work stays committed locally until you say `push` |
+| `push` / `merge` | Ship it **now** instead of waiting out the window — same batch, same merge, same verification |
+| `pr` | Open the PR and **leave it open** for a human to merge (code review, a teammate's sign-off, a release you're timing) |
+| `autoship off` / `on` / `<window>` | Disable the automatic shipment for this session, re-enable it, or change the window (`autoship 5m`). Defaults live in `~/.rapid/config.json` |
 | `carpool` | Ride the latest work along on the most recent still-open PR instead of cutting a new one |
 | `test` / `testdrive` | Agent verifies the last shipped note end-to-end itself (browser, simulator, curl) and reports ✅/❌/⚠️ with evidence |
 | `park` / `park <N>` | Set a note aside without dropping it |
@@ -158,15 +169,17 @@ Each note carries a status box in the session doc:
 |---|---|
 | `[ ]` | pending |
 | `[~]` | in progress |
-| `[c]` | committed locally — awaiting `push` |
+| `[c]` | committed locally — not yet on a PR |
 | `[x]` | shipped — on a PR (URL recorded under the note) |
 | `[p]` | parked |
 | `[!]` | blocked — needs your input |
 | `[-]` | dropped |
 
-The path to done always runs `[~]` → `[c]` → `push` → `[x]`. Nothing is marked
-shipped until a PR actually exists, and `push` never auto-merges — you merge
-via the GitHub UI when you're ready.
+The path to done always runs `[~]` → `[c]` → shipment → `[x]`. Nothing is
+marked shipped until a PR actually exists, and a `[x]` carries its PR URL plus
+`(merged)` once GitHub confirms the merge. A PR left open is either a `pr` you
+asked for or a block the agent reports loudly — never a default the chat
+quietly waits on.
 
 ## Storage layout
 

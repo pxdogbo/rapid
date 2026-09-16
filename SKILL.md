@@ -1,6 +1,6 @@
 ---
 name: rapid
-version: 1.31.0
+version: 1.32.0
 user-invocable: true
 description: >
   Rapid session — capture realtime notes from the user while working with a
@@ -9,12 +9,16 @@ description: >
   cleanup, review, handoff, update, help — and does nothing until you pick, so
   starting never blocks on housekeeping or the network. `/rapid <note>` skips
   the menu and captures straight into a new-or-reused session (fresh doc +
-  sibling git worktree on a `rapid/<slug>` branch). Cleanup of finished
+  sibling git worktree on a `rapid/<slug>` branch). Work SHIPS ITSELF: when
+  the queue goes quiet, autoship arms a 2-minute window and then opens and
+  merges the PR with no ship word from the user (`hold` stops it, `autoship
+  off` disables it). Cleanup of finished
   sessions only ever runs when you ask for it (the menu's Cleanup option, or
   `tidy`/`burn`) — never automatically at start. Drive-by notes and bare-word
   triggers (review/recap, push (→ always
-  commits the queue and opens a PR, never a bare git push), merge (→ push,
-  then land that PR on main and verify it), carpool,
+  commits the queue, opens a PR and lands it on main, never a bare git push),
+  merge (an alias for push), pr (→ open the PR and leave it for a human),
+  hold, autoship on/off, carpool,
   wash/clean, park, unpark, drop, test/testdrive, scrap, tidy, burn,
   link, reverse/undo, inbox) operate on the session this chat started, not on
   whatever doc happens to be marked active globally. wax grooms the doc in
@@ -157,7 +161,8 @@ this one — **read the reference file when its trigger fires**, not before:
 
 | File | Covers |
 |---|---|
-| `references/push.md` | `push`, `merge`, `carpool` |
+| `references/push.md` | `push`, `merge`, `pr`, `carpool` |
+| `references/autoship.md` | autoship — the queue landing itself with no ship word, `hold`, `autoship on/off` |
 | `references/wax.md` | `wax` |
 | `references/handoff.md` | `handoff` (hand a session / note / plan to a fresh chat) |
 | `references/collab.md` | `collab` (cross-agent chatroom); **Live mode** (real-time poke), **Spin up a collab set** (`/rapid collab <N>`), **Enabling live mode** (`/rapid collab setup`); `references/collab-live/` is the relay + `collab-start` helper |
@@ -226,9 +231,13 @@ skipped and the session is doc-only.
 | `/rapid` (bare)         | **Open the instant menu** — new session, resume, cleanup, review, handoff, update, help — and stop. Nothing is created, scanned over the network, or cleaned up until you pick. See Step 2·menu. |
 | `/rapid <text>`         | **Skip the menu — capture immediately.** Reuse an empty session in this chat if one exists (oldest in `sessions/` with zero notes), else start a brand-new one, append `<text>` as note 1, and start working it. No cleanup runs. See Step 2a/2b. |
 | `review` / `recap` (bare word, mid-session) | Session recap: what shipped (with PR links), what's done-but-unshipped, in progress, queued, parked, blocked. See Step 6. |
-| `push` (bare word, mid-session) | Finish the current `[~]` note, commit it, **reconcile the whole queue against git before cutting anything** (a finished note still reading `[ ]`/`[~]` gets left out of the batch entirely), then cut a fresh combined branch + open a new PR for it and any other unshipped `[c]` notes. Stop at PR-open, then re-read the doc and confirm every shipped note is `[x]` with its PR URL. See `references/push.md`. **In a live collab, `push` is the lead's**: workers never open the PR; the lead ships the combined work, then sends `/compact` into each worker pane (they're carrying shipped-lane context they no longer need), and ends its reply with the PR link. See `references/collab.md` → "push in a live collab". |
-| `carpool` (bare word, mid-session) | **Add the latest work to the MOST RECENT still-open PR from this session** instead of cutting a new branch/PR. This is the one sanctioned way to amend an open PR. If that PR is merged/closed (or none exists), fall back to `push`. See `references/push.md`. |
-| `merge` (bare word, mid-session) | **`push`, then land it on `main`.** Runs the whole `push` flow (finish the `[~]` note, commit, reconcile the queue against git, one combined branch, one PR), then merges that PR, **re-reads the PR state from GitHub to confirm it actually landed**, records `(merged)` on every note in the doc, and fast-forwards local `main` so the next note branches off the merged code. Nothing new to ship → it merges the most recent still-open PR from this session instead. Checks still running → enables auto-merge and says *queued*, never *merged*. A required check failed, `main` conflicts, or branch protection blocks it → it stops honestly (or rebases onto a fresh PR and closes the stale one); it never force-pushes and never overrides a protection rule. `/rapid merge` is an alias; `merge <N>` targets PR #N. This is the ONLY verb that writes to `main`. See `references/push.md`. |
+| *(nothing — autoship)* | **The default path. No word required.** When work is committed and the queue goes quiet, arm a 2-minute window (one line in the reply, a backgrounded `sleep`, a note in the doc header); when it elapses, run the whole `push` flow and land the work on `main`. Notes dropped during the window join the batch. `hold` cancels; `autoship off` disables it for the session. **Never end a turn with shippable work and no window armed, and never ask the user to say `push`.** See `references/autoship.md`. |
+| `push` (bare word, mid-session) | **Ship it now, all the way to `main`** — the same flow autoship runs, minus the wait. Finish the current `[~]` note, commit it, **reconcile the whole queue against git before cutting anything** (a finished note still reading `[ ]`/`[~]` gets left out of the batch entirely), cut a fresh combined branch, open ONE PR for it and any other unshipped `[c]` notes, **then merge that PR and confirm from GitHub that it landed**, mark every note `[x]` + `(merged)` with its PR URL, and bring local `main` forward. Checks still running → auto-merge, reported as *queued*. A failed required check, a conflict, or branch protection → an honest, loud stop (`⚠️ NOT merged — <reason>`); never a force-push, never an admin override. `merge` is an alias; `pr` is the variant that leaves the PR open. See `references/push.md`. **In a live collab, `push` is the lead's**: workers never open the PR; the lead ships the combined work, then sends `/compact` into each worker pane (they're carrying shipped-lane context they no longer need), and ends its reply with the PR link. See `references/collab.md` → "push in a live collab". |
+| `carpool` (bare word, mid-session) | **Add the latest work to the MOST RECENT still-open PR from this session** instead of cutting a new branch/PR. This is the one sanctioned way to amend an open PR. If that PR is merged/closed (or none exists), fall back to `push`. Then it **lands that PR** like `push` does, unless the entry is marked `(open, pr-only)`. See `references/push.md`. |
+| `merge` (bare word, mid-session) | **An alias for `push`** — both batch, open the PR and land it. Nothing new to ship → it lands the most recent still-open PR from this session instead. `merge <N>` targets PR #N specifically (a `pr`-only PR now cleared to go in, or an auto-merge to check and finish); `/rapid merge` is the slash form. See `references/push.md`. |
+| `pr` (bare word, mid-session) | **Open the PR and leave it open** — the one path that deliberately doesn't land. Same batch, same reconciliation, same `[x]` + PR URL on every note; the `## Pushes` entry is marked `(open, pr-only)` so nothing lands it later on its own initiative. Cancels any armed autoship window. For code review, a teammate's sign-off, or a release the user is timing. See `references/push.md`. |
+| `hold` / `wait` (bare word, mid-session) | **Cancel the armed autoship window.** Notes stay `[c]`, the doc header becomes `**Autoship:** held`, and nothing ships until the user says `push`/`pr`/`autoship on`. One-line reply. See `references/autoship.md`. |
+| `autoship off` / `autoship on` / `autoship <window>` | Turn the automatic shipment off or on for this session, or change its window (`autoship 30s`, `autoship 5m`). Persisted in the doc header; `"autoship"` / `"autoshipWindow"` in `~/.rapid/config.json` set the default for every session. See `references/autoship.md`. |
 | `test` / `testdrive` (bare word, mid-session) | Actually verify the most recent `[c]`/`[x]` note (or the current `[~]`) end-to-end yourself — browser, simulator, curl, whatever the work calls for. **In a live collab the lead never runs this itself** — it sends testing instructions to a rider and relays the verdict back. See `references/test.md`. |
 | `park` / `park <N>` (bare word, mid-session) | Mark a note as **parked** (`[p]`) so it sticks around but is set aside. `park` alone → park the current `[~]`. See `references/notes.md`. |
 | `unpark <N>` (bare word, mid-session) | Flip a parked note back into the queue (or straight to in-progress if nothing else is pending). See `references/notes.md`. |
@@ -617,6 +626,8 @@ this same sweep as a bare-word verb.
 **Branch:** <rapid/<slug>, or "n/a">
 **Pushed:** no
 <!-- "no" until a push/carpool opens a PR, then the PR ref(s), e.g. "PR #123 https://…/pull/123" (comma-separate if a session opens more than one over its life). The at-a-glance "did this session reach a PR" flag. Cleanup/scan rule: a session still marked "no" has LOCAL-ONLY work that never became a PR, so never auto-delete it; a session with PR ref(s) is deletable only after each PR is confirmed merged. -->
+**Autoship:** on (2m)
+<!-- Autoship state for this session: "on (<window>)" idle and enabled | "armed <ISO datetime> — notes <n>, <n> (<window>)" while a quiet window is counting down (the ISO stamp is what the autoship-arm Stop hook reads) | "held" after the user said `hold` | "off" after `autoship off`. Default on (2m) unless config says otherwise. See references/autoship.md. -->
 **Handoff:** <omit normally; "pending" on a seeded hand-off session awaiting a fresh chat; "adopted <ISO> by this chat" once adopted via /rapid start <slug>. See references/handoff.md>
 
 ## Notes
@@ -637,16 +648,18 @@ Status boxes used in the queue:
 - `[ ]` pending — not started
 - `[~]` in progress — actively being worked
 - `[c]` committed — implementation done, work is on a local branch, **not yet pushed**
-- `[x]` done — **shipped to a PR** (PR open; a note landed by `merge` also carries `(merged)` after its PR URL). The note's commit must be on a pushed branch with an open or merged PR before flipping to `[x]`. **The PR URL must appear in the note** — e.g. `→ PR #123 https://github.com/…/pull/123`.
+- `[x]` done — **shipped to a PR** (a landed note also carries `(merged)` after its PR URL; ordinarily every `[x]` is merged, since shipments land by default). The note's commit must be on a pushed branch with an open or merged PR before flipping to `[x]`. **The PR URL must appear in the note** — e.g. `→ PR #123 https://github.com/…/pull/123`.
 - `[!]` blocked — needs user input or external thing
 - `[p]` parked — explicitly set aside by the user
 - `[-]` dropped — user said skip it
 
-> ⚠️ **`push` opens a PR and stops.** It does NOT merge to `main` — `merge` is the one verb that does (see `references/push.md`). Each `push` invocation cuts a brand-new combined branch and opens a brand-new PR. **A PR is sealed the moment its URL appears in the conversation** — never push more commits to it, with ONE exception: the user explicitly texting `carpool`, which adds the latest work onto the most recent still-open PR (see `references/push.md`). New `[c]` notes otherwise accumulate locally until the next `push`, which creates a *fresh* branch + a *fresh* PR for them.
+> 🚀 **The queue ships itself — the user never types a ship word.** When work is committed and the queue goes quiet, **arm the autoship window** (2 min by default), and when it elapses run the whole `push` flow: one combined branch, one PR, merged onto `main`, verified from GitHub, `(merged)` written next to every note. **Never end a turn with shippable work and nothing armed**, and never end one by asking the user to say `push` — that is the exact failure autoship exists to kill. Notes dropped during the window ride along in the same batch; `hold` stops it; `autoship off` disables it for the session. See `references/autoship.md`.
 >
-> The path from `[~]` to `[x]` runs through `[c]` and then through `push`, which flips notes to `[x]` upon successful PR open. After a `push` the merge is the user's to make; `review` and `link` surface PR URLs they can check on GitHub. **`merge` is `push` plus that last mile** — same batching, same reconciliation, then it lands the PR on `main`, verifies the merge from GitHub before saying so, and marks the notes `(merged)`.
+> ⚠️ **`push` (and its alias `merge`) lands the work — PR opened AND merged.** Typing it just skips the window. The one path that deliberately leaves a PR open for a human is **`pr`**. Each `push` cuts a brand-new combined branch and opens a brand-new PR. **A PR is sealed the moment its URL appears in the conversation** — never push more commits to it, with ONE exception: the user explicitly texting `carpool`, which adds the latest work onto the most recent still-open PR (see `references/push.md`). New `[c]` notes otherwise accumulate locally until the next shipment, which creates a *fresh* branch + a *fresh* PR for them.
 >
-> ⚠️ **No PR opens over an unreconciled queue.** `push`/`merge`/`carpool` **reconcile the whole queue against git BEFORE cutting a branch** (`references/push.md` step 4) and re-verify the doc from disk after the PR opens. A note whose work is finished but still reads `[ ]`/`[~]` is not merely mislabeled — it is left out of the batch, so its commits ship in no PR and nothing records where they went. And a `[x]` with no `→ PR #<url>` line forces the next agent to open every PR and diff it against the doc to learn what shipped. **The doc alone must answer "did this note ship, and where" — reading PRs to find out is the failure, not the fallback.**
+> The path from `[~]` to `[x]` runs through `[c]` and then through a shipment (autoship or `push`), which flips notes to `[x]` with their PR URL and adds `(merged)` once GitHub confirms the merge. `review` and `link` surface PR URLs. **A shipment that ends at an open PR is a block or a `pr`, never a default** — if a required check failed, `main` conflicts or branch protection stopped it, the reply leads with `⚠️ NOT merged — <reason>` and the doc records why.
+>
+> ⚠️ **No PR opens over an unreconciled queue.** `push`/`pr`/`carpool` (and autoship) **reconcile the whole queue against git BEFORE cutting a branch** (`references/push.md` step 4) and re-verify the doc from disk after the PR opens. A note whose work is finished but still reads `[ ]`/`[~]` is not merely mislabeled — it is left out of the batch, so its commits ship in no PR and nothing records where they went. And a `[x]` with no `→ PR #<url>` line forces the next agent to open every PR and diff it against the doc to learn what shipped. **The doc alone must answer "did this note ship, and where" — reading PRs to find out is the failure, not the fallback.**
 
 ---
 
@@ -783,22 +796,24 @@ While working:
     - branch: rapid/<slug>-node-error-glow (off origin/main)
   ```
   The `push` step picks up note branches via these lines.
-- **Never push, open PRs, or merge inline.** Commit work to its local branch
-  and stop. Pushes + PRs only happen when the user texts the bare
-  `push` / `merge` / `carpool` command or explicitly says "push it." Merging
-  to `main` happens ONLY on the bare `merge` (or an explicit instruction to
-  merge) — never as a follow-on to a `push` the user didn't ask to land.
-  Auto-pushing
-  every finished note clutters GitHub with PRs the user has to triage
-  individually and removes their chance to batch / reorder / drop work
-  before it leaves the worktree.
+- **Never push or open a PR mid-note.** Commit each note's work to its local
+  branch and move on. A shipment happens at exactly two moments: the user texts
+  `push` / `merge` / `pr` / `carpool`, or **the autoship window elapses with the
+  queue quiet** (`references/autoship.md`). Never one PR per note as you finish
+  it — that clutters GitHub with PRs the user has to triage individually and
+  removes the batching the quiet window buys. The window is the batching
+  mechanism: notes that arrive during it ride along, and it only fires once the
+  user has stopped dropping work.
 - **When you finish a note's implementation, mark it `[c]` — NOT `[x]`.**
-  `[c]` means "committed locally, awaiting `push`." `[x]` is reserved
+  `[c]` means "committed locally, not yet on a PR." `[x]` is reserved
   for notes whose commit has actually been pushed to a PR. Only the
   push flow flips `[c]` → `[x]`, and only after a successful PR open.
-  This prevents orphaned branches: if the user never says `push`, the
-  doc keeps showing `[c]` and `wash` will prompt for confirmation
-  before emptying.
+- **Then, if the queue has gone quiet, arm the autoship window** — nothing
+  `[~]`, nothing `[ ]` you're about to start, and at least one `[c]`. One line
+  at the end of the reply (`🚀 landing in 2 min — say \`hold\` to stop`), a
+  backgrounded `sleep <window>` that re-invokes you, and `**Autoship:** armed
+  <ISO datetime> — notes <n>, <n> (<window>)` in the doc header. If more notes are still queued, work them first — the
+  window comes after the last one. See `references/autoship.md`.
 - Add the one-line outcome under the `[c]` box the same way you would
   under `[x]` — file path / "no-op, already correct" — so a future
   `push` has the per-note summary line ready to drop into the PR body.
@@ -868,7 +883,14 @@ After re-reading, pick the next item in this order:
 2. Oldest `[!]` whose blocker is now resolved (user answered the question) →
    flip to `[~]` and continue.
 3. Oldest `[ ]` → flip to `[~]` and start.
-4. Nothing left → reply `Queue clear.` and stop. Do not invent work.
+4. Nothing left, but something is `[c]` → **the queue has gone quiet: arm the
+   autoship window** (`references/autoship.md`) and end the reply with the
+   one-line countdown. This is the single most important branch in the loop —
+   ending here with a bare `Queue clear.` leaves the user believing shipped
+   work that is still sitting on a local branch. The `autoship-arm` Stop hook
+   will block the turn if you try.
+5. Nothing left and nothing `[c]` → reply `Queue clear.` and stop. Do not
+   invent work.
 
 Announce the transition in one line: `Finished note 3 (✓ sparkle buttons
 wired). Picking up note 5: sidebar avatar sizing.` That one line is the
@@ -887,7 +909,7 @@ things stand:
 rapid/<slug> — review
 
 shipped:         #1 avatar sizing, #2 title wrap → PR #12
-done, unshipped: #4 sticker copy (on rapid/<slug>-sticker-copy — say `push` or `merge`)
+done, unshipped: #4 sticker copy (on rapid/<slug>-sticker-copy — autoship held)
 in progress:     #5 ContentView spacing
 delegated:       #3 light/dark theme — background agent since 14:32
 queued:          #6 footer link, #7 empty-state copy
@@ -924,8 +946,9 @@ line per violation found:
    If `committed-unshipped > 0` OR `parked > 0`, **flag it loudly** before
    archiving: those notes have local commits that have never been pushed
    (`[c]`) or were explicitly set aside (`[p]`), and `done`/`off` does
-   NOT push them. Either run `push` (or `merge`) first, or accept that they'll
-   sit on local branches. Do not silently archive over unshipped or parked
+   NOT push them. A `[c]` note here means autoship was held or turned off —
+   offer to `push` it now (one PR, landed) before archiving, or accept that
+   it'll sit on a local branch. Do not silently archive over unshipped or parked
    work — confirm with the user.
 2. Move the file: `mv sessions/<slug>.md sessions/archive/<slug>.md`.
 3. Reply with the one-paragraph summary.

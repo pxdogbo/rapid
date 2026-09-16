@@ -1,24 +1,39 @@
-# `push` and `carpool` — shipping notes
+# `push`, `pr` and `carpool` — shipping notes
 
-Read this file when the user texts the bare word `push` or `carpool`
-mid-session.
+Read this file when the user texts the bare word `push`, `pr`, `merge` or
+`carpool` mid-session — and when an **autoship** window elapses
+(`references/autoship.md`), which runs the `push` flow below unprompted. That
+is the usual way work ships: the user types nothing at all.
+
+> **`push` lands the work.** It batches the queue, opens ONE PR, and then
+> merges that PR onto `main` — one word, all the way live. `merge` is an alias
+> for it. If you want the PR opened and left for a human to merge, that is the
+> separate `pr` verb below. **Never stop at PR-open on a `push` and wait for the
+> user to say `merge`** — that is the exact failure this default exists to kill:
+> the user walks away believing the work is live while the chat sits waiting on
+> a word.
 
 ---
 
 ## Bare `push`
 
 When the user texts just the word `push` (no slash, no other content) while
-**this chat has a session**, this is a *deferred* ship instruction: finish
-the current work first, then **roll every committed-but-unshipped `[c]`
-note into a SINGLE combined PR and stop at PR-open**. `push` does NOT
-auto-merge to `main`; the user merges via the GitHub UI when they're
-ready. If this chat has no session, ignore — it's a normal message.
+**this chat has a session**, this is a *deferred ship-it* instruction: finish
+the current work first, then **roll every committed-but-unshipped `[c]` note
+into a SINGLE combined PR and land that PR on `main`**. If this chat has no
+session, ignore — it's a normal message.
 
 > ⚠️ **One PR per `push`, not one PR per note.** Each `push` = one
 > consolidated branch + one combined PR covering everything `[c]` since
 > the previous `push`. Per-note branches still exist locally so individual
 > work is bisectable, but they ship together. The user does not want their
 > GitHub PR list flooded with 8 PRs every time they say `push`.
+
+> ⚠️ **`push` writes to `main`.** It is the one flow in this skill that does
+> (along with its `merge` alias). Because the user typed the word, no extra
+> confirmation is needed — but every guard in steps 12–16 is mandatory, and the
+> merge is never *claimed* without re-reading the PR state from GitHub
+> afterwards.
 
 > ⚠️ **PRs are sealed once opened — except via explicit `carpool`.** Once a
 > `push` opens PR #N, never push additional commits to that PR on your own
@@ -45,12 +60,13 @@ ready. If this chat has no session, ignore — it's a normal message.
 > ships those member branches directly: `git push origin
 > rapid/<member-slug>` + `gh pr create --head rapid/<member-slug>` for each,
 > one PR per assignment. Do NOT combine them — they're file-disjoint and
-> mergeable on their own. See `references/fleet.md`. Everything below is
-> the normal note-batching path for a non-fleet session.
+> mergeable on their own, and each one still gets the merge last mile below.
+> See `references/fleet.md`. Everything below is the normal note-batching path
+> for a non-fleet session.
 
 Behavior:
 
-1. **Acknowledge in one line**, e.g. `Got it — finishing note 4, then opening one PR for the batch.`
+1. **Acknowledge in one line**, e.g. `Got it — finishing note 4, then opening and landing one PR for the batch.`
 2. **Complete the current `[~]` note** before doing anything git-related.
    Don't drop or rush it. If there's no in-progress note, skip to step 3.
 3. **Commit the current note's work** on its own branch (follow the normal
@@ -88,8 +104,12 @@ Behavior:
    was already committed`).
 5. **Collect the notes to ship.** From the reconciled doc, take every `[c]`
    note (committed locally, never pushed) — including anything step 3 or
-   step 4 just moved to `[c]`. If none exist, reply `Nothing new to push.`
-   and stop.
+   step 4 just moved to `[c]`.
+   - **Nothing new to ship?** Don't stop there. Look up the most recent
+     `## Pushes` entry and, if its PR is still open, **that PR is the merge
+     target** — the user is asking you to land work that already reached a PR.
+     Skip to step 12 with that PR number. No open PR either → reply
+     `Nothing to push.` and stop.
 6. **Create the combined branch.** Pick a name like
    `rapid/<slug>-batch-<N>` (where `<N>` is the count of prior `## Pushes`
    sections + 1, e.g. `rapid/turbo-kart-batch-1`). The branch name MUST
@@ -147,12 +167,12 @@ Behavior:
    - If `gh` auth is broken, push but skip PR creation; tell the user
      to run `gh auth login` and offer to retry. Stop here — without a PR
      the work isn't shipped, so do NOT flip notes to `[x]`.
-9. **Flip the shipped notes from `[c]` to `[x]`** in the session doc. PR
-   open is the licensing event; merge is the user's call and out of scope.
+9. **Flip the shipped notes from `[c]` to `[x]`** in the session doc.
    **Every note in the batch gets the PR URL** — this is required, not
    optional. Format: `→ PR #<N> <url>` on its own indented line so the user
    can click straight to the PR from the session doc, and so a later agent
-   learns what shipped by reading the doc instead of the PR list.
+   learns what shipped by reading the doc instead of the PR list. (The
+   ` (merged)` suffix comes in step 15, once GitHub confirms it.)
    The whole-queue audit already happened in step 4; if anything drifted
    since (a note you finished while batching), catch it here too — after a
    push, **no note whose work is done may still read `[ ]`, `[~]` or `[c]`**.
@@ -172,15 +192,15 @@ Behavior:
    > next to the `gh pr create` result. Treat that list as this step's
    > checklist — but it is a backstop, not the mechanism: steps 4 and 9 are
    > your job whether or not the hook is installed.
-10. **Verify the doc from disk before you reply.** Re-read
+10. **Verify the doc from disk before you go on.** Re-read
     `sessions/<slug>.md` — not your own memory of what you just wrote — and
     check three things:
     - every note in this batch is `[x]` and carries `→ PR #<N> <url>`
     - no `[c]` remains that belonged to this batch
     - every remaining open note is open for a stated reason (queued,
       parked, blocked-on-what)
-    Anything that fails, fix now. The tally and status render below are
-    counted from **this** read.
+    Anything that fails, fix now. The tally and status render in step 18 are
+    counted from **this** read (plus step 15's merge marks).
 11. **Record the push** in the session doc under a `## Pushes` heading
     (one entry per `push` invocation, listing the rolled-up notes — note
     numbers as well as branches, so the entry maps to the queue without a
@@ -190,12 +210,84 @@ Behavior:
     - batch 1 — 2026-04-28 02:06 → rapid/<slug>-batch-1 → PR #123 (open) — notes 3, 4, 7
       - rapid/<slug>-lyrics-block-ops, rapid/<slug>-accent-hue-slider, rapid/<slug>-confirm-modal-glass, …
     ```
-12. **Reply with a one-block summary**: combined branch name, PR URL, and
-    a bullet list of which notes shipped. **Directly under the PR link, state
-    the tally on its own line — `<done> of <total> notes done`** (count `[x]`
-    against all real notes, excluding `[-]` dropped). This is required on
-    every push. Mention that the user merges via the GitHub UI when ready.
-13. **Print the session status** right after the summary — every `push` ends
+    `(open)` is a placeholder for the next few steps — step 15 turns it into
+    `(merged <date>)`.
+
+    *(If the user said `pr` instead of `push`, stop here — see the `pr`
+    section below. Everything from step 12 on is the landing half.)*
+
+12. **Verify the PR's real state before touching it** — never from memory:
+    ```
+    gh pr view <N> --json state,mergedAt,mergeStateStatus,statusCheckRollup
+    ```
+    - `MERGED` already → say so in one line, skip to step 15 (the doc may
+      still be stale). Do not error.
+    - `CLOSED` → report it and stop; nothing to merge.
+    - `OPEN` → continue.
+13. **Merge it**, matching the action to `mergeStateStatus`:
+    - `CLEAN` / `HAS_HOOKS` / `UNSTABLE` with no *required* check failing →
+      merge now: `gh pr merge <N> --squash --delete-branch`. Squash is the
+      default: a rapid batch is one logical shipment, and a squashed batch keeps
+      `main` readable. Use `--merge` / `--rebase` only if the user asked or the
+      repo forbids squash.
+    - `BLOCKED` / checks still running → do **not** poll or hammer. Turn on
+      auto-merge instead: `gh pr merge <N> --squash --auto --delete-branch`, and
+      say in one line that it lands by itself when the checks pass. Then skip to
+      step 17 and report it as *queued to merge*, never as merged.
+    - A **required check has failed** → do not merge and do not queue. Report
+      which check failed, in plain words, and stop at step 17 with the
+      not-landed headline. Fixing it is the next note, not a silent override.
+    - `CONFLICTING` / `DIRTY` (`main` moved under the batch) → do **not**
+      force-push the open PR. Follow the skill's stale-PR rule: rebase the batch
+      onto fresh `origin/main` on a NEW batch branch, open the corrected PR,
+      **close the stale one yourself** (`gh pr close <N> --comment "Superseded by
+      #<new> — rebased onto main" --delete-branch`), then merge the new one. The
+      open-PR list must stay correct without the user reading chat.
+    - Blocked by **branch protection / a required review** → report the exact
+      reason and stop at step 17. Never reach for an admin override unless the
+      user explicitly says to.
+14. **Confirm the merge actually landed.** Re-run `gh pr view <N> --json
+    state,mergedAt`. `state: MERGED` with a `mergedAt` timestamp is the only
+    thing that licenses the word "merged" in your reply — an exit code is not.
+    If it didn't land, report what GitHub says and stop.
+15. **Record the merge in the doc.**
+    - Each note in the batch keeps its `→ PR #<N> <url>` line and gains
+      ` (merged)` — so the doc answers *did this reach `main`*, not just *did
+      this reach a PR*.
+    - The `## Pushes` entry's `(open)` becomes `(merged <YYYY-MM-DD>)`.
+    - The header `**Pushed:**` ref gains `(merged)`.
+    - Auto-merge queued instead of merged → write `(auto-merge queued)`, not
+      `(merged)`. Required check failed or protection blocked it → leave
+      `(open)` and add the reason (`(open — CI failing: unit-tests)`). Never
+      record an outcome you haven't verified.
+16. **Bring `main` forward — both checkouts.** A merged batch that nobody pulled
+    means the next note branches off stale code and re-ships what just landed:
+    ```
+    git -C <worktree> fetch --prune origin main        # so the next note branches off the merge
+    git -C <repo-root> fetch --prune origin main
+    git -C <repo-root> pull --ff-only                  # only if it's on main and clean
+    ```
+    Skip the `pull` silently if the primary checkout is on another branch or
+    dirty — the `fetch` is the part that matters. Then delete the merged batch
+    branch locally (`git branch -D rapid/<slug>-batch-<N>`); `--delete-branch`
+    already removed the remote one.
+17. **Reply with a one-block summary, and lead with where the work actually
+    got to.** The first line is one of exactly three headlines, because this is
+    the line the user acts on:
+    - **merged** — `✅ merged to main — PR #123 <url>`
+    - **queued** — `🕒 queued to merge (checks running) — PR #123 <url>`; it
+      lands itself, nothing for the user to do
+    - **not landed** — `⚠️ NOT merged — <one-line reason> — PR #123 <url>`,
+      and say in the next line what would unblock it
+    Then the combined branch name and a bullet list of which notes shipped.
+    **Under the headline, state the tally on its own line — `<done> of <total>
+    notes done`** (count `[x]` against all real notes, excluding `[-]`
+    dropped). This is required on every push. Say `main` is up to date in the
+    same block on a merge, so the user knows the work is live and not sitting
+    in a branch. **Never let a reply be ambiguous about whether the work is
+    live** — no "opened PR #123" as a final word, and never end a `push` by
+    asking the user to say `merge`.
+18. **Print the session status** right after the summary — every `push` ends
     with a snapshot so the user knows whether you're done or something was
     deferred. Re-read the doc and render the Step 6 review (shipped / done-but-
     unshipped / in progress / queued / parked / blocked — omit empty rows),
@@ -203,8 +295,10 @@ Behavior:
     - everything shipped or dropped → `✅ queue clear — all shipped`
     - anything still open → `⚠️ <N> still open: <breakdown>`, e.g.
       `⚠️ 3 still open: 2 queued, 1 blocked (note 8 — waiting on token)`
-    This is non-negotiable on every `push`/`carpool` — the verdict line is the
-    proof you re-read the doc and aren't leaving deferred work unflagged.
+    This is non-negotiable on every shipment — autoship, `push`, `pr`,
+    `carpool` — the verdict line is the proof you re-read the doc and aren't
+    leaving deferred work unflagged. Then clear the doc header to
+    `**Autoship:** on (<window>)`: the batch is gone, so nothing is pending.
 
 **Per-note branches stay local** — don't push them as standalone branches
 unless the user explicitly asks (`push <branch-name>` or "push them
@@ -213,10 +307,21 @@ session/turn (has a stale `Pushes` entry in the doc, or a remote ref), skip
 it from the combined cherry-pick — its commit will arrive via that
 branch's existing PR — and surface it in the summary.
 
+Rules:
+- **Never claim a merge you didn't re-read from GitHub** (step 14). This is the
+  skill's "never assert PR status without checking" rule at its sharpest: the
+  user acts on what you say here.
+- **`push` never force-pushes and never overrides a protection rule.** Every
+  blocked path above ends in either auto-merge or an honest, loud stop.
+- **One PR per `push`.** It merges the batch it opened (or the one still-open PR
+  it found in step 5), never a sweep of every open PR in the repo.
+- **`push` does not clean up the session.** Reaping stays on `tidy` / the
+  Cleanup menu, so a landed session is still there to keep working in.
+
 Edge cases:
 - **Doc-only session** (no worktree, all work happened on whatever branch
-  the user was on): push the current branch and open one PR for it. Same
-  PR-open semantics — do not auto-merge.
+  the user was on): push the current branch and open one PR for it, then land
+  it the same way.
 - **Push fails** (non-fast-forward, hook failure, auth): stop, report which
   branch and why, do not retry destructively. Wait for instructions.
 - **Uncommitted changes unrelated to the current note**: do not stage them.
@@ -225,6 +330,30 @@ Edge cases:
 - **Existing PR for a note branch**: `gh pr create` will fail with a
   conflict — detect that, parse the existing PR URL from `gh pr view
   --json url`, and report it instead of erroring.
+
+---
+
+## Bare `pr` — open the PR, don't land it
+
+When the user texts just `pr` (or `push only` / `pr only` / "open a PR but
+don't merge"), they want the batch shipped to a PR and **left open** for a
+human to merge — code review, a teammate's sign-off, a release they're timing
+themselves.
+
+Behavior: **run `push` steps 1–11 and stop.** Same batching, same
+reconciliation, same `[x]` + PR URL on every note. Then:
+
+- Mark the `## Pushes` entry `(open, pr-only)` — that suffix is what tells a
+  later `carpool` (and a later agent) the PR is open *on purpose* and must not
+  be landed on its own initiative.
+- Reply with the PR link, the `<done> of <total> notes done` tally, and the
+  session status render (step 18) — but lead with
+  `📬 PR open, not merged (pr-only) — PR #123 <url>` so the state is
+  unambiguous. Say that `push` or `merge` lands it when they're ready.
+
+`pr` is the ONLY path that deliberately leaves a rapid PR unmerged. A plain
+`push` that ends at an open PR is a failure or a block, and step 17 must say so
+in those words.
 
 ---
 
@@ -244,7 +373,7 @@ Behavior:
    doc's `## Pushes` block and verify its PR is still open:
    `gh pr view <PR#> --json state`. If it's merged or closed — or no
    `## Pushes` entry exists — say so in one line and fall back to a
-   normal `push` (new batch branch + new PR).
+   normal `push` (new batch branch + new PR, landed).
 2. **Complete and commit the current `[~]` note** on its own branch
    (same as `push` steps 2–3). Mark it `[c]`.
 3. **Reconcile the queue against git, then collect every unshipped `[c]`
@@ -255,7 +384,7 @@ Behavior:
 4. **Cherry-pick onto the existing batch branch.** Check out the target
    PR's branch (`rapid/<slug>-batch-<N>`), cherry-pick each new note
    branch's commits in note order, and push (a normal push — never
-   force). Conflicts → same stop-and-ask flow as `push` step 5.
+   force). Conflicts → same stop-and-ask flow as `push` step 6.
 5. **Flip the carpooled notes `[c]` → `[x]`** with the SAME PR URL as
    the target PR (`→ PR #<N> <url>` under each note), then **verify from
    disk** — `push` steps 9–10: re-read the doc, confirm every carpooled note
@@ -270,11 +399,15 @@ Behavior:
      - rapid/<slug>-lyrics-line-block-ops, …
      - + carpooled [<date>]: rapid/<slug>-header-copy, rapid/<slug>-footer-link
    ```
-7. **Reply in one block**: which notes were added, the PR URL, and a
-   reminder that the PR now contains the extra commits. **Under the PR link,
-   state the `<done> of <total> notes done` tally** (same as `push` step 10).
-   **Then print the session status** — same as `push` step 11 (Step 6 review
-   + a one-line done/deferred verdict).
+7. **Land it, unless the PR is `pr-only`.** Default: run `push` steps 12–16 on
+   the target PR — the carpooled work reaches `main` in the same turn, same
+   guards, same verification. **Exception:** if that `## Pushes` entry is
+   marked `(open, pr-only)`, the PR is open deliberately — leave it open, say
+   so, and don't land it.
+8. **Reply in one block**: the step 17 headline (merged / queued / not landed /
+   `pr-only` and still open), which notes were added, the PR URL, and the
+   `<done> of <total> notes done` tally. **Then print the session status** —
+   `push` step 18, verdict line included.
 
 Rules:
 - **Carpool never creates a PR.** No open PR in this session → fall back
@@ -287,101 +420,19 @@ Rules:
 
 ## Bare `merge`
 
-When the user texts just the word `merge` (no slash, no other content) while
-**this chat has a session**, they want the work **all the way onto `main`** —
-not parked at PR-open. `merge` is `push` plus the last mile: it runs the entire
-`push` flow above, then merges the PR it just opened, confirms the merge landed,
-and brings the local `main` forward so the next note branches off the merged
-code.
+`merge` is an **alias for `push`** — same batch, same PR, same landing. It
+exists because it's the word people reach for when they mean "put it on
+`main`," and because `push` used to stop at PR-open. Both words now run the
+full flow above.
 
-`/rapid merge` is an alias. `merge <N>` targets PR #N from this session
-specifically instead of the one `push` just opened.
+Two `merge`-specific forms:
 
-> ⚠️ **`merge` is the only verb in this skill that writes to `main`.** Every
-> other path stops at PR-open and leaves the merge to the user. Because the
-> user typed the word, no extra confirmation is needed — but every guard below
-> is mandatory, and the merge is never claimed without re-reading the PR state
-> from GitHub afterwards.
+- **`merge <N>`** — land PR #N from this session specifically, instead of the
+  batch a `push` would cut. Skip to step 12 with that PR number; steps 15–16
+  (doc marks, `main` forward) still apply. Use it when a `pr`-only PR is now
+  cleared to go in, or when auto-merge was queued and the user wants it checked
+  and finished.
+- **`/rapid merge`** — the slash form of the same thing.
 
-Behavior:
-
-1. **Acknowledge in one line**, e.g. `Got it — finishing note 4, then opening
-   and merging the PR.`
-2. **Run `push` steps 1–11 in full.** Finish the `[~]` note, commit it,
-   reconcile the queue against git, collect every `[c]`, cut the batch branch,
-   push it, open ONE PR, flip the notes to `[x]` with the PR URL, stamp the
-   header and the `## Pushes` entry. No shortcuts — a note left unreconciled is
-   left out of the batch, and `merge` would then put an incomplete PR on `main`.
-   - **Nothing new to ship?** Don't stop there the way `push` does. Look up the
-     most recent `## Pushes` entry and, if its PR is still open, that PR is the
-     merge target — the user is asking you to land work that already shipped to
-     a PR. No open PR either → reply `Nothing to merge.` and stop.
-3. **Verify the PR's real state before touching it** — never from memory:
-   ```
-   gh pr view <N> --json state,mergedAt,mergeStateStatus,statusCheckRollup
-   ```
-   - `MERGED` already → say so in one line, skip to step 6 (the doc may still
-     be stale). Do not error.
-   - `CLOSED` → report it and stop; nothing to merge.
-   - `OPEN` → continue.
-4. **Merge it**, matching the action to `mergeStateStatus`:
-   - `CLEAN` / `HAS_HOOKS` / `UNSTABLE` with no *required* check failing →
-     merge now: `gh pr merge <N> --squash --delete-branch`. Squash is the
-     default: a rapid batch is one logical shipment, and a squashed batch keeps
-     `main` readable. Use `--merge` / `--rebase` only if the user asked or the
-     repo forbids squash.
-   - `BLOCKED` / checks still running → do **not** poll or hammer. Turn on
-     auto-merge instead: `gh pr merge <N> --squash --auto --delete-branch`, and
-     say in one line that it lands by itself when the checks pass. Then skip to
-     step 7 and report it as *queued to merge*, never as merged.
-   - A **required check has failed** → do not merge and do not queue. Report
-     which check failed, in plain words, and stop. Fixing it is the next note,
-     not a silent override.
-   - `CONFLICTING` / `DIRTY` (`main` moved under the batch) → do **not**
-     force-push the open PR. Follow the skill's stale-PR rule: rebase the batch
-     onto fresh `origin/main` on a NEW batch branch, open the corrected PR,
-     **close the stale one yourself** (`gh pr close <N> --comment "Superseded by
-     #<new> — rebased onto main" --delete-branch`), then merge the new one. The
-     open-PR list must stay correct without the user reading chat.
-   - Blocked by **branch protection / a required review** → report the exact
-     reason and stop. Never reach for an admin override unless the user
-     explicitly says to.
-5. **Confirm the merge actually landed.** Re-run `gh pr view <N> --json
-   state,mergedAt`. `state: MERGED` with a `mergedAt` timestamp is the only
-   thing that licenses the word "merged" in your reply — an exit code is not.
-   If it didn't land, report what GitHub says and stop.
-6. **Record the merge in the doc.**
-   - Each note in the batch keeps its `→ PR #<N> <url>` line and gains
-     ` (merged)` — so the doc answers *did this reach `main`*, not just *did
-     this reach a PR*.
-   - The `## Pushes` entry's `(open)` becomes `(merged <YYYY-MM-DD>)`.
-   - The header `**Pushed:**` ref gains `(merged)`.
-   - Auto-merge queued instead of merged → write `(auto-merge queued)`, not
-     `(merged)`. Never record an outcome you haven't verified.
-7. **Bring `main` forward — both checkouts.** A merged batch that nobody pulled
-   means the next note branches off stale code and re-ships what just landed:
-   ```
-   git -C <worktree> fetch --prune origin main        # so the next note branches off the merge
-   git -C <repo-root> fetch --prune origin main
-   git -C <repo-root> pull --ff-only                  # only if it's on main and clean
-   ```
-   Skip the `pull` silently if the primary checkout is on another branch or
-   dirty — the `fetch` is the part that matters. Then delete the merged batch
-   branch locally (`git branch -D rapid/<slug>-batch-<N>`); `--delete-branch`
-   already removed the remote one.
-8. **Reply in one block**: the PR link, the word *merged* (or *queued to merge*),
-   the `<done> of <total> notes done` tally on its own line, and then the
-   session status render — same as `push` steps 12–13, verdict line included.
-   Say `main` is up to date in the same block, so the user knows the work is
-   live and not sitting in a branch.
-
-Rules:
-- **Never claim a merge you didn't re-read from GitHub** (step 5). This is the
-  skill's "never assert PR status without checking" rule at its sharpest: the
-  user acts on what you say here.
-- **`merge` never force-pushes and never overrides a protection rule.** Every
-  blocked path above ends in either auto-merge or an honest stop.
-- **One PR per `merge`**, exactly like `push`. It merges the batch it opened (or
-  the one still-open PR it found), never a sweep of every open PR in the repo.
-- **`merge` does not clean up the session.** Reaping stays on `tidy` / the
-  Cleanup menu, so a merged session is still there to keep working in.
+Everything else — the guards, the verification, the honest stop, the reply
+headline — is `push`'s, above. Don't maintain a second copy of the flow here.

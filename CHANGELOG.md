@@ -1,5 +1,56 @@
 # Changelog
 
+## 1.32.0 — 2026-09-16
+
+- **Work ships itself — the user never types a ship word.** The old flow ended
+  a note at `[c]` and waited for `push`, then (as of 1.31.0) for `merge`. That
+  wait was the whole problem: the reply reads "done", the user walks away
+  believing the work is live, and twenty minutes later they come back to a chat
+  that was sitting on a word. **Autoship** replaces it. When the queue goes
+  quiet — nothing in progress, nothing left to start, at least one note
+  committed — the agent ends its reply with `🚀 landing in 2 min`, arms a real
+  timer (a backgrounded `sleep` that re-invokes it), and when the window
+  elapses runs the entire push flow: one combined branch, one PR, merged onto
+  `main`, verified from GitHub, `(merged)` written next to every note, local
+  `main` fast-forwarded. No word from the user at any point.
+- **The 2-minute window is the batching mechanism.** Notes dropped inside it
+  ride along in the same PR and restart the countdown, so a burst of five notes
+  is still one shipment — the "one PR per push, not per note" rule, now without
+  a manual trigger. `autoship 30s` / `autoship 5m` changes the window for a
+  session; `"autoship"` / `"autoshipWindow"` in `config.json` change the
+  default; `autoship off` goes back to explicit shipping.
+- **`push` now lands the work, and `merge` is just an alias for it.** Both
+  batch, open ONE PR, merge it, and confirm the merge from GitHub before saying
+  the word. Typing either one simply skips the wait. Every guard from 1.31.0 is
+  intact: a failed required check stops it, pending checks become auto-merge
+  reported as *queued*, a conflict gets rebased onto a fresh PR (never
+  force-pushed), branch protection is never overridden.
+- **New `pr` — the one path that deliberately leaves a PR open.** Same batch,
+  same reconciliation, same PR URL on every note, but it stops at PR-open and
+  marks the `## Pushes` entry `(open, pr-only)` so nothing lands it later on its
+  own initiative. For code review, a teammate's sign-off, or a release the user
+  is timing. A plain shipment that ends at an open PR is now a block or a `pr` —
+  never a default, and the reply says which in its first line.
+- **Every shipment reply leads with where the work got to.** One of exactly
+  three headlines: `✅ merged to main`, `🕒 queued to merge (checks running)`, or
+  `⚠️ NOT merged — <reason>`. No reply may end ambiguous about whether the work
+  is live, and none may end by asking the user to say `push`.
+- **New `hold` / `wait`.** Cancels an armed window in one line; the notes stay
+  `[c]` and the doc header records `held`. Cheaper than `reverse` — stopping a
+  shipment beats unpicking one.
+- **New `autoship-arm.mjs` Stop hook (the eighth).** Arming isn't left to
+  memory: it **blocks the turn from ending** when the doc has `[c]` notes and no
+  window is armed, held or disabled — and blocks again if an armed window's
+  timer never came back while the notes still sit `[c]`. It feeds back the three
+  ways out (arm it, land it now, write `held`), honours `stop_hook_active` so it
+  can never loop, and is silent for clean queues, held sessions and non-rapid
+  cwds. A `Stop` hook was deliberately avoided for eight versions as a
+  would-nag-every-turn idea; this one earns it by firing once per batch and
+  being answered by a timer instead of a question.
+- **Session docs carry an `**Autoship:**` header** — `on (2m)` / `armed <ISO> —
+  notes 3, 4 (2m)` / `held` / `off` — so a compacted context, a fresh agent and
+  the hook all agree on whether a shipment is pending.
+
 ## 1.31.0 — 2026-09-13
 
 - **New bare word: `merge` — `push` plus the last mile.** `push` has always
