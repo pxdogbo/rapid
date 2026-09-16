@@ -18,7 +18,9 @@ the first-run onboarding and read at the start of every session. Schema:
   "worktreesRoot": "~/worktrees",
   "onboardedAt": "2026-06-05T10:00:00Z",
   "lastUpdateCheck": "2026-06-05",
-  "collabLive": false
+  "collabLive": false,
+  "autoship": true,
+  "autoshipWindow": "2m"
 }
 ```
 
@@ -33,6 +35,13 @@ the first-run onboarding and read at the start of every session. Schema:
   installed AND both chats run in tmux, a `collab` send pokes the peer
   instantly — no poll loop, no manual relay. Falls back to doc-mode otherwise.
   Setup: `references/collab-live/README.md`.
+- `autoship` — whether a quiet queue ships and lands itself with no ship word
+  from the user. Default `true`. `false` means every shipment waits for an
+  explicit `push` / `pr`. A session can override for itself (`autoship off`),
+  which is recorded in its doc header, not here.
+- `autoshipWindow` — how long the queue must stay quiet before the shipment
+  fires (`30s`, `2m`, `5m`). Default `2m`. Notes dropped inside the window
+  join the same batch and restart it. See `references/autoship.md`.
 
 > Earlier versions stored a `lastReap` map (repo-root → datetime) to throttle
 > an automatic start-time sweep. As of 1.9.0 cleanup is manual — there is no
@@ -61,11 +70,13 @@ exist. Run this BEFORE creating any directories, docs, or worktrees.
 
    rapid is a realtime note queue: drop observations while you use your
    product live; I capture each one to a doc on disk, work through them
-   in an isolated git worktree, and ship batches as single PRs when you
-   say `push`. The words you'll use most: drop a note (just type it),
-   `review` (where things stand), `push` (ship one PR), `merge` (ship it
-   AND land it on main), `test` (I verify it myself), `wash` (clear the
-   queue, keep the session).
+   in an isolated git worktree, and then ship them as ONE PR that I merge
+   to main myself — no ship word from you. When the queue goes quiet I say
+   "landing in 2 min" and then land it; `hold` stops it. The words you'll
+   use most: drop a note (just type it), `review` (where things stand),
+   `hold` (don't ship yet), `push` (ship it right now instead of waiting),
+   `pr` (open the PR but leave it for a human), `test` (I verify it myself),
+   `wash` (clear the queue, keep the session).
 
    It stores files in two places:
      ~/.rapid/        — session docs (the note queues) + this config
@@ -235,8 +246,9 @@ is in place.
 Several of the skill's rules are things the agent is *supposed* to do but can
 skip — marking a pushed session, catching the note queue up to what shipped, not
 committing the node_modules symlink, not pushing to a sealed PR, routing peer
-requests through collab. These seven
-`PostToolUse` / `PreToolUse` hooks make
+requests through collab, never ending a turn with work the user thinks is live
+sitting on a local branch. These eight
+`PostToolUse` / `PreToolUse` / `Stop` hooks make
 those rules **deterministic** instead of remembered. All are Node 18+, zero
 dependencies, resolve the session by cwd via the `**Worktree:**` header (like
 the collab relay), read the same `sessionsRoot`/`RAPID_HOME` config, and **fail
@@ -251,6 +263,7 @@ context, so they're safe to leave on globally.
 | `exclude-node-modules.mjs` | PostToolUse | After `git worktree add`, appends `/node_modules` to the new worktree's `.git/info/exclude` — belt-and-suspenders for the same trap. Idempotent. |
 | `guard-sealed-pr.mjs` | PreToolUse | **Blocks** a `git push` to a `rapid/*` branch whose PR is MERGED/CLOSED (commits to a sealed branch reach no PR) — from ANY checkout, not just rapid worktrees. One `gh pr view` per rapid-branch push; fails open if gh/network/PR is unavailable. |
 | `guard-agent-peer.mjs` | PreToolUse (Task) | **Blocks** spawning a subagent whose prompt names another live session's slug or worktree ("peers are NOT subagents") and feeds back the fix: `collab_send` / `/rapid collab` / `handoff`. Branch tokens (`rapid/<slug>…`) are stripped first, so QC-ing a peer's shipped branch stays allowed. |
+| `autoship-arm.mjs` | Stop | **Blocks the turn from ending** when the session doc has `[c]` notes (committed, no PR) and no autoship window is armed — or one is armed but its window elapsed long ago and the notes never shipped. Feeds back the three ways out: arm the window, land it now, or write `**Autoship:** held`. Silent for held/off sessions, clean queues, already-armed windows, non-rapid cwds, and `autoship: false` in config; honours `stop_hook_active` so it can never loop. This is the hook that makes "the user never types a ship word" real — see `references/autoship.md`. |
 | `compact-peers.mjs` | PostToolUse | After a `gh pr create` that opened a PR from a live-collab pane: sends `/compact` into every other same-repo collab pane (the post-push compact sweep), skipping mid-turn panes and verifying each send-keys submitted. Prints a one-line summary the lead can relay. |
 
 Why these were the picks: `mark-pushed` + the cleanup fetch-first fix (v1.18.0)
@@ -259,9 +272,14 @@ a PR that shipped while the queue still read as pending, which forces the next
 agent to open every PR and diff it against the doc to learn what landed; the two
 node_modules hooks kill a documented commit-the-symlink footgun;
 `guard-sealed-pr` enforces the standing
-"verify the PR is OPEN before any git write" rule. (Deliberately NOT hooked:
-`SessionStart` — start is meant to be network-free/instant — and a `Stop`-hook
-"unshipped work" nudge, which would fire on every turn end.)
+"verify the PR is OPEN before any git write" rule; `autoship-arm` ends the
+worst one of all — the turn that quietly hands shippable work back to a user who
+is no longer looking. (Deliberately NOT hooked: `SessionStart` — start is meant
+to be network-free/instant. The `Stop` hook was long avoided as a "would fire on
+every turn end" nudge; `autoship-arm` earns it by firing only when the doc says
+work is committed-but-unshipped AND nothing is armed, held or disabled — in a
+normal session that is once per batch, and it is answered by arming a timer, not
+by pestering the user.)
 
 **Install** (one time) — merge into `~/.claude/settings.json` (use the real
 skill dir if not the default `~/.claude/skills/rapid`). Merge into any existing
@@ -286,10 +304,17 @@ skill dir if not the default `~/.claude/skills/rapid`). Merge into any existing
         { "type": "command", "command": "node ~/.claude/skills/rapid/references/hooks/exclude-node-modules.mjs" },
         { "type": "command", "command": "node ~/.claude/skills/rapid/references/hooks/compact-peers.mjs" }
       ] }
+    ],
+    "Stop": [
+      { "hooks": [
+        { "type": "command", "command": "node ~/.claude/skills/rapid/references/hooks/autoship-arm.mjs" }
+      ] }
     ]
   }
 }
 ```
 
 Drop `guard-sealed-pr` from the `PreToolUse` list if you'd rather not spend a
-`gh` call per push — the rest are local-only.
+`gh` call per push — the rest are local-only. Drop the `Stop` block (or set
+`"autoship": false` in `config.json`) if you'd rather ship by typing `push`
+yourself.

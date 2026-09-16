@@ -565,8 +565,10 @@ Flow for a peer-authored plan (up/across):
 
 ### push in a live collab — the lead ships, then compacts the peers
 
-(`merge` behaves identically here — it is `push` plus the merge, so it is the
-lead's too, and the compact sweep below runs the same way once the PR lands.)
+(`merge` is an alias for `push`, so it behaves identically here. **Autoship is
+the lead's too** — when the combined queue goes quiet the lead arms the window
+and lands the batch with no ship word from the user; workers never arm one.
+`references/autoship.md`.)
 
 The user's `push` goes to the **lead** (workers never open the PR — they
 report lanes done; the lead QCs, commits, and ships the combined work per
@@ -582,8 +584,10 @@ compact sweep** — every push, automatically, no separate ask:
    code/PRs), and the live-collab chatter it drops is ephemeral by design and
    exactly what the workers no longer need.
 2. Don't compact yourself — the user drives your context.
-3. **End your reply with the PR link.** That's the deliverable of `push`:
-   PR shipped, peers compacted, link in hand.
+3. **End your reply with the merge headline and the PR link** (`✅ merged to
+   main — PR #<n> <url>`, or the queued / NOT-merged headline — `references/
+   push.md` step 17). That's the deliverable of `push`: work on `main`, peers
+   compacted, link in hand. Never end it at "PR open" and wait for the user.
 
 With the reliability hooks installed, `compact-peers` runs step 1
 automatically after the `gh pr create` (it prints what it compacted, skipped
