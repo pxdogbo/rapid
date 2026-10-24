@@ -210,6 +210,20 @@ Steps:
    (Use the actual skill dir if it isn't the default `~/.claude/skills/rapid` —
    it's the directory this SKILL.md lives in.) If `rapid-collab` is already
    registered, skip this — don't double-add.
+   **Codex too:** if Codex CLI is installed (on PATH, or bundled in the
+   ChatGPT/Codex desktop app), also register the relay in
+   `~/.codex/config.toml` unless a `[mcp_servers.rapid-collab]` block is
+   already there:
+   ```toml
+   [mcp_servers.rapid-collab]
+   command = "node"
+   args = ["<skill-dir>/references/collab-live/relay.mjs"]
+   env_vars = ["TMUX", "TMUX_PANE"]
+   ```
+   `env_vars` matters — Codex trims MCP servers' environment, and without
+   `TMUX_PANE` the relay can't tell which pane it serves. (The launcher adds
+   this block itself the first time it opens a `:codex` pane, so skipping it
+   here is harmless.)
 3. **Flip the flag:** set `collabLive: true` in `~/.rapid/config.json` (add the
    key if it's absent).
 4. **Offer the `rapid-collab` shortcut.** The launcher (`/rapid collab <N>`

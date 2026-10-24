@@ -224,6 +224,17 @@ command — one chat, one doc; the pane is that one chat now). Any queued notes
 ride along; the driver picks up the queue. Only when this chat has NO session
 (or a doc-only one with no worktree) does the scaffolder mint all N fresh.
 
+**Codex riders.** Any pane can run Codex CLI instead of Claude Code: append
+`:codex` to its slug in the printed line (`rapid-collab <driver> <rider>:codex`).
+When the user asks for Codex ("make the rider Codex", `/rapid collab 2 codex`),
+put `:codex` on the minted riders — never on the driver unless they say so, since
+plan authoring stays with the driver. The launcher finds Codex (PATH, or the copy
+inside the ChatGPT/Codex desktop app), registers the relay with Codex when live
+mode is on, and primes Codex panes in words — Codex has no `/rapid` command, and
+a leading `/` opens its own menu. When YOU type into a Codex pane (an `--add`
+auto-join), do the same: plain words, no leading `/`, and its composer prompt is
+`›` (not `❯`) when you verify the Enter landed.
+
 1. **Cap at 4 agents total** (this session + minted riders). If N > 4, do
    nothing and reply: `Max 4 per collab (tmux gets cramped past that, and 4
    live agents is plenty). Add one at a time later with \`/rapid collab 1\`.`
