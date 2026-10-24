@@ -4,7 +4,7 @@
 // Zero-dependency bridge that turns the file-based `## Collab` chatroom into a
 // real-time, push channel between two live agent sessions — WITHOUT any polling
 // loop and WITHOUT API billing (the agents stay ordinary interactive `claude`
-// sessions on your subscription).
+// sessions on your subscription — or Codex CLI sessions, mixed freely).
 //
 // It runs in two modes from the same file:
 //   • MCP server (default, no args): a stdio MCP server exposing `collab_send`
@@ -112,6 +112,25 @@ function slugForCwd(cwd) {
   return best ? best.slug : null;
 }
 
+// This session's slug. Claude Code starts the relay in the session's worktree,
+// but other hosts (Codex CLI) may start MCP servers elsewhere — so if the cwd
+// doesn't resolve, fall back to the directory of the tmux pane we were launched
+// from, which the collab launcher always opens in the worktree.
+function mySlug() {
+  const slug = slugForCwd(process.cwd());
+  if (slug || !process.env.TMUX_PANE) return slug;
+  try {
+    const paneDir = execFileSync(
+      'tmux',
+      ['display-message', '-p', '-t', process.env.TMUX_PANE, '#{pane_current_path}'],
+      { stdio: 'pipe' }
+    ).toString().trim();
+    return paneDir ? slugForCwd(paneDir) : null;
+  } catch {
+    return null;
+  }
+}
+
 function docPathForSlug(slug) {
   const dir = sessionsDir();
   const live = join(dir, `${slug}.md`);
@@ -178,8 +197,9 @@ function tmuxPoke(pane, word = 'collab') {
       return; // pane gone / capture failed — nothing more to verify
     }
     // Everything from the last composer prompt down: if our text is still
-    // there, Enter was eaten. (No prompt found → can't verify; assume sent.)
-    const promptAt = screen.lastIndexOf('❯');
+    // there, Enter was eaten. Claude Code's prompt is ❯, Codex CLI's is ›.
+    // (No prompt found → can't verify; assume sent.)
+    const promptAt = Math.max(screen.lastIndexOf('❯'), screen.lastIndexOf('›'));
     if (promptAt === -1 || !screen.slice(promptAt).includes(tail)) return;
   }
   throw new Error('typed into the pane but Enter never submitted — message left sitting in the composer');
@@ -200,7 +220,7 @@ function currentDate() {
 
 // ── Actions (shared by CLI + MCP) ───────────────────────────────────────────
 function doRegister() {
-  const slug = slugForCwd(process.cwd());
+  const slug = mySlug();
   if (!slug) {
     return {
       ok: false,
@@ -228,7 +248,7 @@ function doSend(to, message) {
   if (!to || !message) {
     return { ok: false, msg: 'collab_send requires `to` (peer slug) and `message`.' };
   }
-  const from = slugForCwd(process.cwd());
+  const from = mySlug();
   if (!from) {
     return { ok: false, msg: 'Cannot resolve sender slug — run from the session worktree.' };
   }
@@ -292,7 +312,7 @@ function doSend(to, message) {
 
 function doStatus() {
   const reg = readRegistry();
-  const me = slugForCwd(process.cwd());
+  const me = mySlug();
   return {
     ok: true,
     me,

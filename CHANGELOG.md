@@ -1,5 +1,25 @@
 # Changelog
 
+## 1.33.0 — 2026-10-23
+
+- **Codex panes in collab — Claude and Codex agents in one tmux window.**
+  Append `:codex` to any slug (`rapid-collab <driver> <rider>:codex`, or
+  `--add <slug>:codex`) and that pane runs Codex CLI instead of Claude Code.
+  The launcher finds Codex on PATH or inside the ChatGPT / Codex desktop app
+  (`RAPID_CODEX` overrides), rejects an unknown agent or a missing Codex before
+  touching tmux, and `resume` remembers which panes were Codex.
+- **Live messaging works across both.** With live mode on, the launcher
+  registers the relay with Codex the first time (passing `TMUX`/`TMUX_PANE`
+  through, since Codex trims an MCP server's environment), and the relay falls
+  back to the tmux pane's directory when its own working directory doesn't name
+  a session. The "did Enter actually submit" check now recognises Codex's `›`
+  prompt as well as Claude's `❯`, so a swallowed message to a Codex pane is
+  retried instead of silently assumed sent.
+- **Codex panes are primed in words.** Codex has no `/rapid` command (a leading
+  `/` opens its own menu), so its boot prime asks it to run the rapid skill's
+  collab trigger in plain text; `/rapid collab setup` documents the Codex
+  registration too.
+
 ## 1.32.0 — 2026-09-16
 
 - **Work ships itself — the user never types a ship word.** The old flow ended

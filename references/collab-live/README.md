@@ -126,6 +126,24 @@ anything, so "delegate to the rider" is unambiguous from message one.
 `--dry-run` prints the slug→worktree plan without touching tmux. (Each slug
 must already be a rapid session with a worktree.)
 
+### Mix in Codex
+
+Any pane can run **Codex CLI** instead of Claude Code — add `:codex` to its slug:
+
+```sh
+rapid-collab <driver> <rider>:codex          # Claude drives, Codex rides
+rapid-collab --add <slug>:codex              # drop a Codex agent into a running collab
+```
+
+The launcher finds Codex on your PATH, or the copy bundled in the ChatGPT /
+Codex desktop app (override with `RAPID_CODEX=/path/to/codex`). With live mode
+on it registers the relay with Codex the first time (a `[mcp_servers.rapid-collab]`
+block in `~/.codex/config.toml`, passing `TMUX`/`TMUX_PANE` through so the relay
+knows its pane), and primes Codex panes in words rather than with `/rapid
+collab` — Codex has no `/rapid` command. Codex reads the rapid skill from its own
+skills folder (`~/.codex/skills/rapid`). `resume` remembers which panes were
+Codex.
+
 ### One collab per repo — run several side by side
 
 The tmux session name comes from the repo the slugs belong to, so a collab in a

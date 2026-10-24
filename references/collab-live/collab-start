@@ -2,6 +2,7 @@
 # rapid · collab-start — open a tmux collab session in one command.
 #
 #   collab-start [--dry-run] <slugA> <slugB> [slugC ...]   start a new collab
+#   any slug + [:codex]                                    run that pane in Codex CLI
 #   collab-start --add <slug> [...]                        add agent(s) to it
 #   collab-start open                                      reattach to it
 #   collab-start resume                                    reattach, or RECREATE it after a kill/reboot
@@ -11,8 +12,9 @@
 # For each rapid session slug, resolves its worktree (from the `**Worktree:**`
 # header in its session doc), then opens a tmux session with one pane per slug —
 # each pane STARTED IN that session's worktree (so the collab relay can identify
-# which session the pane is) — and launches `claude` in each. Tile the panes and
-# attach. Each pane auto-adopts its worktree's session (no /rapid resume needed);
+# which session the pane is) — and launches `claude` in each (or `codex` for a
+# slug written `<slug>:codex`, so Claude and Codex agents share one window). Tile
+# the panes and attach. Each pane auto-adopts its worktree's session (no /rapid resume needed);
 # then `/rapid collab <peer>` starts talking. See ./README.md.
 #
 # The tmux session is named PER REPO — `rapid-collab-<repo>` — so a collab in a
@@ -24,8 +26,13 @@
 # (`rapid-collab-<name>`); pass the SAME `-n <name>` to that collab's open/kill.
 #
 # --dry-run prints the resolved slug→worktree map and the plan without touching
-# tmux. Requires: bash, tmux, node (for config parsing), and `claude` on PATH.
+# tmux. Requires: bash, tmux, node (for config parsing), and `claude` on PATH
+# (plus Codex CLI for any `:codex` pane — on PATH, or the copy bundled in the
+# ChatGPT / Codex desktop app).
 set -euo pipefail
+
+SKILL_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
+RELAY="$SKILL_DIR/references/collab-live/relay.mjs"
 
 # tmux session names can't contain '.' or ':', so map anything outside
 # [A-Za-z0-9_-] to '-' and collapse/trim. Keeps `rapid-collab-<repo>` valid.
@@ -48,6 +55,68 @@ repo_name() {
   basename "$root"
 }
 
+# ── Agents. A slug token is `<slug>` (Claude Code) or `<slug>:<agent>`, where
+# agent is `claude` or `codex`. The token is what gets saved for `resume`, so a
+# recreated collab keeps each pane's agent.
+token_slug()  { printf '%s' "${1%%:*}"; }
+token_agent() { case "$1" in *:*) printf '%s' "${1#*:}" ;; *) printf 'claude' ;; esac; }
+
+# Codex CLI: $RAPID_CODEX, else `codex` on PATH, else the copy the desktop apps bundle.
+codex_bin() {
+  local c
+  for c in "${RAPID_CODEX:-}" "$(command -v codex 2>/dev/null || true)" \
+           /Applications/ChatGPT.app/Contents/Resources/codex-cli/bin/codex \
+           /Applications/Codex.app/Contents/Resources/codex-cli/bin/codex; do
+    [ -n "$c" ] && [ -x "$c" ] && { printf '%s' "$c"; return 0; }
+  done
+  return 1
+}
+
+# The command typed into a pane to start its agent.
+launch_cmd() {
+  case "$1" in
+    codex) printf '%q' "$(codex_bin)" ;;
+    *) printf 'claude' ;;
+  esac
+}
+
+# Live mode needs the relay registered with Codex too. Codex hands MCP servers a
+# trimmed environment, so TMUX/TMUX_PANE are passed through explicitly — without
+# them the relay can't tell which pane it serves. Idempotent: skips if present.
+ensure_codex_relay() {
+  local cfg="${CODEX_HOME:-$HOME/.codex}/config.toml"
+  mkdir -p "$(dirname "$cfg")"
+  grep -qE '^\[mcp_servers\.rapid-collab\]' "$cfg" 2>/dev/null && return 0
+  printf '\n[mcp_servers.rapid-collab]\ncommand = "node"\nargs = ["%s"]\nenv_vars = ["TMUX", "TMUX_PANE"]\n' "$RELAY" >> "$cfg"
+  echo "Registered the collab relay with Codex ($cfg)."
+}
+
+# Validate the agent list up front so a typo or a missing Codex fails before any
+# tmux session is created.
+check_agents() {
+  local a
+  for a in "$@"; do
+    case "$a" in
+      claude) ;;
+      codex)
+        codex_bin >/dev/null || {
+          echo "collab-start: a ':codex' pane needs Codex CLI — not on PATH and no desktop-app copy found." >&2
+          echo "  install it (npm i -g @openai/codex) or set RAPID_CODEX=/path/to/codex" >&2
+          exit 1
+        } ;;
+      *) echo "collab-start: unknown agent '$a' — use <slug>:claude or <slug>:codex." >&2; exit 2 ;;
+    esac
+  done
+}
+
+# Register the relay with Codex when live mode is on and a Codex pane is coming.
+maybe_codex_relay() {
+  local a live
+  live="$(node -e 'const fs=require("fs"),os=require("os");try{const c=JSON.parse(fs.readFileSync(os.homedir()+"/.rapid/config.json","utf8"));process.stdout.write(c.collabLive?"1":"0")}catch{process.stdout.write("0")}')"
+  [ "$live" = "1" ] || return 0
+  for a in "$@"; do [ "$a" = "codex" ] && { ensure_codex_relay; return 0; }; done
+}
+
 # Session name for a derived-or-overridden collab name (NAME may be empty).
 sess_for() { printf 'rapid-collab-%s' "$(sanitize "$1")"; }
 
@@ -63,8 +132,11 @@ const dir=os.homedir()+"/.rapid", f=dir+"/collab-last.json";
 const [merge,sess,name,...slugs]=process.argv.slice(1);
 let d={}; try{d=JSON.parse(fs.readFileSync(f,"utf8"))}catch{}
 const prev=(merge==="1"&&d[sess]&&Array.isArray(d[sess].slugs))?d[sess].slugs:[];
+// Tokens may carry an agent (`slug:codex`); one entry per slug, newest wins.
+const bySlug=new Map();
+for(const t of [...prev,...slugs]) bySlug.set(t.split(":")[0],t);
 d[sess]={name:name||((merge==="1"&&d[sess]&&d[sess].name)||""),
-         slugs:[...new Set([...prev,...slugs])]};
+         slugs:[...bySlug.values()]};
 try{fs.mkdirSync(dir,{recursive:true});
     fs.writeFileSync(f,JSON.stringify(d,null,2)+"\n");}catch{}' "$@"
 }
@@ -213,6 +285,8 @@ esac
 DRY=0
 ADD=0
 SLUGS=()
+AGENTS=()
+TOKENS=()
 args=("$@")
 i=0
 while [ "$i" -lt "${#args[@]}" ]; do
@@ -223,6 +297,7 @@ while [ "$i" -lt "${#args[@]}" ]; do
     -n|--name) i=$((i+1)) ;;  # value already captured into NAME in the early pass
     -h|--help)
       echo "usage: rapid-collab [--dry-run] <slugA> <slugB> [...]   start a new collab tmux (rapid-collab-<repo>)"
+      echo "       <slug>:codex                                     run that pane in Codex CLI instead of Claude"
       echo "       rapid-collab --add [--dry-run] <slug> [...]      add agent(s) to the running one"
       echo "       rapid-collab open                                reattach to the running collab"
       echo "       rapid-collab resume                              reattach, or recreate it after kill/reboot"
@@ -230,7 +305,7 @@ while [ "$i" -lt "${#args[@]}" ]; do
       echo "       ... -n <name>                                    target rapid-collab-<name> (2nd collab in a repo)"
       exit 0 ;;
     -*) echo "collab-start: unknown flag '$a'" >&2; exit 2 ;;
-    *) SLUGS+=("$a") ;;
+    *) SLUGS+=("$(token_slug "$a")"); AGENTS+=("$(token_agent "$a")"); TOKENS+=("$a") ;;
   esac
   i=$((i+1))
 done
@@ -242,6 +317,7 @@ if [ "${#SLUGS[@]}" -lt "$MIN" ]; then
   echo "usage: rapid-collab [--dry-run] <a> <b> [...]   |   rapid-collab --add <slug> [...]" >&2
   exit 2
 fi
+check_agents "${AGENTS[@]}"
 
 # Resolve sessionsRoot the same way the skill does (config.json → default).
 SROOT="$(node -e '
@@ -306,21 +382,22 @@ if [ "$ADD" = "1" ]; then
   fi
   if [ "$DRY" = "1" ]; then
     echo "collab-start --add (dry run) — would add to tmux '$SESS' (has $EXIST pane(s)):"
-    for i in "${!SLUGS[@]}"; do echo "  + ${SLUGS[$i]}  →  cd ${WTS[$i]} && claude"; done
+    for i in "${!SLUGS[@]}"; do echo "  + ${SLUGS[$i]}  →  cd ${WTS[$i]} && ${AGENTS[$i]}"; done
     exit 0
   fi
   command -v tmux >/dev/null || { echo "collab-start: tmux not found." >&2; exit 1; }
+  maybe_codex_relay "${AGENTS[@]}"
   NEW=()
   for i in "${!SLUGS[@]}"; do
     NEW+=("$(tmux split-window -t "$SESS" -c "${WTS[$i]}" -P -F '#{pane_id}')")
   done
   tmux select-layout -t "$SESS" tiled >/dev/null
-  for p in "${NEW[@]}"; do tmux send-keys -t "$p" 'claude' Enter; done
-  save_composition 1 "$SESS" "$NAME" "${SLUGS[@]}"
+  for i in "${!NEW[@]}"; do tmux send-keys -t "${NEW[$i]}" "$(launch_cmd "${AGENTS[$i]}")" Enter; done
+  save_composition 1 "$SESS" "$NAME" "${TOKENS[@]}"
   echo "Added ${#SLUGS[@]} pane(s) to tmux '$SESS':"
   for i in "${!SLUGS[@]}"; do echo "  ${NEW[$i]}  ${SLUGS[$i]}  (${WTS[$i]})"; done
   echo
-  echo "Each new pane auto-adopts its directory's session. Once its claude is up,"
+  echo "Each new pane auto-adopts its directory's session. Once its agent is up,"
   echo "have it join:  /rapid collab <lead-slug> joining — what should I take?"
   exit 0
 fi
@@ -328,7 +405,7 @@ fi
 if [ "$DRY" = "1" ]; then
   echo "collab-start (dry run) — would open tmux session '$SESS':"
   for i in "${!SLUGS[@]}"; do
-    echo "  pane $i: ${SLUGS[$i]}  →  cd ${WTS[$i]} && claude"
+    echo "  pane $i: ${SLUGS[$i]}  →  cd ${WTS[$i]} && ${AGENTS[$i]}"
   done
   echo "then: each pane auto-adopts its dir's session (no /rapid resume); '/rapid collab <peer>' to talk."
   exit 0
@@ -371,6 +448,8 @@ for(const r of riders)
   upsert(doc(r),"- ["+hhmm+"] collab opened with rapid/"+lead+" — room: rapid/"+lead+" · driver: rapid/"+lead+" (you are a rider)",false);
 ' "$SROOT" "${SLUGS[@]}"
 
+maybe_codex_relay "${AGENTS[@]}"
+
 # Build the panes: first pane = new session, the rest = splits. Each pane starts
 # in its slug's worktree (-c) so the relay auto-registers the right session.
 PANES=()
@@ -381,9 +460,9 @@ for i in $(seq 1 $(( ${#SLUGS[@]} - 1 ))); do
 done
 tmux select-layout -t "$SESS" tiled >/dev/null
 
-# Launch claude in each pane after the layout is settled.
-for p in "${PANES[@]}"; do
-  tmux send-keys -t "$p" 'claude' Enter
+# Launch each pane's agent after the layout is settled.
+for i in "${!PANES[@]}"; do
+  tmux send-keys -t "${PANES[$i]}" "$(launch_cmd "${AGENTS[$i]}")" Enter
 done
 
 # ── Prime the panes (live mode only): as each pane's relay registers, type
@@ -392,6 +471,15 @@ done
 # rider" as its live peer, not a subagent. Runs in the background so attaching
 # isn't delayed; if a pane never registers (relay missing, live mode off), it
 # just isn't primed and the manual kickoff lines printed below still apply.
+# The boot prime per agent. Claude Code has `/rapid` as a slash command; Codex
+# has no such command (a leading `/` opens its own command menu), so it gets the
+# same instruction in words — its copy of the skill picks it up from there.
+prime_line() {
+  case "$1" in
+    codex) printf '%s' 'Use the rapid skill: run its no-argument collab trigger (/rapid collab)' ;;
+    *) printf '%s' '/rapid collab' ;;
+  esac
+}
 LIVE="$(node -e 'const fs=require("fs"),os=require("os");try{const c=JSON.parse(fs.readFileSync(os.homedir()+"/.rapid/config.json","utf8"));process.stdout.write(c.collabLive?"1":"0")}catch{process.stdout.write("0")}')"
 if [ "$LIVE" = "1" ]; then
   (
@@ -410,13 +498,13 @@ const fs=require("fs"),os=require("os");
 try{const d=JSON.parse(fs.readFileSync(os.homedir()+"/.rapid/collab-panes.json","utf8"));
   const e=d[process.argv[1]];process.exit(e&&e.pane===process.argv[2]?0:1);}catch{process.exit(1);}' \
           "${SLUGS[$i]}" "${PANES[$i]}" 2>/dev/null; then
-          tmux send-keys -t "${PANES[$i]}" -l '/rapid collab' 2>/dev/null
+          tmux send-keys -t "${PANES[$i]}" -l "$(prime_line "${AGENTS[$i]}")" 2>/dev/null
           sleep 1
           tmux send-keys -t "${PANES[$i]}" Enter 2>/dev/null
           sleep 2
           # send-keys can lose the Enter mid-render; if the line still sits in
           # the composer, hit Enter again (a spare Enter on empty is a no-op).
-          if tmux capture-pane -p -t "${PANES[$i]}" 2>/dev/null | tail -6 | grep -qE '/rapid collab[[:space:]]*$'; then
+          if tmux capture-pane -p -t "${PANES[$i]}" 2>/dev/null | tail -6 | grep -qE 'rapid collab\)?[[:space:]]*$'; then
             tmux send-keys -t "${PANES[$i]}" Enter 2>/dev/null
           fi
         else
@@ -429,7 +517,7 @@ try{const d=JSON.parse(fs.readFileSync(os.homedir()+"/.rapid/collab-panes.json",
   ) >/dev/null 2>&1 &
 fi
 
-save_composition 0 "$SESS" "$NAME" "${SLUGS[@]}"
+save_composition 0 "$SESS" "$NAME" "${TOKENS[@]}"
 
 echo "Opened tmux '$SESS' with ${#SLUGS[@]} panes — driver: ${SLUGS[0]}:"
 for i in "${!SLUGS[@]}"; do echo "  ${PANES[$i]}  ${SLUGS[$i]}  (${WTS[$i]})"; done
